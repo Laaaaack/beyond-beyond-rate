@@ -13,13 +13,25 @@ Two architectures are compared throughout:
 - **Learnable Tau (SGD):** Feedforward SNN with learnable synaptic weights and shared membrane time constant tau.
 - **Tau + Delay (SGD-delay):** Same as above, augmented with learnable axonal delays.
 
-Both use the SLAYER framework with Spikemax loss. A **MLP baseline** (trained on spike count vectors only) serves as a proxy for rate-only performance.
+Both use the SLAYER framework (SRMALPHA neuron model) with Spikemax loss. A **MLP baseline** (trained on spike count vectors only) serves as a proxy for rate-only performance.
+
+### SNN Structure by Experiment
+
+| Experiment | Hidden Layers | Hidden Size | Delay Config | Notes |
+|---|---|---|---|---|
+| ISI | 1 | 100 | max 15 time steps, both layers | — |
+| CCISI | 1 | 100 | max 10 time steps, both layers | — |
+| Coincidence | 1 | 3 | max 15 time steps, hidden only | Hidden size matches 3-class task |
+| SHD / SSC | 2 | 128 each | 0–64 time steps, after each hidden layer | Delays dynamically expandable |
+| Perturbation / Reversal | 2 | 128 each | (same as SHD/SSC) | Reuses SHD/SSC models |
 
 ---
 
 ## Experiment 1: Synthetic ISI Task
 
 **Goal:** Test if SNNs can learn from inter-spike interval (ISI) structure alone.
+
+**SNN Setup:** 1 hidden layer (Input → 100 hidden → Output), SRMALPHA neurons, learnable tau (init 50 ms). Delay variant adds learnable delays (max 15 time steps) on both layers.
 
 **Setup:**
 - 10 input neurons, each generating spike pairs with a class-specific ISI delta and firing rate r.
@@ -43,6 +55,8 @@ Both use the SLAYER framework with Spikemax loss. A **MLP baseline** (trained on
 
 **Goal:** Test if delays help learn cross-neuron causal temporal dependencies (polychrony).
 
+**SNN Setup:** 1 hidden layer (Input → 100 hidden → Output), SRMALPHA neurons, learnable tau (init 50 ms). Delay variant adds learnable delays (max 10 time steps) on both layers.
+
 **Setup:**
 - 20 input neurons arranged in pairs (a, b). Neuron a fires first, neuron b fires at t + delta.
 - Same perturbation scheme as ISI (factor f).
@@ -63,6 +77,8 @@ Both use the SLAYER framework with Spikemax loss. A **MLP baseline** (trained on
 ## Experiment 3: Synthetic Coincidence Task
 
 **Goal:** Test if SNNs can learn from synchrony/coincidence statistics (not precise spike patterns).
+
+**SNN Setup:** 1 hidden layer (Input → **3** hidden → 3 output), SRMALPHA neurons, learnable tau (init 50 ms, clamped 10–100 ms). Delay variant adds learnable delays (max 15 time steps) on hidden layer only. Hidden size matches the 3-class task.
 
 **Setup:**
 - 60 input neurons divided into 3 groups of 20.
@@ -85,6 +101,8 @@ Both use the SLAYER framework with Spikemax loss. A **MLP baseline** (trained on
 ## Experiment 4: Realistic Speech Datasets (SHD & SSC)
 
 **Goal:** Test spike timing learning on real-world auditory tasks (Spiking Heidelberg Digits / Spiking Speech Commands).
+
+**SNN Setup:** 2 hidden layers (Input → 128 → 128 → num_classes output), SRMALPHA neurons (theta=10, tauRef=2). Delay variant adds learnable delays (range 0–64 time steps, dynamically expandable) after each hidden layer. SHD output = 20 classes; SSC output = number of speech command classes.
 
 ### Dataset Construction
 
@@ -120,6 +138,8 @@ Three variants with progressively removed rate information:
 
 **Goal:** Determine what types of timing information the networks actually use.
 
+**SNN Setup:** Reuses the SHD/SSC models (2 hidden layers, 128 neurons each). No new architectures; perturbation is applied to the data only.
+
 ### Perturbation Types
 - **Per-spike jitter:** Independent Gaussian noise added to each spike time (sigma: 0-25 ms).
 - **Per-neuron jitter:** Same Gaussian shift applied to ALL spikes from a given neuron (preserves intra-neuron ISI, disrupts cross-neuron timing).
@@ -141,6 +161,8 @@ Three variants with progressively removed rate information:
 ## Experiment 6: Time Reversal
 
 **Goal:** Test whether networks use temporal order / causal structure (like humans are sensitive to reversed speech).
+
+**SNN Setup:** Reuses the SHD/SSC models (2 hidden layers, 128 neurons each). Time reversal is applied to the data only.
 
 **Setup:**
 - Train on original data, test on time-reversed spike trains.
