@@ -2,6 +2,8 @@ slayerPytorch-master/
 .claude/
 papers/
 CLAUDE.md
+*dataset*
+*coin_data_lam*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
