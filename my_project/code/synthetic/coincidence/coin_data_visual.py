@@ -21,18 +21,18 @@ GROUP_SIZE = 20
 GROUP_BOUNDARIES = [GROUP_SIZE, GROUP_SIZE * 2]   # Neuron indices of group splits.
 
 # Which lambda values to display as columns (must match generated files).
-DISPLAY_LAMBDAS = [0.0, 0.5]
+DISPLAY_LAMBDAS = [0.0, 0.5, 1.0]
 
-# Background colours for the three groups, per class.
-# ON groups get a light background; OFF groups get a slightly darker one.
-# Layout: (class, group_index) → 'on' | 'off'
-CLASS_GROUP_STATES = {
-    "A": ["on",  "on",  "off"],
-    "B": ["on",  "off", "on"],
-    "C": ["off", "on",  "on"],
+# Which two groups coincide per class — the third is anti-phase.
+# Index into groups [g1=0, g2=1, g3=2].
+CLASS_COINCIDENT_PAIR = {
+    "A": (0, 1),   # g1 & g2 coincide, g3 anti-phase
+    "B": (0, 2),   # g1 & g3 coincide, g2 anti-phase
+    "C": (1, 2),   # g2 & g3 coincide, g1 anti-phase
 }
-COLOR_ON  = "#d9d9d9"
-COLOR_OFF = "#a0a0a0"
+WINDOW_SIZE = 200
+COLOR_ON  = "#e0e0e0"
+COLOR_OFF = "#b0b0b0"
 BOUNDARY_COLOR = "#e03030"
 SPIKE_COLOR = "black"
 
@@ -76,26 +76,89 @@ def pick_example(
 
 # ================== Plotting ==================
 
+def _infer_window_states(
+    spike_train: np.ndarray,
+    class_name: str,
+) -> np.ndarray:
+    """Infer per-window ON/OFF state from spike counts.
+
+    For each 200ms window, count total spikes in the coincident pair of
+    groups.  If the coincident pair fires more than the anti-phase group,
+    the window is ON (True); otherwise OFF (False).
+
+    Args:
+        spike_train: Binary array of shape (n_neurons, n_timesteps).
+        class_name: One of 'A', 'B', 'C'.
+
+    Returns:
+        Boolean array of length n_windows (True = ON window).
+    """
+    n_timesteps = spike_train.shape[1]
+    n_windows = n_timesteps // WINDOW_SIZE
+    pair = CLASS_COINCIDENT_PAIR[class_name]
+    anti = ({0, 1, 2} - set(pair)).pop()
+
+    group_slices = [
+        slice(0, GROUP_SIZE),
+        slice(GROUP_SIZE, GROUP_SIZE * 2),
+        slice(GROUP_SIZE * 2, GROUP_SIZE * 3),
+    ]
+
+    states = np.zeros(n_windows, dtype=bool)
+    for w in range(n_windows):
+        t0 = w * WINDOW_SIZE
+        t1 = t0 + WINDOW_SIZE
+        pair_count = (
+            spike_train[group_slices[pair[0]], t0:t1].sum()
+            + spike_train[group_slices[pair[1]], t0:t1].sum()
+        )
+        anti_count = spike_train[group_slices[anti], t0:t1].sum()
+        # Coincident pair fires more on average → ON window.
+        states[w] = pair_count / 2 > anti_count
+
+    return states
+
+
 def _add_group_backgrounds(
     ax: plt.Axes,
     class_name: str,
-    n_neurons: int,
+    spike_train: np.ndarray,
 ) -> None:
-    """Shade each neuron group background ON (light) or OFF (dark).
+    """Shade each group per-window: ON windows light, OFF windows dark.
+
+    The shading alternates every 200ms window, inferred from spike counts,
+    so the visual matches what the data generator produced.
 
     Args:
         ax: Axes to draw on.
         class_name: One of 'A', 'B', 'C'.
-        n_neurons: Total number of neurons.
+        spike_train: Binary array of shape (n_neurons, n_timesteps).
     """
-    states = CLASS_GROUP_STATES[class_name]
+    ax.set_facecolor("white")
+    n_neurons, n_timesteps = spike_train.shape
+    n_windows = n_timesteps // WINDOW_SIZE
     group_edges = [0] + GROUP_BOUNDARIES + [n_neurons]
 
-    for group_idx, (y_lo, y_hi) in enumerate(
-        zip(group_edges[:-1], group_edges[1:])
-    ):
-        color = COLOR_ON if states[group_idx] == "on" else COLOR_OFF
-        ax.axhspan(y_lo - 0.5, y_hi - 0.5, color=color, zorder=0)
+    pair = CLASS_COINCIDENT_PAIR[class_name]
+    window_states = _infer_window_states(spike_train, class_name)
+
+    for w in range(n_windows):
+        x0 = w * WINDOW_SIZE
+        x1 = x0 + WINDOW_SIZE
+        for group_idx, (y_lo, y_hi) in enumerate(
+            zip(group_edges[:-1], group_edges[1:])
+        ):
+            is_coincident = group_idx in pair
+            # ON window: coincident groups are bright (ON), anti-phase is dark (OFF).
+            # OFF window: reversed.
+            if window_states[w]:
+                color = COLOR_ON if is_coincident else COLOR_OFF
+            else:
+                color = COLOR_OFF if is_coincident else COLOR_ON
+            ax.fill_between(
+                [x0, x1], y_lo - 0.5, y_hi - 0.5,
+                facecolor=color, edgecolor="none", zorder=0,
+            )
 
 
 def _draw_raster(
@@ -171,7 +234,7 @@ def plot_raster_grid(
 
             n_neurons, n_timesteps = spike_train.shape
 
-            _add_group_backgrounds(ax, class_name, n_neurons)
+            _add_group_backgrounds(ax, class_name, spike_train)
             _draw_raster(ax, spike_train)
             _add_group_boundary_lines(ax)
 
