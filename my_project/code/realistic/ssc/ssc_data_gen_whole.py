@@ -77,7 +77,7 @@ Y_all = np.concatenate([Y_train_all, Y_test_all, Y_valid_all], axis=0)
 # === Save ===
 import h5py
 
-save_path = ".\ssc_data"
+save_path = "./ssc_whole.h5"
 
 with h5py.File(save_path, "w") as f:
     f.create_dataset("X", data=X_all, compression="gzip")
