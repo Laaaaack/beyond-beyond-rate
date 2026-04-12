@@ -4,6 +4,8 @@ papers/
 CLAUDE.md
 *dataset*
 *coin_data_lam*
+shd_data/
+ssc_data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
