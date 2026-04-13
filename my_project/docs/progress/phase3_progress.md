@@ -4,6 +4,8 @@
 
 Apply the same biologically inspired perturbation types from Beyond Rate (per-spike jitter, per-neuron jitter, spike deletion) to the **1st hidden layer output** instead of the input. This probes what type of temporal information the internal representation carries.
 
+> **Key difference from Phases 1, 2, and 4:** In those phases, perturbation is applied only at **test time** to a single trained model. Here, following the original paper's motivation, **new models are trained from scratch under each perturbation setting**. The rationale is that jitter and deletion are plausibly present in biological systems during training itself — so the network should be evaluated having been exposed to that noise throughout training, not just at inference.
+
 ## Perturbation Types (applied at hidden layer)
 
 1. **Per-spike jitter:** Independent Gaussian noise (sigma: 0–25 ms) added to each spike time in the hidden layer output.
