@@ -231,10 +231,10 @@ def build_dataset() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.
     col_max = points.max(axis=0)
 
     firing_rates = linear_map_to_steps(
-        points[:, 0], col_min[0], col_max[0], 0.1, 3, step=0.1,
+        points[:, 0], col_min[0], col_max[0], 2, 10, step=2,
     )
     isis = linear_map_to_steps(
-        points[:, 1], col_min[1], col_max[1], 1, 100, step=1,
+        points[:, 1], col_min[1], col_max[1], 1, 50, step=1,
     )
 
     return points, labels, firing_rates, isis, col_min, col_max
@@ -273,8 +273,8 @@ def plot_dataset(
     # Use a continuous (unstepped) mapping so the line stays straight.
     x_raw = np.linspace(col_min[0], col_max[0], 200)
     y_raw = BOUNDARY_SLOPE * x_raw + BOUNDARY_INTERCEPT
-    x_mapped = (x_raw - col_min[0]) / (col_max[0] - col_min[0]) * (3 - 0.1) + 0.1
-    y_mapped = (y_raw - col_min[1]) / (col_max[1] - col_min[1]) * (100 - 1) + 1
+    x_mapped = (x_raw - col_min[0]) / (col_max[0] - col_min[0]) * (10 - 2) + 2
+    y_mapped = (y_raw - col_min[1]) / (col_max[1] - col_min[1]) * (50 - 1) + 1
     plt.plot(
         x_mapped, y_mapped, color="black", linestyle="--",
         label="Boundary line",
