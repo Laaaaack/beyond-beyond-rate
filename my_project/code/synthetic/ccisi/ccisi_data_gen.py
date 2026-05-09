@@ -32,12 +32,12 @@ PLANE_RADIUS = 10
 MIN_DISTANCE_TO_BOUNDARY = 2.5
 BOUNDARY_SLOPE = -1 / 2
 BOUNDARY_INTERCEPT = 0
-TIME_STEPS = 10000
+TIME_STEPS = 1000
 NUM_NEURONS = 20        # Must be even: neurons are processed in (a, b) pairs.
 MAX_PLACEMENT_ATTEMPTS = 500
 NUM_WORKERS = 4
 
-OUTPUT_DIR = "."
+OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILENAME = "ccisi_dataset.h5"
 OUTPUT_PATH = os.path.join(OUTPUT_DIR, OUTPUT_FILENAME)
 
@@ -135,7 +135,7 @@ def generate_spike_train(
     firing_rate: float,
     isi: float,
     num_neurons: int = 20,
-    time_steps: int = 10000,
+    time_steps: int = 1000,
     max_attempts: int = 100,
 ) -> np.ndarray:
     """Generate a CCISI multi-neuron spike train.
