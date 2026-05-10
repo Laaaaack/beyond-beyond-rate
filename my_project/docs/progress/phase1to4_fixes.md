@@ -292,16 +292,19 @@ value is "delayed spikes" rather than "raw spikes". Found in:
 
 - `code/realistic/shd/shd_train.ipynb` (line ~453)
 - `code/realistic/ssc/ssc_train.ipynb` (line ~484)
-- `code/synthetic/isi/isi_delay.ipynb` (line ~450)
 - `code/perturbation/inverse/inverse_train.ipynb` (line ~392)
 - `code/perturbation/jitter/jitter_train.ipynb` (line ~481)
 - `code/perturbation/shift/shift_train.ipynb` (line ~450)
 - `code/perturbation/deletion/deletion_train.ipynb` (line ~601)
 
-`coin_delay.ipynb` and `ccisi_delay.ipynb` already follow the cleaner pattern
-(delay sits at the start of `_second_layer`, after the perturbation hook,
-or on the input side before the first spike). Both have an explicit comment
-calling out the binary-input requirement of the perturbation function.
+`isi_delay.ipynb`, `coin_delay.ipynb`, and `ccisi_delay.ipynb` already follow
+the cleaner pattern (delay sits at the start of `_second_layer`, after the
+perturbation hook, or on the input side before the first spike — `_first_layer`
+ends with `slayer.spike(...)` so the hook receives strictly binary spikes).
+All three have an explicit comment calling out the binary-input requirement
+of the perturbation function. Verified 2026-05-10 by reading
+`_first_layer` / `_second_layer` in each of the three synthetic delay
+notebooks; the previous audit entry for `isi_delay.ipynb` was stale.
 
 ### Recommendation
 
@@ -328,3 +331,139 @@ Issue 2 does not require re-running anything that wasn't already going to be
 re-run for Issue 1. The Issue 1 STE retraining will fold the refactor in
 naturally for jitter / shift / deletion. The realistic and inverse
 notebooks can have the refactor applied opportunistically without retraining.
+
+---
+
+## Issue 3 — Coincidence dataset / SLAYER `tSample` mismatch
+
+**Status:** code patched 2026-05-10 (option 2 chosen — generator updated to
+match the notebooks). Dataset regeneration and notebook re-run still pending.
+Surfaced 2026-05-10.
+
+### Symptom
+
+`coin_data_gen.py` produced samples with `N_TIMESTEPS = 4000` (20 windows of
+200 ms each), but both training notebooks declare
+`SIM_PARAMS = {"Ts": 1, "tSample": 1000}` and a dead-code constant `T = 1000`,
+then load the data without slicing or padding. The notebooks' own startup cell
+prints `Time steps: 4000`, contradicting their own `tSample=1000`.
+
+| File | Declared time axis | Actual data (pre-fix) |
+|---|---|---|
+| `code/synthetic/coincidence/coin_data_gen.py:26` | `N_TIMESTEPS = 4000` | wrote `(60, 4000)` |
+| `code/synthetic/coincidence/coin_tau.ipynb:79,93` | `tSample=1000`, `T=1000` (unused) | loaded `(60, 4000)` |
+| `code/synthetic/coincidence/coin_delay.ipynb:102` | `tSample=1000`, `T=1000` (unused) | loaded `(60, 4000)` |
+
+SLAYER does not error — `tSample` is used for internal time-axis bookkeeping
+(loss masks, PSP filter length scaling, etc.), not as a hard bound on input
+length — so the mismatch is silent. The previously trained checkpoints
+(`data/coin_tau_lam*.pt`, `data/coin_delay_lam*.pt`) embed whatever convention
+SLAYER ended up applying with this inconsistency in place and should be
+considered stale once the dataset is regenerated.
+
+### Fix applied — option 2 (match data to notebooks)
+
+`coin_data_gen.py:26` was changed from `N_TIMESTEPS = 4000` to
+`N_TIMESTEPS = 1000`. The generator's `n_windows = N_TIMESTEPS // WINDOW_SIZE`
+expression now produces 5 coincidence windows per trial (was 20); no other
+generator changes were needed because the rest of the pipeline is parametric
+on `N_TIMESTEPS`. Both notebooks already declare `tSample=1000` / `T=1000`,
+so they need no edits — once the dataset is regenerated they will load
+1000-step samples that match.
+
+The alternative (option 1: bump notebooks to `tSample=4000`) was rejected
+because per-trial signal per window is bounded — preserving 20 windows mostly
+buys redundancy, not new structure — and option 2 keeps wall-clock training
+time roughly 4× lower per epoch.
+
+### Remaining work
+
+- [x] `my_project/code/synthetic/coincidence/coin_data_gen.py` — patched
+  (`N_TIMESTEPS = 1000`).
+- [ ] Regenerate `coin_dataset.mat`: run
+  `python coin_data_gen.py` from `my_project/code/synthetic/coincidence/`.
+  This overwrites the per-lambda `coin_data_lam*.pt` files and the combined
+  `coin_dataset.mat`.
+- [ ] Re-run `coin_tau.ipynb` end-to-end (retrains all lambda models on
+  the new 1000-step data; the cached `Time steps: 4000` cell output will
+  refresh to `Time steps: 1000`).
+- [ ] Re-run `coin_delay.ipynb` end-to-end (same).
+- [ ] Discard the old `data/coin_tau_lam*.pt` and `data/coin_delay_lam*.pt`
+  checkpoints — they were trained with the silent mismatch in place and are
+  not comparable to post-fix runs.
+
+### Cross-check: other phases
+
+Re-verified 2026-05-10 by reading both the data generators and the
+notebooks (a `tSample`-only grep was not sufficient — it missed the
+length discrepancy described below for realistic).
+
+- **Synthetic ISI** (`isi_tau.ipynb`, `isi_delay.ipynb`): `tSample=1000`,
+  dataset shape `(N, 10, 1000)`. Clean match.
+- **Synthetic CCISI** (`ccisi_tau.ipynb`, `ccisi_delay.ipynb`):
+  `tSample=1000`, but the notebooks' cached output prints
+  `Time steps: 10000` and the load line shows `X=(3598, 20, 10000)`. **Same
+  family as coincidence — flag for follow-up; re-run the load cell against
+  the current `ccisi_dataset.h5` to confirm whether the cached output is
+  stale or the bug is live. If live, decide between option 1
+  (bump `tSample` to 10000) and option 2 (regenerate at 1000).**
+- **Realistic SHD/SSC** (`shd_train.ipynb`, `ssc_train.ipynb`): notebooks
+  declare `tSample=200`, but the underlying generators
+  (`shd_data_gen.py:sparse_to_dense(..., nb_steps=100, max_time=1.4)`,
+  `ssc_data_gen_whole.py:nb_steps=100`, `ssc_data_gen_norm_part.py`
+  inherits T from `ssc_whole.h5`) all produce `T=100` raw bins.
+  **The 100 → 200 gap is actively handled** by the
+  `load_shd_data(..., target_T=SIM_PARAMS["tSample"])` loader, which pads
+  with trailing zeros (`if T < target_T: padded[:, :, :T] = X`).
+
+  **This is the original Beyond Rate convention, not a my_project quirk.**
+  Cross-checked 2026-05-10 against the upstream paper code:
+  - `temporal_shd_project/code/realistic/shd/shd_data_gen.py:28` is
+    byte-identical to my_project's version (`nb_steps=100, max_time=1.4`).
+  - `temporal_shd_project/code/realistic/shd/shd_train.py:349` declares
+    `sim_param = dict(Ts=1, tSample=200)`; lines 361–369 perform the same
+    `T_target = 200; if T < T_target: padded[:, :, :T] = X` pad with the
+    comment `# Pad time dimension to 200 as in notebook`.
+  - The SpikeRate loss config (`shd_train.py:164`,
+    `ssc_train.py:185`) sets `tgtSpikeRegion: {'start': 0, 'stop': 200}`,
+    which only makes sense if the simulation actually runs for 200 bins.
+    The trailing 100 zero-bins are settling time during which the readout
+    accumulates spikes; the padding is load-bearing.
+
+  Caveat for SSC: `temporal_shd_project/code/realistic/ssc/ssc_train.py`
+  declares `tSample=200` but does **not** pad inside the script — it
+  loads pre-split per-f h5 files directly via `SpikeDataset` and feeds
+  them to SLAYER as-is. Either an unseen preprocessing step pads them
+  to 200, or the original SSC runs went out with the same silent
+  length mismatch we just fixed in coincidence. my_project's SSC
+  notebook is **stricter than the original**: it routes SSC through
+  the same `load_shd_data(..., target_T=200)` padder used for SHD,
+  making the convention explicit. Treat this as a cleanup rather than
+  a port issue.
+
+- **Perturbation** (`inverse_train.ipynb`, `jitter_train.ipynb`,
+  `shift_train.ipynb`, `deletion_train.ipynb`): all share the SHD pipeline
+  — `tSample=200`, same `load_shd_data(..., target_T=200)` padder. Same
+  100 → 200 padding as realistic. By-design, not a bug.
+
+#### Secondary concern: physical-time interpretation in SHD/SSC
+
+`nb_steps=100` over `max_time=1.4 s` means each SHD/SSC bin represents
+~14 ms of recording, but the training notebooks declare `Ts=1` (1
+simulation unit per bin). SLAYER itself is bin-agnostic, so this doesn't
+cause runtime errors; however the `LIF_PARAMS` time constants
+(`tauSr`, `tauRef`, etc.) and the learned `tau` reported in the
+"Model Analysis" cells are in *bin units*, not milliseconds. Reading the
+learned `tau` of e.g. 50 as "50 ms" would be wrong by ~14× for SHD/SSC.
+Carried over from Beyond Rate's setup; flagged here for future
+interpretation work, not part of the Issue 3 fix.
+
+#### Mismatch summary
+
+| Phase | Status |
+|---|---|
+| Coincidence | confirmed mismatch; generator patched (option 2). Regenerate + re-run pending. |
+| CCISI | suspected mismatch (cached output suggests `T=10000` vs `tSample=1000`). Verify with a fresh load cell run. |
+| ISI | clean. |
+| Realistic SHD/SSC | 100→200 zero-padding traces back to the original Beyond Rate paper (verified in `temporal_shd_project`); load-bearing for the SpikeRate readout window `[0, 200]`. Not a bug. Bin-vs-ms interpretation flagged separately. SSC: my_project port is stricter than the original (explicit `target_T=200` pad). |
+| Perturbation (jitter/shift/deletion/inverse) | same as realistic SHD/SSC. Not a bug. |

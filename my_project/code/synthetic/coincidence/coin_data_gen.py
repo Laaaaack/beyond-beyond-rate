@@ -23,7 +23,7 @@ from scipy.stats import poisson
 N_NEURONS_OVERLAP = 20      # Neurons used only when computing the lambda mapping.
 GROUP_SIZE = 20             # Neurons per group.
 N_NEURONS = GROUP_SIZE * 3  # Total neurons (3 groups).
-N_TIMESTEPS = 4000
+N_TIMESTEPS = 1000
 WINDOW_SIZE = 200
 SPIKE_OFFSET_START = 50     # Spike window starts this many steps into each window.
 SPIKE_OFFSET_END = 150      # Spike window ends this many steps into each window.
@@ -32,7 +32,7 @@ N_SAMPLES_PER_CLASS = 500
 LAMBDA_PRIME_VALUES = [round(v, 1) for v in np.arange(0.0, 1.1, 0.1)]
 CLASS_MAP = {"A": 0, "B": 1, "C": 2}
 
-OUTPUT_DIR = "."
+OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 COMBINED_FILENAME = "coin_dataset.mat"
 
 
