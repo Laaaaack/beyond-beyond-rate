@@ -336,9 +336,9 @@ notebooks can have the refactor applied opportunistically without retraining.
 
 ## Issue 3 — Coincidence dataset / SLAYER `tSample` mismatch
 
-**Status:** code patched 2026-05-10 (option 2 chosen — generator updated to
-match the notebooks). Dataset regeneration and notebook re-run still pending.
-Surfaced 2026-05-10.
+**Status:** resolved 2026-05-18. Generator patched, dataset regenerated, and
+both coincidence notebooks re-run end-to-end on the 1000-step data. Surfaced
+2026-05-10.
 
 ### Symptom
 
@@ -380,17 +380,17 @@ time roughly 4× lower per epoch.
 
 - [x] `my_project/code/synthetic/coincidence/coin_data_gen.py` — patched
   (`N_TIMESTEPS = 1000`).
-- [ ] Regenerate `coin_dataset.mat`: run
+- [x] Regenerated `coin_dataset.mat` by running
   `python coin_data_gen.py` from `my_project/code/synthetic/coincidence/`.
-  This overwrites the per-lambda `coin_data_lam*.pt` files and the combined
-  `coin_dataset.mat`.
-- [ ] Re-run `coin_tau.ipynb` end-to-end (retrains all lambda models on
-  the new 1000-step data; the cached `Time steps: 4000` cell output will
-  refresh to `Time steps: 1000`).
-- [ ] Re-run `coin_delay.ipynb` end-to-end (same).
-- [ ] Discard the old `data/coin_tau_lam*.pt` and `data/coin_delay_lam*.pt`
-  checkpoints — they were trained with the silent mismatch in place and are
-  not comparable to post-fix runs.
+  Overwrote the per-lambda `coin_data_lam*.pt` files and the combined
+  `coin_dataset.mat` with 1000-step data.
+- [x] Re-ran `coin_tau.ipynb` end-to-end on the new 1000-step data;
+  cached cell output now reports `Time steps: 1000` and all lambda models
+  retrained from scratch.
+- [x] Re-ran `coin_delay.ipynb` end-to-end (same).
+- [x] Discarded the old (pre-fix) `data/coin_tau_lam*.pt` and
+  `data/coin_delay_lam*.pt` checkpoints; current ones are the post-fix
+  retrains.
 
 ### Cross-check: other phases
 
@@ -462,7 +462,7 @@ interpretation work, not part of the Issue 3 fix.
 
 | Phase | Status |
 |---|---|
-| Coincidence | confirmed mismatch; generator patched (option 2). Regenerate + re-run pending. |
+| Coincidence | resolved 2026-05-18. Generator patched (option 2), dataset regenerated, both notebooks re-run end-to-end. |
 | CCISI | suspected mismatch (cached output suggests `T=10000` vs `tSample=1000`). Verify with a fresh load cell run. |
 | ISI | clean. |
 | Realistic SHD/SSC | 100→200 zero-padding traces back to the original Beyond Rate paper (verified in `temporal_shd_project`); load-bearing for the SpikeRate readout window `[0, 200]`. Not a bug. Bin-vs-ms interpretation flagged separately. SSC: my_project port is stricter than the original (explicit `target_T=200` pad). |
