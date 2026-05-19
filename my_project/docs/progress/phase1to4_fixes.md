@@ -1,39 +1,403 @@
-# Phase 1–4 Fixes
+# Phase 1–4 Refactor: Train-at-f / Eval-at-f Protocol
 
-A running log of bugs that affect multiple notebooks/scripts and need to be
-swept across the codebase.
+This branch (`version_2`) ports every training notebook in `my_project/code/`
+to the **train-at-f / eval-at-f** protocol: for each perturbation level *f*
+(or σ, p_d) we train one model from scratch with the perturbation active at
+the 1st hidden layer during training, then evaluate it at the same level —
+mirroring how the original *Beyond Rate* paper runs its input-perturbation
+sweeps, just moved to the hidden layer.
+
+The doc below is organised around the refactor itself. Section 7 keeps the
+underlying bug analysis so the *why* behind the STE wrapper and the
+delay-routing refactor stays visible.
 
 ---
 
-## Issue 1 — Hidden-layer perturbation severs the autograd graph during training
+## 1. Goal
 
-**Status:** open. `isi_tau.ipynb` and `isi_delay.ipynb` already patched (STE).
-All other notebooks listed below still have the bug.
+For every notebook in `my_project/code/`:
 
-### Symptom
+- Training forward pass takes the perturbation level as an argument
+  (`forward(x, f)` / `forward(x, sigma)` / `forward(x, p_d)`).
+- For each perturbation level in the sweep:
+  - Instantiate a **fresh** model (new seed-derived init).
+  - Train end-to-end with perturbation applied at the 1st hidden layer
+    output on **every batch**.
+  - Save the checkpoint with the level baked into the filename.
+  - Evaluate on the test set at the **same** level with `num_repeats` for
+    error bars.
+- Aggregate into a sweep result identical in shape to the previous
+  test-time-only sweep, so the downstream `result_visualization.ipynb`
+  notebooks continue to work.
+
+Two blockers must be resolved before this protocol gives interpretable
+curves:
+
+1. **Issue 1** (Section 7.1): perturbations that go through numpy or
+   `@torch.no_grad()` sever the autograd graph. Without an STE wrapper,
+   `fc1` / `psp_filter` / `delay1` receive zero gradient and the curve
+   collapses to a cliff+plateau.
+2. **Issue 2** (Section 7.2): in several notebooks `_first_hidden` ends
+   with `if use_delay: x = self.delay1(x)`. Cosmetic in the current
+   slayer (floors the delay, output stays binary), but it routes the
+   delay learning *downstream* of the perturbation hook, which makes
+   the perturbation site harder to audit. We refactor it out while we
+   are touching these cells anyway.
+
+---
+
+## 2. Current state per notebook
+
+| Notebook | `forward(x, f)`? | Hook sees binary? | STE? | Action |
+|---|---|---|---|---|
+| `synthetic/isi/isi_tau.ipynb` | **yes** | yes (`_first_layer` ends with `spike`) | **yes** | **done (2026-05-19) — refactored & re-run on `version_2`** |
+| `synthetic/isi/isi_delay.ipynb` | **yes** | yes (delay1 before fc1; delay2 in `_second_layer`) | **yes** | **done (2026-05-19) — refactored & re-run on `version_2`** |
+| `synthetic/ccisi/ccisi_tau.ipynb` | no | yes | n/a | add train-at-f path + STE |
+| `synthetic/ccisi/ccisi_delay.ipynb` | no | yes (delay1 before fc1; delay2 in `_second_layer`) | n/a | add train-at-f path + STE |
+| `synthetic/coincidence/coin_tau.ipynb` | no | yes | n/a | add train-at-f path + STE |
+| `synthetic/coincidence/coin_delay.ipynb` | no | yes (delay1 lives in `_second_layer`, after hook) | n/a | add train-at-f path + STE |
+| `realistic/shd/shd_train.ipynb` | no | **no** (delay after spike in `_first_hidden`) | n/a | add train-at-f path + STE + delay refactor |
+| `realistic/ssc/ssc_train.ipynb` | no | **no** (delay after spike) | n/a | add train-at-f path + STE + delay refactor |
+| `perturbation/jitter/jitter_train.ipynb` | **yes (buggy)** | no | **missing** | add STE + delay refactor; retrain σ>0 |
+| `perturbation/shift/shift_train.ipynb` | **yes (buggy)** | no | **missing** | add STE + delay refactor; retrain σ>0 |
+| `perturbation/deletion/deletion_train.ipynb` | **yes (buggy)** | no | **missing** | add STE + delay refactor; retrain pd>0 |
+| `perturbation/inverse/inverse_train.ipynb` | no | no | n/a | add train-at-f path + STE + delay refactor; mirror for reversal |
+
+`isi_tau` currently uses a GPU-vectorised `perturb_hidden_batch` decorated
+with `@torch.no_grad()`. That decorator severs the graph just like the
+numpy round-trip does — for eval-only it is fine, but the moment the call
+moves into the training forward pass it needs the STE wrapper too. Same
+applies wherever `perturb_hidden_batch` or any other `*_hidden_batch`
+helper is used.
+
+---
+
+## 3. The common refactor pattern
+
+The same six edits apply to every notebook (with minor naming differences:
+`f` for synthetic / SHD / SSC / inverse, `sigma` for jitter / shift, `p_d`
+for deletion). Apply them in this order inside each notebook so the
+diagnostics catch problems early.
+
+### 3.1 Pull the perturbation level into a config block
+
+At the top configuration cell, replace the existing `F_VALUES` /
+`SIGMA_VALUES` / `P_D_VALUES` list with the **training** sweep:
+
+```python
+PERT_VALUES = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]   # name varies per notebook
+NUM_REPEATS = 3
+```
+
+For SHD / SSC and the perturbation/* notebooks that already have a
+multi-sigma loop, the list already exists — just rename for consistency
+and confirm σ=0 is in it (control baseline).
+
+### 3.2 Add an `_apply_perturbation` helper on the model
+
+Single source of truth for the STE wrapper. One method per model class:
+
+```python
+def _apply_perturbation(self, hidden: torch.Tensor, p: float) -> torch.Tensor:
+    if p <= 0:
+        return hidden
+    perturbed = perturb_hidden_batch(hidden, p)          # or jitter_hidden_batch, etc.
+    return hidden + (perturbed - hidden).detach()
+```
+
+Forward value is `perturbed`; backward gradient is the identity through
+`hidden`. This is the only change that actually unblocks training.
+
+### 3.3 Make `forward` take the perturbation level
+
+Collapse `forward` and `forward_with_hidden_perturbation` into a single
+method that always goes through the hook:
+
+```python
+def forward(self, x: torch.Tensor, p: float = 0.0) -> torch.Tensor:
+    x = self._prepare_input(x)
+    hidden = self._first_layer(x)            # or _first_hidden(x)
+    hidden = self._apply_perturbation(hidden, p)
+    return self._second_layer(hidden)        # or _second_hidden_and_output(hidden)
+```
+
+Remove the old eval-only `forward_with_hidden_perturbation`. `p=0.0`
+preserves the previous unperturbed behaviour exactly.
+
+For **inverse_train**, keep `forward_with_hidden_reversal` as a separate
+method (reversal is a different operation, not parameterised by *f*), but
+route it through the same STE wrapper and add a `f` argument too so the
+combined "reverse + relocate-f-fraction" case used in the current eval
+loop still works at train time.
+
+### 3.4 Move the delay out of `_first_hidden` where it follows `spike`
+
+This is the Issue 2 fix. Anti-pattern in `jitter_train`, `shift_train`,
+`deletion_train`, `inverse_train`, `shd_train`, `ssc_train`:
+
+```python
+def _first_hidden(self, x):
+    x = self.slayer.spike(self.fc1(self.slayer.psp(x)))
+    if self.use_delay:
+        x = self.delay1(x)        # <- runs AFTER spike, before the hook
+    return x
+```
+
+Pick one of two clean routings (match what the synthetic `*_delay`
+notebooks already do):
+
+- **Option A — delay on the input side** (mirrors `ccisi_delay`,
+  `isi_delay`): move `self.delay1` to the beginning of `_first_hidden`,
+  acting on `x` before `psp + fc1 + spike`. The "delay1" then represents
+  per-input-neuron axonal delay; the hook receives binary spikes
+  straight out of `slayer.spike`.
+- **Option B — delay at the start of `_second_layer`** (mirrors
+  `coin_delay`): drop `delay1` from `_first_hidden` entirely and apply
+  it as the first step of `_second_hidden_and_output(hidden)`, before
+  `psp + fc2 + spike`.
+
+Both routings are equivalent in expressive power; **Option B is the
+cleaner port for the 2-hidden-layer SHD-family notebooks** because the
+existing `delay1` was already attached to the hidden-layer output side.
+For the 1-hidden-layer ISI / coin / ccisi delay variants, Option A is
+already in place — no change needed beyond Section 3.2 / 3.3.
+
+After the move, add a sanity assertion (only inside the eval loop to
+keep training fast):
+
+```python
+assert torch.unique(hidden).tolist() in ([0.0], [1.0], [0.0, 1.0]), (
+    "Hidden hook expects binary spikes; got non-binary values."
+)
+```
+
+### 3.5 Rewrite the top-level run cell as a sweep over fresh models
+
+Replace the single `train_model(...)` + sweep-at-eval block with:
+
+```python
+all_models, all_logs, all_results = {}, {}, {}
+
+for p in PERT_VALUES:
+    print(f"\n=== Training at p={p} ===")
+    net, log = train_model(train_loader, val_loader, p=p, seed=SEED)
+    torch.save(net.state_dict(), f"data/{MODEL_PREFIX}_p{p}.pt")
+
+    result = test_with_repeats(net, test_loader, p=p, num_repeats=NUM_REPEATS)
+    all_models[p], all_logs[p], all_results[p] = net, log, result
+    print(f"p={p} | test acc = {result['mean']:.4f} ± {result['std']:.4f}")
+```
+
+`train_model` itself only needs three changes:
+
+1. Accept `p: float = 0.0` as an argument.
+2. In the training inner loop, call `net(x_batch, p=p)` instead of
+   `net(x_batch)`.
+3. In the validation inner loop, call `net(x_batch, p=p)` so the
+   best-checkpoint selection sees the same perturbation it will be
+   evaluated under.
+
+Seed handling: re-seed inside `train_model` (already done in most
+notebooks via `set_seed`) so each level gets the same starting weights —
+otherwise random init noise confounds the curve.
+
+### 3.6 Diagnostic block right after the sweep loop
+
+Single cell, no plotting, prints the upstream-weight norm and a binary
+check. Catches a re-occurrence of Issue 1 in five seconds rather than
+after a full re-run:
+
+```python
+print(f"{'p':>6}  {'fc1.norm':>10}  {'psp.norm':>10}  hidden_unique")
+for p, net in all_models.items():
+    fc1_norm = sum(param.norm().item() for n, param in net.named_parameters()
+                   if n.startswith("fc1.weight"))
+    psp_norm = (net.psp_filter.weight.norm().item()
+                if hasattr(net, "psp_filter") else float("nan"))
+    with torch.no_grad():
+        x, _ = next(iter(test_loader))
+        x = x.unsqueeze(2).unsqueeze(3).float().to(device)
+        h = net._first_layer(x) if hasattr(net, "_first_layer") else net._first_hidden(x)
+        unique = torch.unique(h).cpu().tolist()
+    print(f"{p:>6.2f}  {fc1_norm:>10.4f}  {psp_norm:>10.4f}  {unique}")
+```
+
+Expected: `fc1.norm` varies between p=0 and p>0 rows (training actually
+learned something different); `hidden_unique` is `[0.0, 1.0]` or
+`[0.0]`. If two p>0 rows are bit-identical, the STE didn't take — go
+back to Section 3.2.
+
+---
+
+## 4. Per-notebook steps
+
+The repeated work is captured by Section 3. The notes below only list
+**deltas from that template**. "Apply §3" means: do all of 3.1–3.6 with
+no special handling.
+
+### 4.1 Synthetic — ISI / CCISI / Coincidence (6 notebooks)
+
+- `isi_tau`, `ccisi_tau`, `coin_tau`: apply §3. No delay layer, so 3.4
+  is a no-op. `perturb_hidden_batch` is already GPU-vectorised; the STE
+  wrapper goes around the call site, not around the function itself.
+- `isi_delay`, `ccisi_delay`: apply §3. Delay routing is **already
+  clean** (`delay1` is on the input side, `delay2` lives in
+  `_second_layer`). 3.4 is a no-op. The optimiser already has three
+  parameter groups (regular / tau / delay) — leave the LR multipliers
+  intact.
+- `coin_delay`: apply §3. `delay1` already sits in `_second_layer`, no
+  delay-routing change needed.
+
+Coincidence is the slowest synthetic task (1000-step inputs at 32 batch
+size) — confirm Issue 3 (Section 7.3) is still resolved before running
+the sweep; if `coin_dataset.mat` reports `Time steps: 1000` in the load
+cell, it is.
+
+### 4.2 Realistic — SHD / SSC (2 notebooks)
+
+- Apply §3 in full. The §3.4 delay refactor matters here: pick
+  **Option B** (move `self.delay1(...)` to the start of
+  `_second_hidden_and_output`). The model has two hidden layers, so
+  `delay2` continues to live at the start of layer 3 inside the same
+  method; no change.
+- Architecture stays at `Input → fc1 → spike → [hook] → delay1 →
+  fc2 → spike → delay2 → fc3 → spike → output`.
+- `tSample=200` padding is load-bearing for the SpikeRate readout
+  window — do not touch it (see Section 7.3).
+- SHD-whole at `Input(700) → 128 → 128 → 20`, 500 epochs × 6 levels is
+  expensive (~5–6 h on the current box). Plan one variant at a time
+  rather than dispatching the whole sweep.
+
+### 4.3 Perturbation — jitter / shift / deletion / inverse (4 notebooks)
+
+- `jitter_train`, `shift_train`, `deletion_train`: these **already have**
+  the `forward(x, sigma)` / `forward(x, p_d)` plumbing from §3.3 and the
+  training loop from §3.5. The work is §3.2 (add STE) and §3.4 (move
+  `delay1` out of `_first_hidden` — Option B). After the STE is in
+  place, retraining is mandatory for every σ > 0 / p_d > 0 — the
+  current cached `data/jitter_*_sigma{1,3,...}.pt` files were trained
+  with `fc1` frozen at random init (see Section 7.1.3) and must be
+  discarded.
+- `inverse_train`: apply §3 in full. Extra step: route
+  `forward_with_hidden_reversal` through the same STE wrapper, since
+  the train-at-f / eval-at-f protocol should treat reversal as a
+  training-time intervention too. Keep `reverse=True/False` and
+  `f` as orthogonal axes — the eval grid already sweeps both.
+
+---
+
+## 5. Sanity checks (run once per notebook, after the first p>0 sweep)
+
+These catch every failure mode we have seen:
+
+1. **Diagnostic block from §3.6 prints non-identical `fc1.norm` across
+   p>0 rows.** If two rows match to four decimals, the upstream layer
+   never got a gradient — Issue 1 is back.
+2. **`hidden_unique` is `[0.0, 1.0]`.** Confirms the hook receives
+   binary spikes; if it sees fractional values, the delay-routing
+   refactor (§3.4) regressed.
+3. **Sweep curve is smoothly decaying, not cliff+plateau.** The
+   diagnostic signature of the autograd bug (Section 7.1.2).
+4. **Wall-clock per epoch at p>0 is within ~1.5× of p=0.** A
+   ~3× slowdown specifically at p>0 used to be the fingerprint of the
+   CPU↔GPU round-trip dominating the loop; if the STE fix landed but
+   the round-trip remained, the slowdown stays. For jitter / shift /
+   deletion specifically, consider porting `*_hidden_batch` to the
+   same GPU-vectorised pattern as `perturb_hidden_batch` in
+   `isi_tau`, but this is an optimisation, not a correctness fix.
+5. **Clean baseline (p=0) accuracy matches the existing test-time-only
+   p=0 number to within a few %.** The p=0 forward path is unchanged;
+   any large gap means the seed / data-loader / optimiser was
+   inadvertently altered while editing.
+
+---
+
+## 6. Re-run plan and cost
+
+Trained models live under each notebook's `data/` directory. Old
+checkpoints from the test-time-only protocol use names like
+`isi_tau_trained.pt` (single file) and need to be replaced with the
+per-p set `isi_tau_p0.0.pt`, `isi_tau_p0.2.pt`, …
+
+| Family | Per-model time (current box) | Models | Total |
+|---|---|---|---|
+| ISI (tau, delay) | ~5 / 7 min | 6 levels × 2 = 12 | ~75 min |
+| CCISI (tau, delay) | similar to ISI | 12 | ~80 min |
+| Coincidence (tau, delay) | similar to ISI | 12 | ~80 min |
+| SHD (whole, part, norm × tau, delay) | 16–50 min depending on variant | 6 × 6 = 36 | one day each variant |
+| SSC (part, norm × tau, delay) | similar to SHD | 24 | similar |
+| Jitter / shift / deletion (× whole/part/norm × delay/nodelay) | 16–50 min | already sweeps 6 levels per variant | retrain σ>0 / pd>0 = 5 per variant |
+| Inverse (× delay/nodelay) | 16–50 min | 6 × 2 = 12 | one afternoon |
+
+Order:
+
+1. **ISI tau** first — fastest, tightest signal, smallest blast radius
+   if the refactor template is wrong.
+2. **ISI delay**, then **CCISI / Coincidence** in either order — they
+   share the refactor template, so any issue surfaces once and gets
+   fixed across all of them.
+3. **Jitter / shift / deletion** next — they only need §3.2 + §3.4;
+   the existing curves under `log/` give a clean before/after to
+   verify the fix flipped the cliff+plateau into smooth decay.
+4. **Inverse**.
+5. **SHD**, then **SSC**. Highest wall-clock cost — only run after
+   the template is validated end-to-end on at least one synthetic
+   notebook and one perturbation/* notebook.
+
+Discard old checkpoints **only** after the new ones land
+(`mv data/ data.bak/` rather than `rm`).
+
+---
+
+## 7. Reference: original bug analysis (preserved)
+
+The diagnoses below are what the refactor in Section 3 is responding to.
+Kept verbatim except for light reformatting.
+
+### 7.1 Issue 1 — Hidden-layer perturbation severs the autograd graph during training
+
+#### 7.1.1 Symptom
 
 When a perturbation function applied to hidden-layer spikes goes through
-numpy (`.detach().cpu().numpy() → ... → torch.from_numpy(...)`), the returned
-tensor is a fresh leaf with no edge in the autograd graph. If that tensor is
-fed into the rest of the forward pass during **training**, `loss.backward()`
-propagates gradients only through layers downstream of the perturbation site.
-All upstream layers (e.g. `fc1`, `psp_filter`, `delay1`) receive **zero
-gradient** for any perturbation level > 0 and stay frozen at their
-initialization for the entire run.
+numpy (`.detach().cpu().numpy() → ... → torch.from_numpy(...)`) or
+`@torch.no_grad()`, the returned tensor is a fresh leaf with no edge in
+the autograd graph. If that tensor is fed into the rest of the forward
+pass during **training**, `loss.backward()` propagates gradients only
+through layers downstream of the perturbation site. All upstream layers
+(e.g. `fc1`, `psp_filter`, `delay1`) receive **zero gradient** for any
+perturbation level > 0 and stay frozen at their initialization for the
+entire run.
 
-This was previously safe because perturbation was applied only at evaluation
-(under `torch.no_grad()`). The train-at-f / eval-at-f protocol moved
-perturbation into the training forward pass, which is when the bug becomes
-silent-but-fatal.
+This was previously safe because perturbation was applied only at
+evaluation (under `torch.no_grad()`). The train-at-f / eval-at-f
+protocol moves perturbation into the training forward pass, which is
+when the bug becomes silent-but-fatal.
 
-### How to spot it
+#### 7.1.2 Diagnostic signature: cliff + plateau
 
-Diagnostic in the post-training "Model Analysis" section: print mean/std of
-the upstream layer's weights for every perturbation level. If the values are
-**bit-identical across all f > 0 runs** (and equal to the post-init values
-for an untrained model), the layer never received a gradient.
+Bug-affected sweep curves share the same shape — a sharp cliff at the
+first non-zero perturbation level, then a flat plateau across all
+higher levels. Clean sweeps decay gradually.
 
-**Concrete example — `jitter_train.ipynb` (SHD-part, no delay):**
+| Notebook | bug? | curve |
+|---|---|---|
+| `jitter_part_nodelay`     | yes | σ=0 0.380 → σ=1 0.156 → σ=3 0.145 → σ=5 0.146 → σ=10 0.158 → σ=17 0.182 → σ=25 0.174 |
+| `shift_whole_delay`       | yes | σ=0 0.864 → σ=1 0.414 → σ=3 0.343 → σ=5 0.299 → σ=10 0.308 → σ=17 0.295 → σ=25 0.276 |
+| `deletion_whole_delay`    | yes | pd=0.0 0.627 → pd=0.2 0.108 → pd=0.4 0.086 → pd=0.6 0.086 → pd=0.8 0.051 |
+| `ccisi_tau` (test-time)   | no  | f=0.0 1.000 → f=0.2 0.986 → f=0.4 0.830 → f=0.6 0.672 → f=0.8 0.572 → f=1.0 0.539 |
+| `shd_whole_delay` (test)  | no  | f=0.0 0.864 → f=0.2 0.678 → f=0.4 0.522 → f=0.6 0.382 → f=0.8 0.299 → f=1.0 0.287 |
+
+The cliff in the buggy notebooks is huge (0.38→0.16, 0.86→0.41,
+0.63→0.11) and is not consistent with biological perturbation strength;
+σ=1 ms of jitter destroying half the accuracy should not happen on its
+own. The plateau after the cliff is the unmistakable fingerprint of
+"the upstream half of the network has been frozen at random init, and
+the downstream half is doing whatever it can with random features."
+
+#### 7.1.3 Concrete evidence — `jitter_part_nodelay`
+
+`fc1.weight_g` / `weight_v` mean and std are bit-identical across
+σ ∈ {1, 3, 5, 10, 17, 25} and differ from σ=0:
 
 ```
 sigma=0:   fc1.weight_g mean=14.6847, std=14.5894   fc1.weight_v mean=-0.6226, std=6.1113
@@ -45,425 +409,96 @@ sigma=17:  fc1.weight_g mean=5.7758,  std=0.1568    fc1.weight_v mean=-0.0000, s
 sigma=25:  fc1.weight_g mean=5.7758,  std=0.1568    fc1.weight_v mean=-0.0000, std=0.3861
 ```
 
-`fc1` is identical across every σ > 0 run — the initialization values,
-frozen. Test accuracies confirm it: σ=0 reaches 38%, every σ > 0 collapses
-to 14–18% (the network is solving the task using a random `fc1` plus only
-`fc2`/`fc3` learning on top). Wall-clock time also balloons (16 min → 50
-min) because of the per-batch CPU/numpy round-trip.
+Parameters that share an identical post-init fingerprint across six
+independent training runs cannot have received any gradient signal in
+any of those runs. Training logs confirm: σ>0 runs all converge to
+val_loss ≈ 351–356 and val_acc ≈ 0.15–0.18, independent of σ.
+Wall-clock at σ>0 is ~3× the σ=0 time (16 min → 50 min) — the per-batch
+CPU/numpy round-trip dominating.
 
-### The fix — straight-through estimator (STE)
+#### 7.1.4 The fix — straight-through estimator (STE)
 
 ```python
-def _apply_perturbation(self, hidden_spikes: torch.Tensor, p: float) -> torch.Tensor:
+def _apply_perturbation(self, hidden: torch.Tensor, p: float) -> torch.Tensor:
     if p <= 0:
-        return hidden_spikes
-    perturbed = perturb_fn(hidden_spikes, p)   # the numpy round-trip
-    return hidden_spikes + (perturbed - hidden_spikes).detach()
+        return hidden
+    perturbed = perturb_fn(hidden, p)   # numpy round-trip OR @no_grad func
+    return hidden + (perturbed - hidden).detach()
 ```
 
 Forward value equals `perturbed`; backward gradient flows through
-`hidden_spikes` as if no perturbation had been applied. Standard trick for
-non-differentiable discrete ops. Accept that the gradient is biased — for
-mild perturbations this is well-behaved.
+`hidden` as if no perturbation had been applied. Standard trick for
+non-differentiable discrete ops. Accept that the gradient is biased —
+for mild perturbations this is well-behaved.
 
 Reference: `my_project/docs/knowledge_bank/how_to_perturb_hidden_layer_during_training.md`
 
-### Sanity checks after fixing
-
-1. After training at p > 0, log `fc1.weight.norm()` — must differ from the
-   post-init norm.
-2. Re-run the per-p model analysis; upstream weights must vary between p=0
-   and p>0 runs.
-3. Wall-clock per epoch should be roughly the same as p=0 (the numpy
-   round-trip is unavoidable, but training shouldn't slow further once
-   gradients are actually flowing).
-
-### Affected files
-
-Found via `grep -rln "detach().cpu().numpy()" my_project/code` plus inspection
-of which calls are inside a training forward pass:
-
-- [x] `my_project/code/synthetic/isi/isi_tau.ipynb` — fixed (STE in `_apply_perturbation`).
-- [x] `my_project/code/synthetic/isi/isi_delay.ipynb` — fixed (STE in `_apply_perturbation`).
-- [x] `my_project/code/synthetic/ccisi/ccisi_tau.ipynb` — **cleared** (test-time-only). Training uses `forward(x)` without `f`; perturbation lives in a separate `forward_with_hidden_perturbation` that is only called inside `torch.no_grad()` at eval. No fix needed.
-- [x] `my_project/code/synthetic/ccisi/ccisi_delay.ipynb` — **cleared** (same pattern as ccisi_tau).
-- [x] `my_project/code/synthetic/coincidence/coin_tau.ipynb` — **cleared** (same pattern; train forward has no `f`, perturbation only at eval under `no_grad`).
-- [x] `my_project/code/synthetic/coincidence/coin_delay.ipynb` — **cleared** (same).
-- [ ] `my_project/code/perturbation/jitter/jitter_train.ipynb` — **confirmed buggy** (see weight-freeze evidence above). Re-run after fix; current σ > 0 results are not interpretable.
-- [ ] `my_project/code/perturbation/shift/shift_train.ipynb` — **confirmed buggy** by code inspection + result-curve signature (see Investigation findings below). `forward(x, sigma)` calls `shift_hidden_batch(hidden1, sigma)` (numpy round-trip) directly, no STE.
-- [ ] `my_project/code/perturbation/deletion/deletion_train.ipynb` — **confirmed buggy** by code inspection + result-curve signature. `forward(x, p_d)` calls `delete_hidden_batch(hidden1, p_d)` directly, no STE.
-- [x] `my_project/code/perturbation/inverse/inverse_train.ipynb` — **cleared** (Phase 4, test-time-only). `forward(x)` is the unperturbed training pass; `forward_with_hidden_perturbation` and `forward_with_hidden_reversal` are only called from eval loops under `torch.no_grad()`.
-- [x] `my_project/code/realistic/shd/shd_train.ipynb` — **cleared** (test-time-only).
-- [x] `my_project/code/realistic/ssc/ssc_train.ipynb` — **cleared** (test-time-only).
-
-### Notes per family
-
-- **ISI / CCISI / coincidence (synthetic, train-at-f / eval-at-f):** structurally
-  identical to the ISI fix — STE on hidden spikes inside `forward(x, f)`.
-- **Jitter / shift / deletion (perturbation/, SHD):** same pattern, but the
-  perturbation is applied at the 1st of two hidden layers. Same STE fix
-  inside `forward(x, sigma)` (or equivalent). Consider whether a soft /
-  differentiable variant of the perturbation (e.g. Gaussian conv for jitter)
-  would give a cleaner training signal — STE is the minimal fix; the soft
-  variant is a more principled alternative if compute allows.
-
-### Caveat: re-running cost
-
-Every previously trained σ > 0 / f > 0 model needs to be retrained. Plan
-sweep-by-sweep rather than all-at-once.
-
----
-
-### Investigation findings (2026-05-09)
-
-A full sweep of `my_project/code/` was carried out before committing to a fix,
-to confirm that the autograd-severing diagnosis is correct and to scope which
-notebooks actually need patching. The picture below is consistent: every
-notebook with a flat / cliff-shaped sweep curve is structurally buggy in the
-way described above; every notebook with a smoothly degrading curve perturbs
-only at evaluation under `no_grad` and is structurally clean.
-
-#### 1. The bug is real, and it is the *only* explanation for the flat curves
-
-The three `*_train.ipynb` notebooks under `code/perturbation/` (jitter, shift,
-deletion) all instantiate the same anti-pattern: a `forward(x, sigma)` /
-`forward(x, p_d)` that calls a `*_hidden_batch(...)` helper which goes through
-`hidden_spikes.detach().cpu().numpy() → ... → torch.from_numpy(...).to(dev)`,
-then assigns the result back into the forward-pass tensor variable with no STE
-wrapper. Concretely:
-
-- `jitter_train.ipynb:514` — `hidden1 = jitter_hidden_batch(hidden1, sigma)`
-- `shift_train.ipynb:483`  — `hidden1 = shift_hidden_batch(hidden1, sigma)`
-- `deletion_train.ipynb:662` — `hidden1 = delete_hidden_batch(hidden1, p_d)`
-
-In all three, `_first_hidden(x)` packages `psp → fc1 → spike → delay1`, so
-losing the gradient at the perturbation site freezes `fc1`, `delay1`, and the
-PSP filter at their initialization values.
-
-#### 2. Diagnostic signature: cliff + plateau (not graceful decay)
-
-Bug-affected sweep curves all share the same shape — a sharp cliff at the
-first non-zero perturbation level, then a flat plateau across all higher
-levels. Clean sweeps decay gradually. Side-by-side:
-
-| Notebook | bug? | curve (acc at increasing perturbation) |
-|---|---|---|
-| `jitter_part_nodelay`     | yes | σ=0 0.380 → σ=1 0.156 → σ=3 0.145 → σ=5 0.146 → σ=10 0.158 → σ=17 0.182 → σ=25 0.174 |
-| `shift_whole_delay`       | yes | σ=0 0.864 → σ=1 0.414 → σ=3 0.343 → σ=5 0.299 → σ=10 0.308 → σ=17 0.295 → σ=25 0.276 |
-| `deletion_whole_delay`    | yes | pd=0.0 0.627 → pd=0.2 0.108 → pd=0.4 0.086 → pd=0.6 0.086 → pd=0.8 0.051 |
-| `ccisi_tau` (test-time)   | no  | f=0.0 1.000 → f=0.2 0.986 → f=0.4 0.830 → f=0.6 0.672 → f=0.8 0.572 → f=1.0 0.539 |
-| `shd_whole_delay` (test)  | no  | f=0.0 0.864 → f=0.2 0.678 → f=0.4 0.522 → f=0.6 0.382 → f=0.8 0.299 → f=1.0 0.287 |
-
-The cliff between σ=0 and the first σ>0 in the buggy notebooks is huge
-(0.38→0.16, 0.86→0.41, 0.63→0.11) and is not consistent with biological
-perturbation strength; sigma=1 ms of jitter destroying half the accuracy
-should not happen on its own. After the cliff, the plateau is essentially
-flat — accuracy depends almost not at all on σ — which is the unmistakable
-fingerprint of "the upstream half of the network has been frozen at random
-init, and the downstream half is doing whatever it can with random features."
-
-#### 3. Training-log evidence: identical loss plateau across σ>0
-
-`jitter_part_nodelay_sigma{1,3,5,10,17,25}_training_log.json` all converge to
-val_loss ≈ 351–356 and val_acc ≈ 0.15–0.18 — independent of σ. The σ=0 run
-reaches val_acc 0.36 with val_loss 324. If the perturbation were actually
-flowing through training, larger σ should produce systematically worse
-training loss; instead all σ>0 runs land on the same plateau because they are
-all training the same downstream-only sub-network. Same pattern in shift /
-deletion training logs.
-
-#### 4. Wall-clock evidence
-
-In `jitter_part_nodelay`, σ=0 takes 16:32 and every σ>0 takes ~50 min — a
-~3× slowdown that matches a per-batch CPU↔GPU + numpy round-trip and is
-present at every σ>0 regardless of σ value. The slowdown is independent of
-perturbation strength, which is what you would expect if the cost is the
-trip itself, not the work done in numpy.
-
-#### 5. Weight-freeze signature (already documented above for jitter)
-
-`fc1.weight_g`/`weight_v` mean and std are bit-identical across σ ∈ {1, 3, 5,
-10, 17, 25} — and differ from σ=0 — for `jitter_part_nodelay`. This is
-the strongest single piece of evidence: parameters that share an identical
-post-init fingerprint across six independent training runs cannot have
-received any gradient signal in any of those runs.
-
-#### 6. Notebooks that look superficially similar but are clean
-
-The seven notebooks below all contain `detach().cpu().numpy()` calls inside
-a `*_hidden_batch` function, but they are structurally clean because the
-perturbation never enters the training forward pass:
-
-- `synthetic/ccisi/ccisi_tau.ipynb`, `ccisi_delay.ipynb`
-- `synthetic/coincidence/coin_tau.ipynb`, `coin_delay.ipynb`
-- `realistic/shd/shd_train.ipynb`, `realistic/ssc/ssc_train.ipynb`
-- `perturbation/inverse/inverse_train.ipynb`
-
-Common pattern: a plain `forward(self, x)` (no perturbation argument) is
-called as `outputs = net(x_batch)` during training; a separate
-`forward_with_hidden_perturbation(self, x, f)` (or
-`forward_with_hidden_reversal`) is called only from the eval loop, inside
-`with torch.no_grad():`. Under `no_grad` there is no autograd graph to sever,
-so the numpy round-trip is harmless. Their result curves degrade smoothly,
-consistent with this diagnosis.
-
-#### 7. Conclusion
-
-The autograd-severing diagnosis is the correct and complete explanation for
-the flat curves. There is no additional independent bug:
-
-- All three structurally suspicious training notebooks (jitter, shift,
-  deletion) exhibit the cliff+plateau accuracy signature, the identical
-  loss-plateau-across-σ training-log signature, the per-batch slowdown
-  signature, and (verified for jitter) the bit-identical-weights signature.
-- All seven structurally clean notebooks (ccisi×2, coin×2, shd, ssc,
-  inverse) exhibit smooth decay.
-- Phase 1 ISI was already in the cliff regime before the STE patch, and
-  moved to smooth decay after. Same mechanism.
-
-The fix is the STE wrapper described above. Action: patch jitter_train,
-shift_train, deletion_train; retrain all σ>0 / pd>0 sweeps. ccisi, coin,
-realistic, and inverse notebooks are clean and do not need re-running.
-
----
-
-## Issue 2 — Does the "delay-after-spike" anti-pattern cause a silent no-op?
+### 7.2 Issue 2 — "Delay-after-spike" anti-pattern (cosmetic)
 
 `my_project/docs/knowledge_bank/where_to_apply_perturbation_between_layers.md`
-warns that if `_first_hidden` ends with `if use_delay: x = self.delay1(x)`,
-the perturbation hook receives a fractional tensor (because `slayer.delay` is
-described there as doing linear interpolation between time bins) and
-`np.where(spike_train == 1)` matches nothing, so the perturbation is a silent
-no-op for delay runs.
+warned that if `_first_hidden` ends with `if use_delay: x = self.delay1(x)`,
+the perturbation hook receives a fractional tensor (because
+`slayer.delay` was described there as doing linear interpolation
+between time bins) and `np.where(spike_train == 1)` matches nothing, so
+the perturbation is a silent no-op for delay runs.
 
-**Status:** the *structural* anti-pattern is present in many notebooks (see
-audit below), but in this version of `slayerSNN` it does **not** actually
-produce the silent no-op described in the knowledge bank. Both code-level
-inspection of slayer and the empirical sweep curves contradict the no-op
-prediction. So this is a code-quality / robustness concern, not the cause of
-the flat curves we are trying to fix.
+**Status:** the structural anti-pattern is present in many notebooks
+(see audit below), but in this version of `slayerSNN` it does **not**
+actually produce the silent no-op. `slayer.delay` floors the delay
+before shifting (`slayer.py:351-373`: "*it is floored during actual
+delay applicaiton internally*") and `_delayFunction.apply` calls
+`slayerCuda.shift(input, delay.data, Ts)`, an integer-step shift.
+Therefore `delay(binary_spikes)` is binary spikes shifted by
+`floor(delay)` time steps — still strictly binary, so the perturbation
+is not a no-op.
 
-### Why the silent-no-op prediction does not hold
+Empirically, the SHD/SSC `_delay` sweep curves degrade smoothly (e.g.
+`shd_whole_delay`: 0.864 → 0.678 → 0.522 → 0.382 → 0.299 → 0.287),
+which is incompatible with a silent no-op. Jitter / shift / deletion
+`_delay` variants show the same cliff+plateau as their `_nodelay`
+siblings (just from a higher baseline at σ=0), which is Issue 1, not
+Issue 2.
 
-1. **slayerSNN's delay layer floors the delay before shifting.** From
-   `venv/Lib/site-packages/slayerSNN-.../slayerSNN/slayer.py:351-373` (the
-   docstring of `slayer.delay`):
+We refactor the routing out anyway (Section 3.4) because:
 
-   > The delay parameter is stored as float values, however, **it is floored
-   > during actual delay applicaiton internally**.
+- It's fragile across slayer versions (docstring could change, or a
+  "fractional delay" variant could be enabled).
+- It mixes routing (delay) with compute (psp+fc+spike) in the same
+  method, making the perturbation site harder to audit.
+- The synthetic `*_delay` notebooks already follow the cleaner
+  pattern; consistency makes future work cheaper.
 
-   The forward call is `_delayFunction.apply(input, delay, Ts)` →
-   `slayerCuda.shift(input, delay.data, Ts)` (`slayer.py:923-942`). The
-   shift is integer-step. Therefore `delay(binary_spikes)` is binary
-   spikes shifted by `floor(delay)` time steps — still strictly binary,
-   so `np.where(... == 1)` matches every spike. Perturbation is *not* a
-   no-op.
+Notebooks with the anti-pattern: `shd_train` (~line 453), `ssc_train`
+(~line 484), `inverse_train` (~line 392), `jitter_train` (~line 481),
+`shift_train` (~line 450), `deletion_train` (~line 601).
+`isi_delay`, `coin_delay`, `ccisi_delay` already use the cleaner
+pattern.
 
-2. **Empirical: the SHD/SSC `_delay` sweep curves degrade smoothly.** If
-   the no-op were real, the delay sweeps should sit flat at the f=0
-   accuracy. Instead:
+### 7.3 Issue 3 — Coincidence dataset / SLAYER `tSample` mismatch (resolved)
 
-   | Sweep | f=0 → f=1 |
-   |---|---|
-   | `shd_whole_delay`  | 0.864 → 0.678 → 0.522 → 0.382 → 0.299 → 0.287 |
-   | `shd_part_delay`   | 0.697 → 0.499 → 0.342 → 0.224 → 0.171 → 0.149 |
-   | `shd_norm_delay`   | 0.491 → 0.308 → 0.185 → 0.134 → 0.115 → 0.109 |
-   | `ssc_whole_delay`  | (n/a, missing) |
-   | `ssc_part_delay`   | 0.470 → 0.349 → 0.226 → 0.119 → 0.062 → 0.049 |
-   | `ssc_norm_delay`   | 0.366 → 0.271 → 0.175 → 0.093 → 0.049 → 0.041 |
+**Resolved 2026-05-18.** `coin_data_gen.py` produced 4000-step samples
+but `coin_tau.ipynb` / `coin_delay.ipynb` declared `tSample=1000`.
+Fix applied: `N_TIMESTEPS = 1000` in the generator (option 2 — match
+data to notebooks), `coin_dataset.mat` regenerated, both notebooks
+re-run end-to-end. Discarded the pre-fix per-lambda checkpoints.
 
-   These are textbook smooth-degradation curves, identical in shape to the
-   `_nodelay` sweeps (just at higher absolute accuracy because the delay
-   model is more capable). The hook is clearly receiving binary spikes.
+Cross-check (2026-05-10):
 
-3. **The two effects do not stack.** `jitter`/`shift`/`deletion` `_delay`
-   variants show the same cliff+plateau as their `_nodelay` siblings, just
-   from a higher baseline at σ=0 (e.g. `jitter_part_delay` 0.70 → 0.33 →
-   0.29 → 0.23 → … vs `jitter_part_nodelay` 0.38 → 0.16 → 0.14 → 0.15 → …).
-   If the no-op bug were active for delay variants, they would sit flat
-   *at* the σ=0 accuracy, not collapse like the nodelay runs. They
-   collapse because of Issue 1 (autograd severance), not Issue 2.
+- **Synthetic ISI**: `tSample=1000`, dataset `(N, 10, 1000)` — clean.
+- **Synthetic CCISI**: cached output suggests `Time steps: 10000` vs
+  `tSample=1000`. Still flagged as a follow-up — re-run the load cell
+  against the current `ccisi_dataset.h5` to confirm whether cached
+  output is stale or the bug is live. If live, regenerate at 1000.
+- **Realistic SHD/SSC**: `nb_steps=100` raw, padded to `tSample=200`
+  by `load_shd_data(..., target_T=200)`. This is the original Beyond
+  Rate convention (verified in `temporal_shd_project`); the trailing
+  100 zero-bins are settling time for the SpikeRate readout window
+  `[0, 200]`. Load-bearing — do not touch.
+- **Perturbation** (jitter / shift / deletion / inverse): inherit the
+  SHD pipeline with the same 100→200 padding. Not a bug.
 
-### Audit: where the structural anti-pattern actually exists
-
-`_first_hidden(x) = slayer.spike(...) ; if use_delay: x = delay1(x)` — the
-delay sits *after* the spike inside the same method, so the method's return
-value is "delayed spikes" rather than "raw spikes". Found in:
-
-- `code/realistic/shd/shd_train.ipynb` (line ~453)
-- `code/realistic/ssc/ssc_train.ipynb` (line ~484)
-- `code/perturbation/inverse/inverse_train.ipynb` (line ~392)
-- `code/perturbation/jitter/jitter_train.ipynb` (line ~481)
-- `code/perturbation/shift/shift_train.ipynb` (line ~450)
-- `code/perturbation/deletion/deletion_train.ipynb` (line ~601)
-
-`isi_delay.ipynb`, `coin_delay.ipynb`, and `ccisi_delay.ipynb` already follow
-the cleaner pattern (delay sits at the start of `_second_layer`, after the
-perturbation hook, or on the input side before the first spike — `_first_layer`
-ends with `slayer.spike(...)` so the hook receives strictly binary spikes).
-All three have an explicit comment calling out the binary-input requirement
-of the perturbation function. Verified 2026-05-10 by reading
-`_first_layer` / `_second_layer` in each of the three synthetic delay
-notebooks; the previous audit entry for `isi_delay.ipynb` was stale.
-
-### Recommendation
-
-Treat Issue 2 as a separate, lower-priority hygiene fix. Do not block the
-Issue 1 STE retraining on it. Specifically:
-
-1. **Don't expect Issue 2 to change any current results.** The current
-   slayer floors the delay; binary in → binary out. Nothing downstream
-   actually mis-fires.
-2. **Do refactor the layer methods anyway,** because:
-   - The anti-pattern is fragile across slayer versions (the docstring
-     could change, or a "fractional delay" variant could be enabled).
-   - It mixes routing (delay) with compute (psp+fc+spike) in the same
-     method; separating them makes the perturbation site obvious and
-     makes the pre-hook tensor easier to assert on (`unique == [0, 1]`).
-   - The two notebooks that already separate them (`coin_delay`,
-     `ccisi_delay`) read more clearly and are easier to audit.
-3. **Cheap sanity check to add after any retraining.** Inside the eval
-   loop, after `_first_hidden`, assert
-   `torch.unique(hidden1).tolist() == [0.0, 1.0]`. If a future slayer
-   release stops flooring, this catches the regression immediately.
-
-Issue 2 does not require re-running anything that wasn't already going to be
-re-run for Issue 1. The Issue 1 STE retraining will fold the refactor in
-naturally for jitter / shift / deletion. The realistic and inverse
-notebooks can have the refactor applied opportunistically without retraining.
-
----
-
-## Issue 3 — Coincidence dataset / SLAYER `tSample` mismatch
-
-**Status:** resolved 2026-05-18. Generator patched, dataset regenerated, and
-both coincidence notebooks re-run end-to-end on the 1000-step data. Surfaced
-2026-05-10.
-
-### Symptom
-
-`coin_data_gen.py` produced samples with `N_TIMESTEPS = 4000` (20 windows of
-200 ms each), but both training notebooks declare
-`SIM_PARAMS = {"Ts": 1, "tSample": 1000}` and a dead-code constant `T = 1000`,
-then load the data without slicing or padding. The notebooks' own startup cell
-prints `Time steps: 4000`, contradicting their own `tSample=1000`.
-
-| File | Declared time axis | Actual data (pre-fix) |
-|---|---|---|
-| `code/synthetic/coincidence/coin_data_gen.py:26` | `N_TIMESTEPS = 4000` | wrote `(60, 4000)` |
-| `code/synthetic/coincidence/coin_tau.ipynb:79,93` | `tSample=1000`, `T=1000` (unused) | loaded `(60, 4000)` |
-| `code/synthetic/coincidence/coin_delay.ipynb:102` | `tSample=1000`, `T=1000` (unused) | loaded `(60, 4000)` |
-
-SLAYER does not error — `tSample` is used for internal time-axis bookkeeping
-(loss masks, PSP filter length scaling, etc.), not as a hard bound on input
-length — so the mismatch is silent. The previously trained checkpoints
-(`data/coin_tau_lam*.pt`, `data/coin_delay_lam*.pt`) embed whatever convention
-SLAYER ended up applying with this inconsistency in place and should be
-considered stale once the dataset is regenerated.
-
-### Fix applied — option 2 (match data to notebooks)
-
-`coin_data_gen.py:26` was changed from `N_TIMESTEPS = 4000` to
-`N_TIMESTEPS = 1000`. The generator's `n_windows = N_TIMESTEPS // WINDOW_SIZE`
-expression now produces 5 coincidence windows per trial (was 20); no other
-generator changes were needed because the rest of the pipeline is parametric
-on `N_TIMESTEPS`. Both notebooks already declare `tSample=1000` / `T=1000`,
-so they need no edits — once the dataset is regenerated they will load
-1000-step samples that match.
-
-The alternative (option 1: bump notebooks to `tSample=4000`) was rejected
-because per-trial signal per window is bounded — preserving 20 windows mostly
-buys redundancy, not new structure — and option 2 keeps wall-clock training
-time roughly 4× lower per epoch.
-
-### Remaining work
-
-- [x] `my_project/code/synthetic/coincidence/coin_data_gen.py` — patched
-  (`N_TIMESTEPS = 1000`).
-- [x] Regenerated `coin_dataset.mat` by running
-  `python coin_data_gen.py` from `my_project/code/synthetic/coincidence/`.
-  Overwrote the per-lambda `coin_data_lam*.pt` files and the combined
-  `coin_dataset.mat` with 1000-step data.
-- [x] Re-ran `coin_tau.ipynb` end-to-end on the new 1000-step data;
-  cached cell output now reports `Time steps: 1000` and all lambda models
-  retrained from scratch.
-- [x] Re-ran `coin_delay.ipynb` end-to-end (same).
-- [x] Discarded the old (pre-fix) `data/coin_tau_lam*.pt` and
-  `data/coin_delay_lam*.pt` checkpoints; current ones are the post-fix
-  retrains.
-
-### Cross-check: other phases
-
-Re-verified 2026-05-10 by reading both the data generators and the
-notebooks (a `tSample`-only grep was not sufficient — it missed the
-length discrepancy described below for realistic).
-
-- **Synthetic ISI** (`isi_tau.ipynb`, `isi_delay.ipynb`): `tSample=1000`,
-  dataset shape `(N, 10, 1000)`. Clean match.
-- **Synthetic CCISI** (`ccisi_tau.ipynb`, `ccisi_delay.ipynb`):
-  `tSample=1000`, but the notebooks' cached output prints
-  `Time steps: 10000` and the load line shows `X=(3598, 20, 10000)`. **Same
-  family as coincidence — flag for follow-up; re-run the load cell against
-  the current `ccisi_dataset.h5` to confirm whether the cached output is
-  stale or the bug is live. If live, decide between option 1
-  (bump `tSample` to 10000) and option 2 (regenerate at 1000).**
-- **Realistic SHD/SSC** (`shd_train.ipynb`, `ssc_train.ipynb`): notebooks
-  declare `tSample=200`, but the underlying generators
-  (`shd_data_gen.py:sparse_to_dense(..., nb_steps=100, max_time=1.4)`,
-  `ssc_data_gen_whole.py:nb_steps=100`, `ssc_data_gen_norm_part.py`
-  inherits T from `ssc_whole.h5`) all produce `T=100` raw bins.
-  **The 100 → 200 gap is actively handled** by the
-  `load_shd_data(..., target_T=SIM_PARAMS["tSample"])` loader, which pads
-  with trailing zeros (`if T < target_T: padded[:, :, :T] = X`).
-
-  **This is the original Beyond Rate convention, not a my_project quirk.**
-  Cross-checked 2026-05-10 against the upstream paper code:
-  - `temporal_shd_project/code/realistic/shd/shd_data_gen.py:28` is
-    byte-identical to my_project's version (`nb_steps=100, max_time=1.4`).
-  - `temporal_shd_project/code/realistic/shd/shd_train.py:349` declares
-    `sim_param = dict(Ts=1, tSample=200)`; lines 361–369 perform the same
-    `T_target = 200; if T < T_target: padded[:, :, :T] = X` pad with the
-    comment `# Pad time dimension to 200 as in notebook`.
-  - The SpikeRate loss config (`shd_train.py:164`,
-    `ssc_train.py:185`) sets `tgtSpikeRegion: {'start': 0, 'stop': 200}`,
-    which only makes sense if the simulation actually runs for 200 bins.
-    The trailing 100 zero-bins are settling time during which the readout
-    accumulates spikes; the padding is load-bearing.
-
-  Caveat for SSC: `temporal_shd_project/code/realistic/ssc/ssc_train.py`
-  declares `tSample=200` but does **not** pad inside the script — it
-  loads pre-split per-f h5 files directly via `SpikeDataset` and feeds
-  them to SLAYER as-is. Either an unseen preprocessing step pads them
-  to 200, or the original SSC runs went out with the same silent
-  length mismatch we just fixed in coincidence. my_project's SSC
-  notebook is **stricter than the original**: it routes SSC through
-  the same `load_shd_data(..., target_T=200)` padder used for SHD,
-  making the convention explicit. Treat this as a cleanup rather than
-  a port issue.
-
-- **Perturbation** (`inverse_train.ipynb`, `jitter_train.ipynb`,
-  `shift_train.ipynb`, `deletion_train.ipynb`): all share the SHD pipeline
-  — `tSample=200`, same `load_shd_data(..., target_T=200)` padder. Same
-  100 → 200 padding as realistic. By-design, not a bug.
-
-#### Secondary concern: physical-time interpretation in SHD/SSC
-
-`nb_steps=100` over `max_time=1.4 s` means each SHD/SSC bin represents
-~14 ms of recording, but the training notebooks declare `Ts=1` (1
-simulation unit per bin). SLAYER itself is bin-agnostic, so this doesn't
-cause runtime errors; however the `LIF_PARAMS` time constants
-(`tauSr`, `tauRef`, etc.) and the learned `tau` reported in the
-"Model Analysis" cells are in *bin units*, not milliseconds. Reading the
-learned `tau` of e.g. 50 as "50 ms" would be wrong by ~14× for SHD/SSC.
-Carried over from Beyond Rate's setup; flagged here for future
-interpretation work, not part of the Issue 3 fix.
-
-#### Mismatch summary
-
-| Phase | Status |
-|---|---|
-| Coincidence | resolved 2026-05-18. Generator patched (option 2), dataset regenerated, both notebooks re-run end-to-end. |
-| CCISI | suspected mismatch (cached output suggests `T=10000` vs `tSample=1000`). Verify with a fresh load cell run. |
-| ISI | clean. |
-| Realistic SHD/SSC | 100→200 zero-padding traces back to the original Beyond Rate paper (verified in `temporal_shd_project`); load-bearing for the SpikeRate readout window `[0, 200]`. Not a bug. Bin-vs-ms interpretation flagged separately. SSC: my_project port is stricter than the original (explicit `target_T=200` pad). |
-| Perturbation (jitter/shift/deletion/inverse) | same as realistic SHD/SSC. Not a bug. |
+Secondary concern carried over from Beyond Rate: `nb_steps=100` over
+`max_time=1.4 s` means each SHD/SSC bin represents ~14 ms but
+notebooks declare `Ts=1` (1 simulation unit per bin). LIF_PARAMS time
+constants and any "learned tau" values reported by the model are in
+*bin units*, not milliseconds — flagged for interpretation work.
