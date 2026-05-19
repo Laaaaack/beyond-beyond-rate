@@ -15,10 +15,18 @@ makes the autograd-severance problem disappear.
 
 ## Issue 1 — Convert `jitter` / `shift` / `deletion` to train-clean / eval-perturbed
 
-**Status:** open. Three Phase 3 notebooks still train a separate model per
-perturbation level and apply the perturbation inside the *training* forward
-pass. The rest of the codebase is already in the train-clean / eval-perturbed
-shape (see audit at the bottom).
+**Status:** done (code), pending re-run. All three Phase 3 notebooks have
+been converted (2026-05-18). They now share the same `forward(x)` +
+`forward_with_hidden_perturbation(x, …)` shape as the rest of the
+codebase, train a single model on clean inputs per
+`(dataset_key, USE_DELAY)`, and sweep the perturbation level only at
+evaluation time inside `torch.no_grad()`. The Issue 2 delay-after-spike
+refactor was folded into the same edits (delay1 now sits at the top of
+`_second_hidden_and_output`). `deletion_train.ipynb`'s debug
+`EPOCHS = 20` was raised to `500` to match the jitter/shift schedules.
+Old per-σ / per-pₐ `*_sigma{σ}.pt` / `*_pd{pd}.pt` checkpoints and the
+per-σ training logs become obsolete once the new `_trained.pt` files
+are produced and can be deleted then.
 
 ### Why this change
 
@@ -108,25 +116,10 @@ same five things:
 
 #### Affected files
 
-- [ ] `my_project/code/perturbation/jitter/jitter_train.ipynb`
-  - `JitterSHDNetwork.forward(x, sigma)` → split into clean `forward(x)` and
-    `forward_with_hidden_perturbation(x, sigma)`.
-  - `train_model(..., sigma)` → `train_model(...)`. Drop the outer
-    `for sigma in SIGMA_VALUES` around training; train once.
-  - `test_with_jitter` and `test_with_repeats` call
-    `forward_with_hidden_perturbation`, not `net(x_batch, sigma=sigma)`.
-  - Validation-during-training already runs under `no_grad` but currently
-    calls `net(x_batch, sigma=sigma)` — change to `net(x_batch)`.
-- [ ] `my_project/code/perturbation/shift/shift_train.ipynb` — same five
-      edits, with `ShiftSHDNetwork` and `shift_hidden_batch`. Per-neuron
-      shift is the only perturbation; structure is otherwise identical to
-      jitter.
-- [ ] `my_project/code/perturbation/deletion/deletion_train.ipynb` — same
-      five edits, with `DeletionSHDNetwork`, `delete_hidden_batch`, and
-      `p_d` instead of `sigma`. Note: the current `EPOCHS=20` in this
-      notebook is a debug value carried over from earlier work and should
-      be raised to match the jitter/shift schedules before the new
-      converged sweep is taken at face value.
+- [x] `my_project/code/perturbation/jitter/jitter_train.ipynb` — converted.
+- [x] `my_project/code/perturbation/shift/shift_train.ipynb` — converted.
+- [x] `my_project/code/perturbation/deletion/deletion_train.ipynb` — converted;
+      `EPOCHS` bumped from `20` to `500` to match jitter/shift schedules.
 
 #### Re-training cost
 
@@ -152,9 +145,9 @@ sites in every `*_train.ipynb` / `*_tau.ipynb` / `*_delay.ipynb` under
 | `realistic/shd/shd_train.ipynb`       | same                                                    | `net(x_batch)`         | clean ✓ |
 | `realistic/ssc/ssc_train.ipynb`       | same                                                    | `net(x_batch)`         | clean ✓ |
 | `perturbation/inverse/inverse_train.ipynb` | `forward(x)` + `forward_with_hidden_perturbation(x, f)` + `forward_with_hidden_reversal(x, ...)` | `net(x_batch)` | clean ✓ |
-| `perturbation/jitter/jitter_train.ipynb`   | `forward(x, sigma)` only                            | `net(x_batch, sigma=sigma)` | **convert** |
-| `perturbation/shift/shift_train.ipynb`     | `forward(x, sigma)` only                            | `net(x_batch, sigma=sigma)` | **convert** |
-| `perturbation/deletion/deletion_train.ipynb` | `forward(x, p_d)` only                            | `net(x_batch, p_d=p_d)`     | **convert** |
+| `perturbation/jitter/jitter_train.ipynb`   | `forward(x)` + `forward_with_hidden_perturbation(x, sigma)` | `net(x_batch)` | clean ✓ |
+| `perturbation/shift/shift_train.ipynb`     | `forward(x)` + `forward_with_hidden_perturbation(x, sigma)` | `net(x_batch)` | clean ✓ |
+| `perturbation/deletion/deletion_train.ipynb` | `forward(x)` + `forward_with_hidden_perturbation(x, p_d)` | `net(x_batch)` | clean ✓ |
 
 The current ISI sweep outputs in the repo confirm the train-clean /
 eval-perturbed protocol works end-to-end on a hidden-perturbation task:
@@ -201,15 +194,13 @@ refactoring because:
 - `code/realistic/shd/shd_train.ipynb` (line ~453)
 - `code/realistic/ssc/ssc_train.ipynb` (line ~484)
 - `code/perturbation/inverse/inverse_train.ipynb` (line ~392)
-- `code/perturbation/jitter/jitter_train.ipynb` (line ~481)
-- `code/perturbation/shift/shift_train.ipynb` (line ~450)
-- `code/perturbation/deletion/deletion_train.ipynb` (line ~601)
+
+The three Phase 3 notebooks (`jitter`, `shift`, `deletion`) had the
+refactor folded in as part of the Issue 1 conversion (delay1 now sits
+at the top of `_second_hidden_and_output`).
 
 ### Plan
 
-- Fold the refactor into the Issue 1 conversions for jitter / shift /
-  deletion: while editing `forward` anyway, move the delay to the start of
-  `_second_hidden_and_output` (or before the spike inside `_first_hidden`).
 - For shd / ssc / inverse, apply the refactor opportunistically — they do
   not need retraining for it because they are already train-clean and the
   current binary-in / binary-out behaviour is correct.
