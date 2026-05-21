@@ -44,6 +44,18 @@ curves:
    the perturbation site harder to audit. We refactor it out while we
    are touching these cells anyway.
 
+**Performance requirement (binding for all experiments):** every
+`*_hidden_batch` helper that is called inside `forward` during training
+**must** be a GPU-vectorised kernel that keeps the tensor on its input
+device — no `.cpu().numpy() → ... → torch.from_numpy(...)` round-trip.
+The numpy reference implementation may stay in the notebook as
+documentation but must not be invoked from the training/eval path.
+Rationale: the round-trip is what produced the ~3× wall-clock penalty
+at `p > 0` (Section 7.1.3); with per-batch perturbation now active on
+every training step, this cost compounds across all 6 levels × all
+variants and is the dominant bottleneck if left in. Section 3.7 below
+specifies the kernel template.
+
 ---
 
 ## 2. Current state per notebook
@@ -56,12 +68,12 @@ curves:
 | `synthetic/ccisi/ccisi_delay.ipynb` | no | yes (delay1 before fc1; delay2 in `_second_layer`) | n/a | add train-at-f path + STE |
 | `synthetic/coincidence/coin_tau.ipynb` | no | yes | n/a | add train-at-f path + STE |
 | `synthetic/coincidence/coin_delay.ipynb` | no | yes (delay1 lives in `_second_layer`, after hook) | n/a | add train-at-f path + STE |
-| `realistic/shd/shd_train.ipynb` | no | **no** (delay after spike in `_first_hidden`) | n/a | add train-at-f path + STE + delay refactor |
-| `realistic/ssc/ssc_train.ipynb` | no | **no** (delay after spike) | n/a | add train-at-f path + STE + delay refactor |
-| `perturbation/jitter/jitter_train.ipynb` | **yes (buggy)** | no | **missing** | add STE + delay refactor; retrain σ>0 |
-| `perturbation/shift/shift_train.ipynb` | **yes (buggy)** | no | **missing** | add STE + delay refactor; retrain σ>0 |
-| `perturbation/deletion/deletion_train.ipynb` | **yes (buggy)** | no | **missing** | add STE + delay refactor; retrain pd>0 |
-| `perturbation/inverse/inverse_train.ipynb` | no | no | n/a | add train-at-f path + STE + delay refactor; mirror for reversal |
+| `realistic/shd/shd_train.ipynb` | **yes** | yes (delay1 moved to start of `_second_hidden_and_output`, Option B) | **yes** | **refactor done (2026-05-19) on `version_2` — STE + GPU kernel landed, pending re-run** |
+| `realistic/ssc/ssc_train.ipynb` | no | **no** (delay after spike) | n/a | add train-at-f path + STE + delay refactor + GPU kernel |
+| `perturbation/jitter/jitter_train.ipynb` | **yes** | yes (delay1 moved to start of `_second_hidden_and_output`, Option B) | **yes** | **refactor done (2026-05-19) on `version_2` — STE + GPU kernel landed, pending retrain for σ>0 (cached `data/jitter_*_sigma{1,3,...}.pt` are stale)** |
+| `perturbation/shift/shift_train.ipynb` | **yes (buggy)** | no | **missing** | add STE + delay refactor + GPU kernel; retrain σ>0 |
+| `perturbation/deletion/deletion_train.ipynb` | **yes (buggy)** | no | **missing** | add STE + delay refactor + GPU kernel; retrain pd>0 |
+| `perturbation/inverse/inverse_train.ipynb` | no | no | n/a | add train-at-f path + STE + delay refactor + GPU kernel; mirror for reversal |
 
 `isi_tau` currently uses a GPU-vectorised `perturb_hidden_batch` decorated
 with `@torch.no_grad()`. That decorator severs the graph just like the
@@ -201,6 +213,94 @@ Seed handling: re-seed inside `train_model` (already done in most
 notebooks via `set_seed`) so each level gets the same starting weights —
 otherwise random init noise confounds the curve.
 
+### 3.6.5 GPU-vectorise the perturbation kernel
+
+Replace any `*_hidden_batch` that routes through numpy with a fully
+on-device kernel. Two templates cover the operators in this project.
+
+**Template A — uniform-random spike relocation** (used by
+`perturb_hidden_batch` in `isi_tau`, `isi_delay`, `ccisi_tau`,
+`ccisi_delay`, `coin_tau`, `coin_delay`, `shd_train`, `ssc_train`,
+`inverse_train`). For each (batch, neuron) draw a random sort key
+over time bins, take the top-`num_to_move` spike positions to remove,
+and the top-`num_to_move` empty positions to place new spikes:
+
+```python
+@torch.no_grad()
+def perturb_hidden_batch(hidden_spikes, f):
+    if f <= 0: return hidden_spikes
+    B, C, H, W, T = hidden_spikes.shape
+    x = hidden_spikes.view(B, C, T)
+    is_spike = x > 0.5
+
+    n_spikes = is_spike.sum(dim=-1, keepdim=True)
+    num_to_move = (n_spikes.float() * f).floor().long()
+
+    key = torch.where(is_spike, torch.rand_like(x), torch.full_like(x, 2.0))
+    rank = key.argsort(dim=-1).argsort(dim=-1)
+    remove_mask = rank < num_to_move
+    keep_mask = is_spike & ~remove_mask
+
+    available = ~keep_mask
+    key2 = torch.where(available, torch.rand_like(x), torch.full_like(x, 2.0))
+    rank2 = key2.argsort(dim=-1).argsort(dim=-1)
+    add_mask = rank2 < num_to_move
+
+    return (keep_mask | add_mask).to(hidden_spikes.dtype).view(B, C, H, W, T)
+```
+
+Spike count per (batch, neuron) is preserved exactly.
+
+**Template B — per-spike Gaussian operators with collisions** (used by
+`jitter_hidden_batch` in `jitter_train`, by `shift_hidden_batch` in
+`shift_train`, and by `deletion_hidden_batch` in `deletion_train` —
+deletion is the special case where every spike's target is "out of
+range" with probability `p_d`). For each spike, sample a target bin
+from the operator's distribution and resolve collisions with a
+priority-based tiebreaker:
+
+```python
+@torch.no_grad()
+def jitter_hidden_batch(hidden_spikes, sigma, max_attempts=50):
+    if sigma <= 0: return hidden_spikes
+    B, C, H, W, T = hidden_spikes.shape
+    x = hidden_spikes.view(B, C, T)
+    is_spike = x > 0.5
+
+    new_spikes = torch.zeros_like(is_spike)
+    unplaced = is_spike.clone()
+    t_idx = torch.arange(T, device=x.device).view(1, 1, T)
+    inf_tensor = torch.full_like(x, float("inf"))
+
+    for _ in range(max_attempts):
+        if not unplaced.any(): break
+        target = (t_idx + torch.randn_like(x) * sigma).round().long().clamp(0, T - 1)
+        priority = torch.where(unplaced, torch.rand_like(x), inf_tensor)
+        min_priority = inf_tensor.clone()
+        min_priority.scatter_reduce_(-1, target, priority, reduce="amin", include_self=True)
+
+        wins = unplaced & (priority == min_priority.gather(-1, target)) \
+                        & ~new_spikes.gather(-1, target)
+        scatter_out = torch.zeros((B, C, T), device=x.device, dtype=torch.uint8)
+        scatter_out.scatter_add_(-1, target, wins.to(torch.uint8))
+        new_spikes = new_spikes | (scatter_out > 0)
+        unplaced = unplaced & ~wins
+
+    # Fallback: any spike that never found a free target stays at its
+    # original bin (matches the numpy reference, harmless under OR).
+    new_spikes = new_spikes | unplaced
+    return new_spikes.to(hidden_spikes.dtype).view(B, C, H, W, T)
+```
+
+Spike count is approximately preserved — the retry budget keeps the
+preservation rate above what the numpy reference achieves in practice.
+
+**Required for every notebook**, not optional. Status (2026-05-19):
+`isi_tau`, `isi_delay`, `ccisi_tau`, `ccisi_delay`, `coin_tau`,
+`coin_delay`, `shd_train`, `jitter_train` already use the on-device
+kernel. `ssc_train`, `shift_train`, `deletion_train`, `inverse_train`
+still need it ported.
+
 ### 3.6 Diagnostic block right after the sweep loop
 
 Single cell, no plotting, prints the upstream-weight norm and a binary
@@ -298,13 +398,11 @@ These catch every failure mode we have seen:
    refactor (§3.4) regressed.
 3. **Sweep curve is smoothly decaying, not cliff+plateau.** The
    diagnostic signature of the autograd bug (Section 7.1.2).
-4. **Wall-clock per epoch at p>0 is within ~1.5× of p=0.** A
-   ~3× slowdown specifically at p>0 used to be the fingerprint of the
-   CPU↔GPU round-trip dominating the loop; if the STE fix landed but
-   the round-trip remained, the slowdown stays. For jitter / shift /
-   deletion specifically, consider porting `*_hidden_batch` to the
-   same GPU-vectorised pattern as `perturb_hidden_batch` in
-   `isi_tau`, but this is an optimisation, not a correctness fix.
+4. **Wall-clock per epoch at p>0 is within ~1.5× of p=0.** A ~3×
+   slowdown specifically at p>0 is the fingerprint of a CPU↔GPU
+   round-trip surviving in `*_hidden_batch`. The §3.6.5 GPU kernel
+   is now required for every notebook — if this check fails, the
+   refactor is incomplete, not merely slow.
 5. **Clean baseline (p=0) accuracy matches the existing test-time-only
    p=0 number to within a few %.** The p=0 forward path is unchanged;
    any large gap means the seed / data-loader / optimiser was
