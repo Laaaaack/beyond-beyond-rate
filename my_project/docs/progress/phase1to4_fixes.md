@@ -64,8 +64,8 @@ specifies the kernel template.
 |---|---|---|---|---|
 | `synthetic/isi/isi_tau.ipynb` | **yes** | yes (`_first_layer` ends with `spike`) | **yes** | **done (2026-05-19) — refactored & re-run on `version_2`** |
 | `synthetic/isi/isi_delay.ipynb` | **yes** | yes (delay1 before fc1; delay2 in `_second_layer`) | **yes** | **done (2026-05-19) — refactored & re-run on `version_2`** |
-| `synthetic/ccisi/ccisi_tau.ipynb` | no | yes | n/a | add train-at-f path + STE |
-| `synthetic/ccisi/ccisi_delay.ipynb` | no | yes (delay1 before fc1; delay2 in `_second_layer`) | n/a | add train-at-f path + STE |
+| `synthetic/ccisi/ccisi_tau.ipynb` | **yes** | yes (`_first_layer` ends with `spike`) | **yes** | **refactor done (2026-05-19) on `version_2` — STE + GPU kernel landed, pending re-run** |
+| `synthetic/ccisi/ccisi_delay.ipynb` | **yes** | yes (delay1 before fc1; delay2 in `_second_layer`) | **yes** | **refactor done (2026-05-19) on `version_2` — STE + GPU kernel landed, pending re-run** |
 | `synthetic/coincidence/coin_tau.ipynb` | no | yes | n/a | add train-at-f path + STE |
 | `synthetic/coincidence/coin_delay.ipynb` | no | yes (delay1 lives in `_second_layer`, after hook) | n/a | add train-at-f path + STE |
 | `realistic/shd/shd_train.ipynb` | **yes** | yes (delay1 moved to start of `_second_hidden_and_output`, Option B) | **yes** | **refactor done (2026-05-19) on `version_2` — STE + GPU kernel landed, pending re-run** |
@@ -296,10 +296,10 @@ Spike count is approximately preserved — the retry budget keeps the
 preservation rate above what the numpy reference achieves in practice.
 
 **Required for every notebook**, not optional. Status (2026-05-19):
-`isi_tau`, `isi_delay`, `ccisi_tau`, `ccisi_delay`, `coin_tau`,
-`coin_delay`, `shd_train`, `jitter_train` already use the on-device
-kernel. `ssc_train`, `shift_train`, `deletion_train`, `inverse_train`
-still need it ported.
+`isi_tau`, `isi_delay`, `ccisi_tau`, `ccisi_delay`, `shd_train`,
+`jitter_train` already use the on-device kernel. `coin_tau`,
+`coin_delay`, `ssc_train`, `shift_train`, `deletion_train`,
+`inverse_train` still need it ported.
 
 ### 3.6 Diagnostic block right after the sweep loop
 
