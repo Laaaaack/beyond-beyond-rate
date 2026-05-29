@@ -6,6 +6,8 @@ CLAUDE.md
 *coin_data_lam*
 shd_data/
 ssc_data/
+trainAll_evalAll_test/
+original_code_test/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
