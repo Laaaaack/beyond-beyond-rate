@@ -69,11 +69,11 @@ specifies the kernel template.
 | `synthetic/coincidence/coin_tau.ipynb` | no | yes | n/a | add train-at-f path + STE |
 | `synthetic/coincidence/coin_delay.ipynb` | no | yes (delay1 lives in `_second_layer`, after hook) | n/a | add train-at-f path + STE |
 | `realistic/shd/shd_train.ipynb` | **yes** | yes (delay1 moved to start of `_second_hidden_and_output`, Option B) | **yes** | **refactor done (2026-05-19) on `version_2` — STE + GPU kernel landed, pending re-run** |
-| `realistic/ssc/ssc_train.ipynb` | no | **no** (delay after spike) | n/a | add train-at-f path + STE + delay refactor + GPU kernel |
+| `realistic/ssc/ssc_train.ipynb` | **yes** | yes (delay1 moved to start of `_second_hidden_and_output`, Option B) | **yes** | **refactor done (2026-05-29) on `version_2` — single `forward(x, f)`, STE + GPU Template-A kernel + Option-B delay + train-at-f sweep; chunked loader replaced with full in-memory load (`load_ssc_data` + `build_dataloaders`, mirroring SHD) on 2026-05-29; pending re-run** |
 | `perturbation/jitter/jitter_train.ipynb` | **yes** | yes (delay1 moved to start of `_second_hidden_and_output`, Option B) | **yes** | **refactor done (2026-05-19) on `version_2` — STE + GPU kernel landed, pending retrain for σ>0 (cached `data/jitter_*_sigma{1,3,...}.pt` are stale)** |
-| `perturbation/shift/shift_train.ipynb` | **yes (buggy)** | no | **missing** | add STE + delay refactor + GPU kernel; retrain σ>0 |
-| `perturbation/deletion/deletion_train.ipynb` | **yes (buggy)** | no | **missing** | add STE + delay refactor + GPU kernel; retrain pd>0 |
-| `perturbation/inverse/inverse_train.ipynb` | no | no | n/a | add train-at-f path + STE + delay refactor + GPU kernel; mirror for reversal |
+| `perturbation/shift/shift_train.ipynb` | **yes** | yes (delay1 moved to start of `_second_hidden_and_output`, Option B) | **yes** | **refactor done (2026-05-29) on `version_2` — STE (`_apply_shift`) + GPU Template-B kernel + Option-B delay landed; retrain σ>0** |
+| `perturbation/deletion/deletion_train.ipynb` | **yes** | yes (delay1 moved to start of `_second_hidden_and_output`, Option B) | **yes** | **refactor done (2026-05-29) on `version_2` — STE (`_apply_deletion`) + GPU Bernoulli kernel + Option-B delay landed; retrain pd>0** |
+| `perturbation/inverse/inverse_train.ipynb` | **yes (`forward(x, f, reverse)`)** | yes (delay1 moved to start of `_second_hidden_and_output`, Option B) | **yes** | **refactor done (2026-05-29) on `version_2` — full train-at-(f, reverse) pipeline added; STE for both relocation and reversal, GPU Template-A + vectorised reversal kernels, Option-B delay; pending run** |
 
 `isi_tau` currently uses a GPU-vectorised `perturb_hidden_batch` decorated
 with `@torch.no_grad()`. That decorator severs the graph just like the
@@ -295,11 +295,11 @@ def jitter_hidden_batch(hidden_spikes, sigma, max_attempts=50):
 Spike count is approximately preserved — the retry budget keeps the
 preservation rate above what the numpy reference achieves in practice.
 
-**Required for every notebook**, not optional. Status (2026-05-19):
+**Required for every notebook**, not optional. Status (2026-05-29):
 `isi_tau`, `isi_delay`, `ccisi_tau`, `ccisi_delay`, `shd_train`,
-`jitter_train` already use the on-device kernel. `coin_tau`,
-`coin_delay`, `ssc_train`, `shift_train`, `deletion_train`,
-`inverse_train` still need it ported.
+`jitter_train`, `ssc_train`, `shift_train`, `deletion_train`, and
+`inverse_train` all use the on-device kernel. Only `coin_tau` and
+`coin_delay` still need it ported (coincidence — out of current scope).
 
 ### 3.6 Diagnostic block right after the sweep loop
 
