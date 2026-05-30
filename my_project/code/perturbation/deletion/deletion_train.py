@@ -89,7 +89,7 @@ TEST_RANGE = (0.75, 0.9)
 # --- Training hyper-parameters ---
 HIDDEN_UNITS: int = 128
 NUM_CLASSES: int = 20
-EPOCHS: int = 3
+EPOCHS: int = 1250
 BATCH_SIZE: int = 128
 LEARNING_RATE: float = 0.1
 SEED: int = 42
@@ -724,14 +724,14 @@ def run_variation_sweep(
         }
         for p_d, d in results.items()
     }
-    results_path = LOG_DIR / f"{model_prefix}_deletion_sweep_results.json"
+    results_path = f"log/{model_prefix}_deletion_sweep_results.json"
     with open(results_path, "w") as fp:
         json.dump(sweep_serialisable, fp, indent=2)
     print(f"Sweep results saved to {results_path}")
 
     for p_d, log in logs.items():
         pd_tag = f"pd{int(p_d * 10):02d}"
-        log_path = LOG_DIR / f"{model_prefix}_{pd_tag}_training_log.json"
+        log_path = f"log/{model_prefix}_{pd_tag}_training_log.json"
         log_serialisable = {
             k: [float(v) for v in vals] if isinstance(vals, list) else vals
             for k, vals in log.items()
@@ -766,8 +766,8 @@ def main() -> None:
         print(f"Model prefix: deletion_{DATASET_KEY}_{tag}")
         print(f"Deletion probability sweep: {PD_VALUES}")
 
-    os.makedirs(DATA_DIR, exist_ok=True)
-    os.makedirs(LOG_DIR, exist_ok=True)
+    os.makedirs("data", exist_ok=True)
+    os.makedirs("log", exist_ok=True)
 
     variations_to_run = (
         ALL_VARIATIONS if TRAIN_ALL_VARIATION else [(DATASET_KEY, USE_DELAY)]

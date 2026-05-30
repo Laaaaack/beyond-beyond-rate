@@ -1,8 +1,14 @@
 import os
+from pathlib import Path
+
 import numpy as np
 import h5py
 import scipy.io as io
 from utils import get_shd_dataset
+
+# Directory of this script; all generated data paths are anchored here so the
+# script can be launched from any working directory.
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 
 # ==============================
@@ -173,7 +179,7 @@ def balance_dataset(input_path, output_path):
 # Step 6. Full pipeline
 # ==============================
 def main():
-    base_dir = ".\shd_data"
+    base_dir = str(SCRIPT_DIR / "shd_data")
     os.makedirs(base_dir, exist_ok=True)
 
     print("[Step 1] Downloading SHD dataset...")

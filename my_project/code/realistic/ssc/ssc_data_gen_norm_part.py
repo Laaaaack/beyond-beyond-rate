@@ -1,12 +1,17 @@
 import gc
+from pathlib import Path
 
 import numpy as np
 import h5py
 
+# Directory of this script; all data paths are anchored here so the script can
+# be launched from any working directory.
+SCRIPT_DIR = Path(__file__).resolve().parent
+
 
 # ==== Load SSC Whole ====
 # after running ssc_whole_data_gen.py and getting ssc_whole.h5
-input_path = "./ssc_data/ssc_whole.h5"
+input_path = str(SCRIPT_DIR / "ssc_data" / "ssc_whole.h5")
 with h5py.File(input_path, "r") as f:
     X_all = f["X"][:]  # (N, F, T)
     Y_all = f["Y"][:].ravel()
@@ -124,7 +129,7 @@ gc.collect()
 print("\n==== Creating PART version ====")
 X_part = X_all[np.ix_(keep_idxs, neuron_idxs, np.arange(T))]
 Y_part = Y_all[keep_idxs]
-balance_and_save(X_part, Y_part, "./ssc_data/ssc_part.h5")
+balance_and_save(X_part, Y_part, str(SCRIPT_DIR / "ssc_data" / "ssc_part.h5"))
 del X_part, Y_part
 gc.collect()
 
@@ -141,4 +146,4 @@ do_min_count_inplace(X_norm)
 Y_norm = Y_all[keep_idxs]
 
 print(f"After min-count + drop zero neurons => X_norm.shape = {X_norm.shape}")
-balance_and_save(X_norm, Y_norm, "./ssc_data/ssc_norm.h5")
+balance_and_save(X_norm, Y_norm, str(SCRIPT_DIR / "ssc_data" / "ssc_norm.h5"))

@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,7 +8,11 @@ from matplotlib import gridspec
 
  # download from https://zenkelab.org/datasets/
 
-base_path = ".\ssc_data"
+# Directory of this script; all data paths are anchored here so the script can
+# be launched from any working directory.
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+base_path = str(SCRIPT_DIR / "ssc_data")
 train_path = os.path.join(base_path, "ssc_train.h5")
 test_path = os.path.join(base_path, "ssc_test.h5")
 valid_path = os.path.join(base_path, "ssc_valid.h5")
@@ -77,7 +83,7 @@ Y_all = np.concatenate([Y_train_all, Y_test_all, Y_valid_all], axis=0)
 # === Save ===
 import h5py
 
-save_path = "./ssc_whole.h5"
+save_path = str(SCRIPT_DIR / "ssc_data" / "ssc_whole.h5")
 
 with h5py.File(save_path, "w") as f:
     f.create_dataset("X", data=X_all, compression="gzip")
