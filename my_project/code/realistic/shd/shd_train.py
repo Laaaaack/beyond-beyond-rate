@@ -13,6 +13,7 @@ variation, and persists the checkpoints, sweep results, and training logs.
 import os
 import json
 import random
+from pathlib import Path
 
 import numpy as np
 from scipy.io import loadmat
@@ -25,6 +26,12 @@ import slayerSNN as snn
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
+
+# Directory of this script. All dataset, checkpoint, and log paths are anchored
+# here so the script can be launched from any working directory.
+SCRIPT_DIR = Path(__file__).resolve().parent
+DATA_DIR = SCRIPT_DIR / "data"
+LOG_DIR = SCRIPT_DIR / "log"
 
 
 # =====================================================================
@@ -52,9 +59,9 @@ ALL_VARIATIONS: list[tuple[str, bool]] = [
 
 # --- Dataset configurations ---
 DATASET_CONFIGS = {
-    "whole": {"mat_file": "shd_data/shd_whole.mat", "input_dim": 700},
-    "part":  {"mat_file": "shd_data/shd_part_new.mat", "input_dim": 224},
-    "norm":  {"mat_file": "shd_data/shd_norm_new.mat", "input_dim": 224},
+    "whole": {"mat_file": str(SCRIPT_DIR / "shd_data/shd_whole.mat"), "input_dim": 700},
+    "part":  {"mat_file": str(SCRIPT_DIR / "shd_data/shd_part_new.mat"), "input_dim": 224},
+    "norm":  {"mat_file": str(SCRIPT_DIR / "shd_data/shd_norm_new.mat"), "input_dim": 224},
 }
 
 # --- SLAYER neuron and simulation descriptors ---
@@ -659,7 +666,7 @@ def run_variation_sweep(
             f=f_val,
         )
 
-        model_path = f"data/{model_prefix}_f{f_val}.pt"
+        model_path = DATA_DIR / f"{model_prefix}_f{f_val}.pt"
         torch.save(net.state_dict(), model_path)
 
         result = test_with_repeats(net, test_loader, f=f_val, num_repeats=NUM_REPEATS)
@@ -680,7 +687,7 @@ def run_variation_sweep(
         }
         for f_val, d in results.items()
     }
-    results_path = f"log/{model_prefix}_hidden_perturbation_results.json"
+    results_path = LOG_DIR / f"{model_prefix}_hidden_perturbation_results.json"
     with open(results_path, "w") as fp:
         json.dump(results_serialisable, fp, indent=2)
     print(f"Results saved to {results_path}")
@@ -692,7 +699,7 @@ def run_variation_sweep(
         }
         for f_val, log in logs.items()
     }
-    log_path = f"log/{model_prefix}_training_log.json"
+    log_path = LOG_DIR / f"{model_prefix}_training_log.json"
     with open(log_path, "w") as fp:
         json.dump(training_logs_serialisable, fp, indent=2)
     print(f"Training logs saved to {log_path}")
@@ -722,8 +729,8 @@ def main() -> None:
         print(f"  Network mode: {'SGD-delay' if USE_DELAY else 'SGD (no delay)'}")
         print(f"  Model prefix: shd_{DATASET_KEY}_{tag}")
 
-    os.makedirs("data", exist_ok=True)
-    os.makedirs("log", exist_ok=True)
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(LOG_DIR, exist_ok=True)
 
     variations_to_run = (
         ALL_VARIATIONS if TRAIN_ALL_VARIATION else [(DATASET_KEY, USE_DELAY)]

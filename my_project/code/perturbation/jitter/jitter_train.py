@@ -16,6 +16,7 @@ import os
 import sys
 import json
 import random
+from pathlib import Path
 
 import numpy as np
 from scipy.io import loadmat
@@ -24,9 +25,14 @@ from torch import nn
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
+# Directory of this script. All dataset, SLAYER, checkpoint, and log paths are
+# anchored here so the script can be launched from any working directory.
+SCRIPT_DIR = Path(__file__).resolve().parent
+DATA_DIR = SCRIPT_DIR / "data"
+LOG_DIR = SCRIPT_DIR / "log"
+
 # Add SLAYER to path
-CURRENT_DIR = os.getcwd()
-sys.path.append(os.path.join(CURRENT_DIR, "../../../temporal_shd_project/code/src"))
+sys.path.append(str(SCRIPT_DIR / "../../../temporal_shd_project/code/src"))
 import slayerSNN as snn
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -58,9 +64,9 @@ ALL_VARIATIONS: list[tuple[str, bool]] = [
 
 # --- Dataset configurations ---
 DATASET_CONFIGS = {
-    "whole": {"mat_file": "../../realistic/shd/shd_data/shd_whole.mat", "input_dim": 700},
-    "part":  {"mat_file": "../../realistic/shd/shd_data/shd_part_new.mat", "input_dim": 224},
-    "norm":  {"mat_file": "../../realistic/shd/shd_data/shd_norm_new.mat", "input_dim": 224},
+    "whole": {"mat_file": str(SCRIPT_DIR / "../../realistic/shd/shd_data/shd_whole.mat"), "input_dim": 700},
+    "part":  {"mat_file": str(SCRIPT_DIR / "../../realistic/shd/shd_data/shd_part_new.mat"), "input_dim": 224},
+    "norm":  {"mat_file": str(SCRIPT_DIR / "../../realistic/shd/shd_data/shd_norm_new.mat"), "input_dim": 224},
 }
 
 # --- SLAYER neuron and simulation descriptors ---
@@ -742,7 +748,7 @@ def run_variation_sweep(
             patience=EARLY_STOP_PATIENCE,
         )
 
-        model_path = f"data/{model_prefix}_sigma{sigma}.pt"
+        model_path = DATA_DIR / f"{model_prefix}_sigma{sigma}.pt"
         torch.save(net.state_dict(), model_path)
         print(f"Model saved to {model_path}")
 
@@ -765,14 +771,14 @@ def run_variation_sweep(
         }
         for sigma, d in results.items()
     }
-    results_path = f"log/{model_prefix}_jitter_sweep_results.json"
+    results_path = LOG_DIR / f"{model_prefix}_jitter_sweep_results.json"
     with open(results_path, "w") as fp:
         json.dump(sweep_serialisable, fp, indent=2)
     print(f"\nSweep results saved to {results_path}")
 
     # Persist per-sigma training logs
     for sigma, log in logs.items():
-        log_path = f"log/{model_prefix}_sigma{sigma}_training_log.json"
+        log_path = LOG_DIR / f"{model_prefix}_sigma{sigma}_training_log.json"
         log_serialisable = {
             k: ([float(v) for v in vals] if isinstance(vals, list) else vals)
             for k, vals in log.items()
@@ -806,8 +812,8 @@ def main() -> None:
         print(f"  Model prefix: jitter_{DATASET_KEY}_{tag}")
     print(f"Sigma sweep: {SIGMA_VALUES}")
 
-    os.makedirs("data", exist_ok=True)
-    os.makedirs("log", exist_ok=True)
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(LOG_DIR, exist_ok=True)
 
     variations_to_run = (
         ALL_VARIATIONS if TRAIN_ALL_VARIATION else [(DATASET_KEY, USE_DELAY)]
