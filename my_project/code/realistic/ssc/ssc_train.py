@@ -42,11 +42,11 @@ LOG_DIR = SCRIPT_DIR / "log"
 # Batch mode: when True, the main run trains EVERY combination of
 # (dataset_key, use_delay) listed in ALL_VARIATIONS case-by-case.
 # When False, only the single (DATASET_KEY, USE_DELAY) pair below is run.
-TRAIN_ALL_VARIATION: bool = True
+TRAIN_ALL_VARIATION: bool = False
 
 # Network variant: True for SGD-delay, False for SGD (no delay).
 # Ignored when TRAIN_ALL_VARIATION is True.
-USE_DELAY: bool = True
+USE_DELAY: bool = False
 
 # Dataset variant: "whole", "part", or "norm".
 # Ignored when TRAIN_ALL_VARIATION is True.

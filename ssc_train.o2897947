@@ -1,0 +1,104 @@
+=== Job started at: Sun 31 May 12:38:37 BST 2026 ===
+=== Node: cx3-20-3 ===
+=== CUDA devices: GPU-fdbf9ee4-5ed8-6bf5-ffb2-d6bdc8bf4dd9 ===
+CUDA available: True
+Device: NVIDIA L40S
+Using device: cuda
+Batch mode: training 6 variations:
+  - ssc_norm_nodelay
+  - ssc_norm_delay
+  - ssc_part_nodelay
+  - ssc_part_delay
+  - ssc_whole_nodelay
+  - ssc_whole_delay
+
+######################################################################
+# Variation: dataset=norm | delay=nodelay
+# Model prefix: ssc_norm_nodelay
+######################################################################
+Padded time dimension from 100 to 200
+Loaded /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/ssc_data/ssc_norm.h5: X=(40390, 285, 200), Y=(40390,), classes=35 (2.1 GiB)
+Train: 24234 | Val: 6058 | Test: 6059
+
+=== Training ssc_norm_nodelay at f=0.0 ===
+
+Early stopping at epoch 665
+f=0.0 | test acc = 0.1756 +/- 0.0000 | checkpoint -> /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/data/ssc_norm_nodelay_f0.0.pt
+
+=== Training ssc_norm_nodelay at f=0.2 ===
+
+Early stopping at epoch 937
+f=0.2 | test acc = 0.1709 +/- 0.0016 | checkpoint -> /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/data/ssc_norm_nodelay_f0.2.pt
+
+=== Training ssc_norm_nodelay at f=0.4 ===
+
+Early stopping at epoch 1063
+f=0.4 | test acc = 0.1534 +/- 0.0059 | checkpoint -> /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/data/ssc_norm_nodelay_f0.4.pt
+
+=== Training ssc_norm_nodelay at f=0.6 ===
+
+Early stopping at epoch 1246
+f=0.6 | test acc = 0.1389 +/- 0.0013 | checkpoint -> /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/data/ssc_norm_nodelay_f0.6.pt
+
+=== Training ssc_norm_nodelay at f=0.8 ===
+
+Early stopping at epoch 627
+f=0.8 | test acc = 0.0929 +/- 0.0017 | checkpoint -> /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/data/ssc_norm_nodelay_f0.8.pt
+
+=== Training ssc_norm_nodelay at f=1.0 ===
+f=1.0 | test acc = 0.1098 +/- 0.0024 | checkpoint -> /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/data/ssc_norm_nodelay_f1.0.pt
+Results saved to /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/log/ssc_norm_nodelay_hidden_perturbation_results.json
+Training logs saved to /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/log/ssc_norm_nodelay_training_log.json
+
+######################################################################
+# Variation: dataset=norm | delay=delay
+# Model prefix: ssc_norm_delay
+######################################################################
+Padded time dimension from 100 to 200
+Loaded /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/ssc_data/ssc_norm.h5: X=(40390, 285, 200), Y=(40390,), classes=35 (2.1 GiB)
+Train: 24234 | Val: 6058 | Test: 6059
+
+=== Training ssc_norm_delay at f=0.0 ===
+f=0.0 | test acc = 0.3570 +/- 0.0000 | checkpoint -> /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/data/ssc_norm_delay_f0.0.pt
+
+=== Training ssc_norm_delay at f=0.2 ===
+
+Early stopping at epoch 1166
+f=0.2 | test acc = 0.3493 +/- 0.0018 | checkpoint -> /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/data/ssc_norm_delay_f0.2.pt
+
+=== Training ssc_norm_delay at f=0.4 ===
+
+Early stopping at epoch 1160
+f=0.4 | test acc = 0.2982 +/- 0.0016 | checkpoint -> /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/data/ssc_norm_delay_f0.4.pt
+
+=== Training ssc_norm_delay at f=0.6 ===
+
+Early stopping at epoch 1079
+f=0.6 | test acc = 0.2412 +/- 0.0033 | checkpoint -> /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/data/ssc_norm_delay_f0.6.pt
+
+=== Training ssc_norm_delay at f=0.8 ===
+f=0.8 | test acc = 0.1528 +/- 0.0041 | checkpoint -> /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/data/ssc_norm_delay_f0.8.pt
+
+=== Training ssc_norm_delay at f=1.0 ===
+f=1.0 | test acc = 0.0969 +/- 0.0008 | checkpoint -> /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/data/ssc_norm_delay_f1.0.pt
+Results saved to /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/log/ssc_norm_delay_hidden_perturbation_results.json
+Training logs saved to /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/log/ssc_norm_delay_training_log.json
+
+######################################################################
+# Variation: dataset=part | delay=nodelay
+# Model prefix: ssc_part_nodelay
+######################################################################
+Padded time dimension from 100 to 200
+Loaded /rds/general/user/gl425/home/IRP/beyond-beyond-rate/my_project/code/realistic/ssc/ssc_data/ssc_part.h5: X=(40390, 285, 200), Y=(40390,), classes=35 (2.1 GiB)
+Train: 24234 | Val: 6058 | Test: 6059
+
+=== Training ssc_part_nodelay at f=0.0 ===
+
+====================================
+CPU Time used: 29:51:17
+CPU Percent: 99%
+Memory usage: 5453700kb
+Approx Power usage: 0.3582
+Walltime usage: 30:01:06
+
+====================================
