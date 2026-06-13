@@ -1,16 +1,16 @@
-"""Experiment 2B: SHD — Train on clean inputs, evaluate with 2nd-hidden-layer perturbation.
+"""Experiment 2A: SHD - Hidden-Layer Perturbation.
 
-Train a 2-hidden-layer SNN on SHD with unperturbed inputs, then evaluate
-by applying spike-timing perturbation to the 2nd hidden layer output at
-test time across different perturbation levels f in [0, 1].
+Train a 2-hidden-layer SLAYER SNN on the Spiking Heidelberg Digits (SHD)
+dataset with no perturbation (f=0), then evaluate it by applying spike-timing
+perturbation at the output of the 2nd hidden layer instead of the input.
 
 Architecture: Input -> 128 hidden -> 128 hidden -> 20 output (SRMALPHA)
+Dataset variants: whole (700 input neurons), part (224), norm (224)
 """
 
 import os
 import json
 import random
-from pathlib import Path
 
 import numpy as np
 from scipy.io import loadmat
@@ -24,20 +24,28 @@ import slayerSNN as snn
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-DATA_DIR = SCRIPT_DIR / "data"
-LOG_DIR = SCRIPT_DIR / "log"
 
-TRAIN_ALL_VARIATION: bool = True
+# =====================================================================
+# Global configuration
+# =====================================================================
+
+# When True, run every combination of {delay, no_delay} x {norm, part, whole}.
+# When False, run only the single (USE_DELAY, DATASET_KEY) configuration below.
+TRAIN_ALL_VARIATION: bool = False
+
+# Network variant: True for SGD-delay, False for SGD (no delay)
 USE_DELAY: bool = True
+
+# Dataset variant: "whole", "part", or "norm"
 DATASET_KEY: str = "norm"
 
 DATASET_CONFIGS = {
-    "whole": {"mat_file": str(SCRIPT_DIR / "shd_data/shd_whole.mat"), "input_dim": 700},
-    "part":  {"mat_file": str(SCRIPT_DIR / "shd_data/shd_part_new.mat"), "input_dim": 224},
-    "norm":  {"mat_file": str(SCRIPT_DIR / "shd_data/shd_norm_new.mat"), "input_dim": 224},
+    "whole": {"mat_file": "shd_data/shd_whole.mat", "input_dim": 700},
+    "part":  {"mat_file": "shd_data/shd_part_new.mat", "input_dim": 224},
+    "norm":  {"mat_file": "shd_data/shd_norm_new.mat", "input_dim": 224},
 }
 
+# SLAYER neuron and simulation descriptors
 SIM_PARAMS = {"Ts": 1, "tSample": 200}
 LIF_PARAMS = {
     "type": "SRMALPHA",
@@ -49,31 +57,35 @@ LIF_PARAMS = {
     "scaleRho": 0.1,
 }
 
+# Data split ratios
 TRAIN_RANGE = (0.0, 0.6)
 VAL_RANGE = (0.6, 0.75)
 TEST_RANGE = (0.75, 0.9)
 
+# Training hyper-parameters
 HIDDEN_UNITS: int = 128
 NUM_CLASSES: int = 20
-EPOCHS: int = 10
+EPOCHS: int = 800
 BATCH_SIZE: int = 128
 LEARNING_RATE: float = 0.1
 SEED: int = 42
 MAX_DELAY: int = 64
 EARLY_STOP_PATIENCE: int = 300
 
+# Hidden-perturbation sweep
 F_VALUES: list[float] = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
 NUM_REPEATS: int = 3
 
-ALL_VARIATIONS: list[tuple[str, bool]] = [
-    (dataset, delay)
-    for dataset in ("norm", "part", "whole")
-    for delay in (False, True)
-]
+# All variations to sweep when TRAIN_ALL_VARIATION is True
+ALL_DATASET_KEYS: list[str] = ["norm", "part", "whole"]
+ALL_DELAY_OPTIONS: list[bool] = [True, False]
 
+
+# =====================================================================
+# Load SHD dataset
+# =====================================================================
 
 def load_shd_data(mat_path: str, target_T: int = 200) -> tuple[np.ndarray, np.ndarray]:
-    """Load SHD dataset from .mat file and pad time dimension."""
     data = loadmat(mat_path)
     X = data["X"]
     Y = data["Y"].ravel()
@@ -89,41 +101,57 @@ def load_shd_data(mat_path: str, target_T: int = 200) -> tuple[np.ndarray, np.nd
     return X, Y
 
 
-@torch.no_grad()
+# =====================================================================
+# Hidden-layer spike perturbation
+# =====================================================================
+
+def partial_randomize_spike_train(
+    spike_train: np.ndarray,
+    f: float = 0.0,
+    max_attempts: int = 50,
+) -> np.ndarray:
+    if f <= 0:
+        return spike_train
+
+    num_neurons, T = spike_train.shape
+    new_train = np.copy(spike_train)
+
+    for neuron_idx in range(num_neurons):
+        spike_times = np.where(spike_train[neuron_idx] == 1)[0]
+        for old_time in spike_times:
+            if np.random.rand() < f:
+                new_train[neuron_idx, old_time] = 0
+                inserted = False
+                attempts = 0
+                while not inserted and attempts < max_attempts:
+                    attempts += 1
+                    new_t = np.random.randint(0, T)
+                    if new_train[neuron_idx, new_t] == 0:
+                        new_train[neuron_idx, new_t] = 1
+                        inserted = True
+    return new_train
+
+
 def perturb_hidden_batch(
     hidden_spikes: torch.Tensor,
-    f: float = 0.0,
+    f: float,
 ) -> torch.Tensor:
-    """Vectorized GPU-side partial spike relocation preserving spike count per neuron."""
-    if f <= 0:
-        return hidden_spikes
+    dev = hidden_spikes.device
+    spikes_np = hidden_spikes.cpu().numpy()
+    B, C, H, W, T = spikes_np.shape
 
-    B, C, H, W, T = hidden_spikes.shape
-    x = hidden_spikes.view(B, C, T)
-    is_spike = x > 0.5
+    for b in range(B):
+        sample = spikes_np[b, :, 0, 0, :]  # (C, T)
+        spikes_np[b, :, 0, 0, :] = partial_randomize_spike_train(sample, f)
 
-    n_spikes = is_spike.sum(dim=-1, keepdim=True)
-    num_to_move = (n_spikes.float() * f).floor().long()
+    return torch.from_numpy(spikes_np).to(dev)
 
-    key = torch.rand_like(x)
-    key = torch.where(is_spike, key, torch.full_like(key, 2.0))
-    rank = key.argsort(dim=-1).argsort(dim=-1)
-    remove_mask = rank < num_to_move
 
-    keep_mask = is_spike & ~remove_mask
-
-    available = ~keep_mask
-    key2 = torch.rand_like(x)
-    key2 = torch.where(available, key2, torch.full_like(key2, 2.0))
-    rank2 = key2.argsort(dim=-1).argsort(dim=-1)
-    add_mask = rank2 < num_to_move
-
-    new_spikes = (keep_mask | add_mask).to(hidden_spikes.dtype)
-    return new_spikes.view(B, C, H, W, T)
-
+# =====================================================================
+# Dataset and data splitting
+# =====================================================================
 
 class SpikeDataset(Dataset):
-    """Wrap numpy spike trains and labels into a PyTorch Dataset."""
 
     def __init__(self, X: np.ndarray, Y: np.ndarray):
         self.X = X
@@ -138,8 +166,10 @@ class SpikeDataset(Dataset):
         return x, y
 
 
-def get_split_indices(split_range: tuple[float, float], total: int) -> np.ndarray:
-    """Return index array for a given fractional range of the dataset."""
+def get_split_indices(
+    split_range: tuple[float, float],
+    total: int,
+) -> np.ndarray:
     start = int(total * split_range[0])
     end = int(total * split_range[1])
     return np.arange(start, end)
@@ -151,7 +181,6 @@ def build_dataloaders(
     batch_size: int = 128,
     seed: int = 42,
 ) -> tuple[DataLoader, DataLoader, DataLoader]:
-    """Split data and build train/val/test DataLoaders."""
     N = len(Y)
     train_idx = get_split_indices(TRAIN_RANGE, N)
     val_idx = get_split_indices(VAL_RANGE, N)
@@ -172,8 +201,11 @@ def build_dataloaders(
     return train_loader, val_loader, test_loader
 
 
+# =====================================================================
+# Network architecture
+# =====================================================================
+
 class SHDNetwork(nn.Module):
-    """2-hidden-layer SLAYER SNN for SHD classification with 2nd-hidden-layer perturbation."""
 
     def __init__(
         self,
@@ -189,6 +221,7 @@ class SHDNetwork(nn.Module):
         self.use_delay = use_delay
         self.max_delay = max_delay
 
+        # Three FC layers with weight normalisation
         self.fc1 = nn.utils.weight_norm(
             slayer.dense(input_dim, hidden_units), name="weight"
         )
@@ -199,12 +232,12 @@ class SHDNetwork(nn.Module):
             slayer.dense(hidden_units, num_classes), name="weight"
         )
 
+        # Optional learnable delay modules
         if use_delay:
             self.delay1 = slayer.delay(hidden_units)
             self.delay2 = slayer.delay(hidden_units)
 
     def _prepare_input(self, x: torch.Tensor) -> torch.Tensor:
-        """Ensure input is 5-D NCHWT on the correct device."""
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
         if x.dim() == 3:
@@ -212,47 +245,50 @@ class SHDNetwork(nn.Module):
         return x.float().to(device)
 
     def _first_hidden(self, x: torch.Tensor) -> torch.Tensor:
-        """Input -> PSP -> fc1 -> spike -> hidden1 spikes."""
-        return self.slayer.spike(self.fc1(self.slayer.psp(x)))
-
-    def _second_hidden(self, hidden1: torch.Tensor) -> torch.Tensor:
-        """hidden1 -> (delay1) -> PSP -> fc2 -> spike -> hidden2 spikes."""
-        x = hidden1
+        x = self.slayer.spike(self.fc1(self.slayer.psp(x)))
         if self.use_delay:
             x = self.delay1(x)
-        return self.slayer.spike(self.fc2(self.slayer.psp(x)))
+        return x
+
+    def _second_hidden(self, hidden1: torch.Tensor) -> torch.Tensor:
+        # Compute block for hidden layer 2. Returns BINARY spikes.
+        # delay2 is applied later (in _output), so the perturbation hook
+        # sees a strictly 0/1 tensor.
+        return self.slayer.spike(self.fc2(self.slayer.psp(hidden1)))
 
     def _output(self, hidden2: torch.Tensor) -> torch.Tensor:
-        """hidden2 -> (delay2) -> PSP -> fc3 -> spike -> output spikes."""
-        x = hidden2
-        if self.use_delay:
-            x = self.delay2(x)
-        return self.slayer.spike(self.fc3(self.slayer.psp(x)))
+        # Routing (delay2) + output layer.
+        x = self.delay2(hidden2) if self.use_delay else hidden2
+        x = self.slayer.spike(self.fc3(self.slayer.psp(x)))
+        return x
 
-    def _apply_perturbation(self, hidden: torch.Tensor, f: float) -> torch.Tensor:
-        """STE wrapper around perturb_hidden_batch to maintain gradient flow."""
-        if f <= 0:
-            return hidden
-        perturbed = perturb_hidden_batch(hidden, f)
-        return hidden + (perturbed - hidden).detach()
-
-    def forward(self, x: torch.Tensor, f: float = 0.0) -> torch.Tensor:
-        """Forward pass with optional 2nd-hidden-layer perturbation at level f."""
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self._prepare_input(x)
         hidden1 = self._first_hidden(x)
         hidden2 = self._second_hidden(hidden1)
-        hidden2 = self._apply_perturbation(hidden2, f)
+        return self._output(hidden2)
+
+    def forward_with_hidden_perturbation(
+        self,
+        x: torch.Tensor,
+        f: float = 0.0,
+    ) -> torch.Tensor:
+        x = self._prepare_input(x)
+        hidden1 = self._first_hidden(x)
+        hidden2 = self._second_hidden(hidden1)
+
+        if f > 0:
+            hidden2 = perturb_hidden_batch(hidden2, f)
+
         return self._output(hidden2)
 
     def clamp_delays(self, max1: int = 64, max2: int = 64) -> None:
-        """Clamp delay parameters to [0, max]."""
         if not self.use_delay:
             return
         self.delay1.delay.data.clamp_(0, max1)
         self.delay2.delay.data.clamp_(0, max2)
 
     def get_delays(self) -> dict[str, np.ndarray]:
-        """Return current delay values as a dict."""
         delays = {}
         if self.use_delay:
             delays["delay1"] = self.delay1.delay.data.cpu().numpy()
@@ -260,8 +296,11 @@ class SHDNetwork(nn.Module):
         return delays
 
 
+# =====================================================================
+# Training loop
+# =====================================================================
+
 def set_seed(seed: int) -> None:
-    """Set random seeds for reproducibility."""
     import torch.backends.cudnn as cudnn
     random.seed(seed)
     np.random.seed(seed)
@@ -274,8 +313,10 @@ def set_seed(seed: int) -> None:
         cudnn.enabled = False
 
 
-def build_loss_and_optimizer(net: SHDNetwork, lr: float = 0.1) -> tuple:
-    """Build SpikeRate loss, Nadam optimizer, and LR scheduler."""
+def build_loss_and_optimizer(
+    net: SHDNetwork,
+    lr: float = 0.1,
+) -> tuple:
     error_cfg = {
         "neuron": LIF_PARAMS,
         "simulation": SIM_PARAMS,
@@ -308,7 +349,6 @@ def train_model(
     seed: int = 42,
     patience: int = 300,
 ) -> tuple[SHDNetwork, dict]:
-    """Train the SHDNetwork on unperturbed data."""
     set_seed(seed)
 
     net = SHDNetwork(
@@ -321,6 +361,7 @@ def train_model(
     best_model_state = None
     early_stop_counter = 0
 
+    # Adaptive delay clamping state
     update1 = 0
     update2 = 0
     thea1 = max_delay
@@ -337,6 +378,7 @@ def train_model(
     total_steps = epochs * len(train_loader)
     with tqdm(total=total_steps, desc="Training") as pbar:
         for epoch in range(epochs):
+            # --- Train ---
             net.train()
             batch_losses = []
 
@@ -359,6 +401,7 @@ def train_model(
                 batch_losses.append(loss.item())
                 pbar.update(1)
 
+            # --- Adaptive delay clamping ---
             if use_delay:
                 if epoch <= 250:
                     net.clamp_delays(max_delay, max_delay)
@@ -384,6 +427,7 @@ def train_model(
                                 update2 = 0
                     net.clamp_delays(thea1, thea2)
 
+            # --- Validate ---
             net.eval()
             val_loss = 0.0
             correct = 0
@@ -413,6 +457,7 @@ def train_model(
             val_acc = correct / max(1, total)
             train_loss = np.mean(batch_losses)
 
+            # Log delay statistics
             delays = net.get_delays()
             avg_delay = (
                 np.mean([
@@ -437,6 +482,7 @@ def train_model(
             )
             scheduler.step()
 
+            # Early stopping
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 best_model_state = {
@@ -455,12 +501,15 @@ def train_model(
     return net, log
 
 
+# =====================================================================
+# Testing with hidden-layer perturbation
+# =====================================================================
+
 def test_with_hidden_perturbation(
     net: SHDNetwork,
     test_loader: DataLoader,
     f: float = 0.0,
 ) -> float:
-    """Evaluate accuracy with 2nd-hidden-layer perturbation at level f."""
     net.eval()
     correct = 0
     total = 0
@@ -470,7 +519,7 @@ def test_with_hidden_perturbation(
             x_batch = x_batch.unsqueeze(2).unsqueeze(3).float().to(device)
             y_batch = y_batch.to(device)
 
-            outputs = net(x_batch, f=f)
+            outputs = net.forward_with_hidden_perturbation(x_batch, f=f)
             predicted = snn.predict.getClass(outputs)
 
             total += y_batch.size(0)
@@ -479,135 +528,129 @@ def test_with_hidden_perturbation(
     return correct / total
 
 
-def test_with_repeats(
+def run_hidden_perturbation_sweep(
     net: SHDNetwork,
     test_loader: DataLoader,
-    f: float,
+    f_values: list[float],
     num_repeats: int = 3,
-) -> dict:
-    """Repeat test_with_hidden_perturbation for mean ± std error bars."""
-    accuracies: list[float] = []
-    for repeat in range(num_repeats):
-        np.random.seed(SEED + repeat)
-        torch.manual_seed(SEED + repeat)
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(SEED + repeat)
-        accuracies.append(test_with_hidden_perturbation(net, test_loader, f=f))
-    return {
-        "mean": float(np.mean(accuracies)),
-        "std": float(np.std(accuracies)),
-        "values": [float(a) for a in accuracies],
-    }
-
-
-def run_variation_sweep(
-    dataset_key: str,
-    use_delay: bool,
-) -> dict:
-    """Train-at-f / eval-at-f sweep for one (dataset_key, use_delay) variation."""
-    cfg = DATASET_CONFIGS[dataset_key]
-    input_dim = cfg["input_dim"]
-    mat_file = cfg["mat_file"]
-    delay_tag = "delay" if use_delay else "nodelay"
-    model_prefix = f"shd_2ndLayer_{dataset_key}_{delay_tag}"
-
-    print(f"\n{'#' * 70}")
-    print(f"# Variation: dataset={dataset_key} | delay={delay_tag}")
-    print(f"# Model prefix: {model_prefix}")
-    print(f"{'#' * 70}")
-
-    X, Y = load_shd_data(mat_file, target_T=SIM_PARAMS["tSample"])
-    train_loader, val_loader, test_loader = build_dataloaders(
-        X, Y, batch_size=BATCH_SIZE, seed=SEED,
-    )
-
-    models: dict[float, SHDNetwork] = {}
-    logs: dict[float, dict] = {}
+) -> dict[float, dict]:
     results: dict[float, dict] = {}
 
-    for f_val in F_VALUES:
-        print(f"\n=== Training {model_prefix} at f={f_val} ===")
-        net, training_log = train_model(
-            train_loader=train_loader,
-            val_loader=val_loader,
-            input_dim=input_dim,
-            hidden_units=HIDDEN_UNITS,
-            num_classes=NUM_CLASSES,
-            use_delay=use_delay,
-            max_delay=MAX_DELAY,
-            epochs=EPOCHS,
-            lr=LEARNING_RATE,
-            seed=SEED,
-            patience=EARLY_STOP_PATIENCE,
-        )
+    for f in f_values:
+        accuracies = []
+        for repeat in range(num_repeats):
+            np.random.seed(SEED + repeat)
+            acc = test_with_hidden_perturbation(net, test_loader, f=f)
+            accuracies.append(acc)
 
-        model_path = DATA_DIR / f"{model_prefix}_f{f_val}.pt"
-        torch.save(net.state_dict(), model_path)
+        mean_acc = np.mean(accuracies)
+        std_acc = np.std(accuracies)
+        results[f] = {
+            "mean": mean_acc, "std": std_acc, "values": accuracies
+        }
+        print(f"  f={f:.1f}:  accuracy = {mean_acc:.4f} +/- {std_acc:.4f}")
 
-        result = test_with_repeats(net, test_loader, f=f_val, num_repeats=NUM_REPEATS)
-        models[f_val] = net
-        logs[f_val] = training_log
-        results[f_val] = result
-        print(
-            f"f={f_val} | test acc = {result['mean']:.4f} ± {result['std']:.4f}"
-            f" | checkpoint -> {model_path}"
-        )
+    return results
 
+
+# =====================================================================
+# Run one variation
+# =====================================================================
+
+def run_variation(use_delay: bool, dataset_key: str) -> None:
+    input_dim = DATASET_CONFIGS[dataset_key]["input_dim"]
+    mat_file = DATASET_CONFIGS[dataset_key]["mat_file"]
+    delay_tag = "delay" if use_delay else "nodelay"
+    model_prefix = f"shd_{dataset_key}_{delay_tag}"
+
+    print(f"\n{'=' * 70}")
+    print(f"Dataset: {dataset_key} | Input dim: {input_dim}")
+    print(f"Network mode: {'SGD-delay' if use_delay else 'SGD (no delay)'}")
+    print(f"Model prefix: {model_prefix}")
+    print(f"{'=' * 70}")
+
+    # Load data
+    X_all, Y_all = load_shd_data(mat_file, target_T=SIM_PARAMS["tSample"])
+
+    # Build data loaders (unperturbed)
+    train_loader, val_loader, test_loader = build_dataloaders(
+        X_all, Y_all, batch_size=BATCH_SIZE, seed=SEED
+    )
+
+    # Train on unperturbed data (f=0)
+    net, training_log = train_model(
+        train_loader=train_loader,
+        val_loader=val_loader,
+        input_dim=input_dim,
+        hidden_units=HIDDEN_UNITS,
+        num_classes=NUM_CLASSES,
+        use_delay=use_delay,
+        max_delay=MAX_DELAY,
+        epochs=EPOCHS,
+        lr=LEARNING_RATE,
+        seed=SEED,
+        patience=EARLY_STOP_PATIENCE,
+    )
+
+    # Quick sanity check: accuracy on clean test set (f=0)
+    clean_acc = test_with_hidden_perturbation(net, test_loader, f=0.0)
+    print(f"\nClean test accuracy (f=0): {clean_acc:.4f}")
+
+    # Save trained model
+    os.makedirs("data", exist_ok=True)
+    model_path = f"data/{model_prefix}_trained.pt"
+    torch.save(net.state_dict(), model_path)
+    print(f"Model saved to {model_path}")
+
+    # Hidden-perturbation sweep
+    print(
+        f"=== Hidden-Layer Perturbation Sweep "
+        f"(SHD {dataset_key}, {delay_tag}) ==="
+    )
+    sweep_results = run_hidden_perturbation_sweep(
+        net, test_loader, f_values=F_VALUES, num_repeats=NUM_REPEATS
+    )
+
+    # Save sweep results
     results_serialisable = {
         str(f_val): {
-            "mean": float(d["mean"]),
-            "std": float(d["std"]),
-            "values": [float(v) for v in d["values"]],
+            "mean": float(data["mean"]),
+            "std": float(data["std"]),
+            "values": [float(v) for v in data["values"]],
         }
-        for f_val, d in results.items()
+        for f_val, data in sweep_results.items()
     }
-    results_path = LOG_DIR / f"{model_prefix}_hidden_perturbation_results.json"
+
+    os.makedirs("log", exist_ok=True)
+    results_path = (
+        f"log/shd_{dataset_key}_{delay_tag}_hidden_perturbation_results.json"
+    )
     with open(results_path, "w") as fp:
         json.dump(results_serialisable, fp, indent=2)
     print(f"Results saved to {results_path}")
 
-    training_logs_serialisable = {
-        str(f_val): {
-            k: ([float(v) for v in vals] if isinstance(vals, list) else vals)
-            for k, vals in log.items()
-        }
-        for f_val, log in logs.items()
+    # Save training log
+    log_path = f"log/shd_{dataset_key}_{delay_tag}_training_log.json"
+    training_log_serialisable = {
+        k: [float(v) for v in vals] if isinstance(vals, list) else vals
+        for k, vals in training_log.items()
     }
-    log_path = LOG_DIR / f"{model_prefix}_training_log.json"
     with open(log_path, "w") as fp:
-        json.dump(training_logs_serialisable, fp, indent=2)
-    print(f"Training logs saved to {log_path}")
+        json.dump(training_log_serialisable, fp, indent=2)
+    print(f"Training log saved to {log_path}")
 
-    return {
-        "models": models,
-        "logs": logs,
-        "results": results,
-        "test_loader": test_loader,
-        "model_prefix": model_prefix,
-        "dataset_key": dataset_key,
-        "use_delay": use_delay,
-    }
 
+# =====================================================================
+# Main
+# =====================================================================
 
 def main() -> None:
-    """Run the configured train-at-f / eval-at-f sweep(s)."""
     if TRAIN_ALL_VARIATION:
-        print(f"Batch mode: training {len(ALL_VARIATIONS)} variations")
+        for dataset_key in ALL_DATASET_KEYS:
+            for use_delay in ALL_DELAY_OPTIONS:
+                run_variation(use_delay, dataset_key)
     else:
-        input_dim = DATASET_CONFIGS[DATASET_KEY]["input_dim"]
-        tag = "delay" if USE_DELAY else "nodelay"
-        print(f"Single variation: dataset={DATASET_KEY} | input_dim={input_dim}")
-        print(f"  Network mode: {'SGD-delay' if USE_DELAY else 'SGD (no delay)'}")
-
-    os.makedirs(DATA_DIR, exist_ok=True)
-    os.makedirs(LOG_DIR, exist_ok=True)
-
-    variations_to_run = (
-        ALL_VARIATIONS if TRAIN_ALL_VARIATION else [(DATASET_KEY, USE_DELAY)]
-    )
-
-    for ds_key, use_delay in variations_to_run:
-        run_variation_sweep(ds_key, use_delay)
+        run_variation(USE_DELAY, DATASET_KEY)
 
 
 if __name__ == "__main__":
