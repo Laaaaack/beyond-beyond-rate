@@ -1,36 +1,78 @@
-"""Per-spike jitter perturbation training script.
+"""Experiment 3A: Hidden Per-Spike Jitter — SHD.
 
-Experiment 3A: Train SNNs on SHD dataset (clean inputs), then evaluate
-with per-spike Gaussian jitter applied at the 1st hidden layer output.
-Jitter sigma swept over [0, 1, 3, 5, 10, 17, 25] ms.
+Trains a single 2-hidden-layer SLAYER SNN on the SHD dataset with clean
+(unperturbed) inputs, then sweeps per-spike Gaussian jitter applied to the
+1st hidden layer output during evaluation only. This follows the branch-wide
+train-clean / eval-perturbed protocol.
+
+Per-spike jitter: each spike in the 1st hidden layer output is independently
+shifted in time by a random offset drawn from N(0, sigma), clipped to [0, T-1]
+and placed at the nearest unoccupied time bin. This disrupts precise spike
+timing while approximately preserving spike count per neuron.
+
+Training a separate model under each jitter level would let the network learn
+around the perturbation by adopting a rate-coded hidden representation, which
+answers a different question. Training once on clean inputs keeps the natural
+hidden representation fixed and probes how it reacts to losing timing at
+evaluation time.
+
+Architecture: Input(input_dim) -> 128 hidden -> 128 hidden -> 20 output (SRMALPHA)
+Sweep (eval only): sigma in {0, 1, 3, 5, 10, 17, 25} ms
+
+A USE_DELAY flag selects SGD-delay vs SGD (no delay). A TRAIN_ALL_VARIATION
+flag sweeps every (dataset-variant x delay) combination.
 """
 
-import json
+# ===================================================================== #
+#  Imports and setup
+# ===================================================================== #
 import os
+import sys
+import json
 import random
-from typing import Any, Dict, Tuple
 
 import numpy as np
-import torch
 from scipy.io import loadmat
+import torch
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
+# Add SLAYER to path
+CURRENT_DIR = os.getcwd()
+sys.path.append(os.path.join(CURRENT_DIR, "../../../temporal_shd_project/code/src"))
 import slayerSNN as snn
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-TRAIN_ALL_VARIATION: bool = True
+
+# ===================================================================== #
+#  Global configuration
+# ===================================================================== #
+
+# When True: train one model for every combination of dataset-variant x
+# use_delay (the full grid). When False: run only the single
+# (DATASET_KEY, USE_DELAY) configuration selected below.
+TRAIN_ALL_VARIATION: bool = False
+
+# Network variant: True for SGD-delay, False for SGD (no delay)
 USE_DELAY: bool = False
+
+# Dataset variant: "whole", "part", or "norm"
 DATASET_KEY: str = "whole"
 
+# Variation option lists swept when TRAIN_ALL_VARIATION is True
+DATASET_VARIATIONS: list[str] = ["whole", "part", "norm"]
+DELAY_VARIATIONS: list[bool] = [False, True]
+
+# --- Dataset configurations ---
 DATASET_CONFIGS = {
     "whole": {"mat_file": "../../realistic/shd/shd_data/shd_whole.mat", "input_dim": 700},
-    "part": {"mat_file": "../../realistic/shd/shd_data/shd_part_new.mat", "input_dim": 224},
-    "norm": {"mat_file": "../../realistic/shd/shd_data/shd_norm_new.mat", "input_dim": 224},
+    "part":  {"mat_file": "../../realistic/shd/shd_data/shd_part_new.mat", "input_dim": 224},
+    "norm":  {"mat_file": "../../realistic/shd/shd_data/shd_norm_new.mat", "input_dim": 224},
 }
 
+# --- SLAYER neuron and simulation descriptors ---
 SIM_PARAMS = {"Ts": 1, "tSample": 200}
 LIF_PARAMS = {
     "type": "SRMALPHA",
@@ -42,10 +84,12 @@ LIF_PARAMS = {
     "scaleRho": 0.1,
 }
 
+# --- Data split ratios ---
 TRAIN_RANGE = (0.0, 0.6)
 VAL_RANGE = (0.6, 0.75)
 TEST_RANGE = (0.75, 0.9)
 
+# --- Training hyper-parameters ---
 HIDDEN_UNITS: int = 128
 NUM_CLASSES: int = 20
 EPOCHS: int = 1250
@@ -55,17 +99,20 @@ SEED: int = 42
 MAX_DELAY: int = 64
 EARLY_STOP_PATIENCE: int = 300
 
-SIGMA_VALUES: list = [0, 1, 3, 5, 10, 17, 25]
+# --- Jitter sweep: sigma values in ms ---
+SIGMA_VALUES: list[int] = [0, 1, 3, 5, 10, 17, 25]
+
+# --- Evaluation ---
 NUM_REPEATS: int = 3
 
+# --- Derived default (used as the default in train_model's signature) ---
 INPUT_DIM: int = DATASET_CONFIGS[DATASET_KEY]["input_dim"]
-MAT_FILE: str = DATASET_CONFIGS[DATASET_KEY]["mat_file"]
-DELAY_TAG: str = "delay" if USE_DELAY else "nodelay"
-MODEL_PREFIX: str = f"jitter_{DATASET_KEY}_{DELAY_TAG}"
 
 
-def load_shd_data(mat_path: str, target_T: int = 200) -> Tuple[np.ndarray, np.ndarray]:
-    """Load SHD dataset from mat file and pad time dimension."""
+# ===================================================================== #
+#  Dataset loading
+# ===================================================================== #
+def load_shd_data(mat_path: str, target_T: int = 200) -> tuple[np.ndarray, np.ndarray]:
     data = loadmat(mat_path)
     X = data["X"]
     Y = data["Y"].ravel()
@@ -81,10 +128,14 @@ def load_shd_data(mat_path: str, target_T: int = 200) -> Tuple[np.ndarray, np.nd
     return X, Y
 
 
+# ===================================================================== #
+#  Per-spike jitter utilities (core perturbation)
+# ===================================================================== #
 def jitter_spike_train(
-    spike_train: np.ndarray, sigma: float = 0.0, max_attempts: int = 50
+    spike_train: np.ndarray,
+    sigma: float = 0.0,
+    max_attempts: int = 50,
 ) -> np.ndarray:
-    """Apply per-spike Gaussian jitter to a binary spike train."""
     if sigma <= 0:
         return spike_train.copy()
 
@@ -98,14 +149,15 @@ def jitter_spike_train(
 
         for old_time in spike_times:
             inserted = False
-            for _ in range(max_attempts):
+            attempts = 0
+            while not inserted and attempts < max_attempts:
+                attempts += 1
                 jittered_time = int(round(old_time + np.random.normal(0, sigma)))
                 jittered_time = np.clip(jittered_time, 0, T - 1)
 
                 if new_train[neuron_idx, jittered_time] == 0:
                     new_train[neuron_idx, jittered_time] = 1
                     inserted = True
-                    break
 
             if not inserted:
                 new_train[neuron_idx, old_time] = 1
@@ -113,22 +165,25 @@ def jitter_spike_train(
     return new_train
 
 
-def jitter_hidden_batch(hidden_spikes: torch.Tensor, sigma: float) -> torch.Tensor:
-    """Apply per-spike jitter to hidden spike batch."""
+def jitter_hidden_batch(
+    hidden_spikes: torch.Tensor,
+    sigma: float,
+) -> torch.Tensor:
     dev = hidden_spikes.device
     spikes_np = hidden_spikes.detach().cpu().numpy()
-    B, C, _, _, T = spikes_np.shape
+    B, C, H, W, T = spikes_np.shape
 
     for b in range(B):
-        sample = spikes_np[b, :, 0, 0, :]
+        sample = spikes_np[b, :, 0, 0, :]  # (C, T)
         spikes_np[b, :, 0, 0, :] = jitter_spike_train(sample, sigma)
 
     return torch.from_numpy(spikes_np).to(dev)
 
 
+# ===================================================================== #
+#  Dataset wrapper, splitting, and dataloader construction
+# ===================================================================== #
 class SpikeDataset(Dataset):
-    """Spike train dataset wrapper."""
-
     def __init__(self, X: np.ndarray, Y: np.ndarray):
         self.X = X
         self.Y = Y
@@ -136,20 +191,31 @@ class SpikeDataset(Dataset):
     def __len__(self) -> int:
         return len(self.Y)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int):
         x = torch.tensor(self.X[idx], dtype=torch.float32)
         y = torch.tensor(self.Y[idx], dtype=torch.long)
         return x, y
 
 
+def get_split_indices(
+    split_range: tuple[float, float],
+    total: int,
+) -> np.ndarray:
+    start = int(total * split_range[0])
+    end = int(total * split_range[1])
+    return np.arange(start, end)
+
+
 def build_dataloaders(
-    X: np.ndarray, Y: np.ndarray, batch_size: int = 128, seed: int = 42
-) -> Tuple[DataLoader, DataLoader, DataLoader]:
-    """Split data and build dataloaders."""
+    X: np.ndarray,
+    Y: np.ndarray,
+    batch_size: int = 128,
+    seed: int = 42,
+) -> tuple[DataLoader, DataLoader, DataLoader]:
     N = len(Y)
-    train_idx = np.arange(int(N * TRAIN_RANGE[0]), int(N * TRAIN_RANGE[1]))
-    val_idx = np.arange(int(N * VAL_RANGE[0]), int(N * VAL_RANGE[1]))
-    test_idx = np.arange(int(N * TEST_RANGE[0]), int(N * TEST_RANGE[1]))
+    train_idx = get_split_indices(TRAIN_RANGE, N)
+    val_idx = get_split_indices(VAL_RANGE, N)
+    test_idx = get_split_indices(TEST_RANGE, N)
 
     np.random.seed(seed)
     np.random.shuffle(train_idx)
@@ -158,16 +224,18 @@ def build_dataloaders(
     val_ds = SpikeDataset(X[val_idx], Y[val_idx])
     test_ds = SpikeDataset(X[test_idx], Y[test_idx])
 
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
+
     print(f"Train: {len(train_ds)} | Val: {len(val_ds)} | Test: {len(test_ds)}")
-    return (
-        DataLoader(train_ds, batch_size=batch_size, shuffle=True),
-        DataLoader(val_ds, batch_size=batch_size, shuffle=False),
-        DataLoader(test_ds, batch_size=batch_size, shuffle=False),
-    )
+    return train_loader, val_loader, test_loader
 
 
-class JitterNetwork(nn.Module):
-    """2-hidden-layer SLAYER SNN with per-spike jitter."""
+# ===================================================================== #
+#  Network architecture
+# ===================================================================== #
+class JitterSHDNetwork(nn.Module):
 
     def __init__(
         self,
@@ -205,9 +273,11 @@ class JitterNetwork(nn.Module):
         return x.float().to(device)
 
     def _first_hidden(self, x: torch.Tensor) -> torch.Tensor:
+        # Input -> PSP -> fc1 -> spike. Returns raw binary hidden1 spikes (pre-delay).
         return self.slayer.spike(self.fc1(self.slayer.psp(x)))
 
     def _second_hidden_and_output(self, hidden1: torch.Tensor) -> torch.Tensor:
+        # (delay1) -> PSP -> fc2 -> spike -> (delay2) -> PSP -> fc3 -> spike.
         if self.use_delay:
             hidden1 = self.delay1(hidden1)
         x = self.slayer.spike(self.fc2(self.slayer.psp(hidden1)))
@@ -217,13 +287,18 @@ class JitterNetwork(nn.Module):
         return x
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Clean forward pass — no jitter. Used during training.
         x = self._prepare_input(x)
         hidden1 = self._first_hidden(x)
         return self._second_hidden_and_output(hidden1)
 
     def forward_with_hidden_perturbation(
-        self, x: torch.Tensor, sigma: float = 0.0
+        self,
+        x: torch.Tensor,
+        sigma: float = 0.0,
     ) -> torch.Tensor:
+        # Eval-only: jitter the 1st hidden layer spikes. Call inside
+        # torch.no_grad() — the numpy round-trip is not autograd-safe.
         x = self._prepare_input(x)
         hidden1 = self._first_hidden(x)
 
@@ -238,7 +313,7 @@ class JitterNetwork(nn.Module):
         self.delay1.delay.data.clamp_(0, max1)
         self.delay2.delay.data.clamp_(0, max2)
 
-    def get_delays(self) -> Dict[str, np.ndarray]:
+    def get_delays(self) -> dict[str, np.ndarray]:
         delays = {}
         if self.use_delay:
             delays["delay1"] = self.delay1.delay.data.cpu().numpy()
@@ -246,10 +321,11 @@ class JitterNetwork(nn.Module):
         return delays
 
 
+# ===================================================================== #
+#  Training loop
+# ===================================================================== #
 def set_seed(seed: int) -> None:
-    """Set random seeds for reproducibility."""
     import torch.backends.cudnn as cudnn
-
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -261,8 +337,10 @@ def set_seed(seed: int) -> None:
         cudnn.enabled = False
 
 
-def build_loss_and_optimizer(net: JitterNetwork, lr: float = 0.1) -> Tuple[Any, Any, Any]:
-    """Build loss, optimizer, and scheduler."""
+def build_loss_and_optimizer(
+    net: JitterSHDNetwork,
+    lr: float = 0.1,
+) -> tuple:
     error_cfg = {
         "neuron": LIF_PARAMS,
         "simulation": SIM_PARAMS,
@@ -285,22 +363,21 @@ def build_loss_and_optimizer(net: JitterNetwork, lr: float = 0.1) -> Tuple[Any, 
 def train_model(
     train_loader: DataLoader,
     val_loader: DataLoader,
-    input_dim: int = 700,
-    hidden_units: int = 128,
-    num_classes: int = 20,
-    use_delay: bool = False,
-    max_delay: int = 64,
-    epochs: int = 1250,
-    lr: float = 0.1,
-    seed: int = 42,
-    patience: int = 300,
-) -> Tuple[JitterNetwork, Dict[str, Any]]:
-    """Train a JitterNetwork on unperturbed inputs."""
+    input_dim: int = INPUT_DIM,
+    hidden_units: int = HIDDEN_UNITS,
+    num_classes: int = NUM_CLASSES,
+    use_delay: bool = USE_DELAY,
+    max_delay: int = MAX_DELAY,
+    epochs: int = EPOCHS,
+    lr: float = LEARNING_RATE,
+    seed: int = SEED,
+    patience: int = EARLY_STOP_PATIENCE,
+) -> tuple[JitterSHDNetwork, dict]:
     set_seed(seed)
 
-    net = JitterNetwork(input_dim, hidden_units, num_classes, use_delay, max_delay).to(
-        device
-    )
+    net = JitterSHDNetwork(
+        input_dim, hidden_units, num_classes, use_delay, max_delay
+    ).to(device)
     loss_fn, optimizer, scheduler = build_loss_and_optimizer(net, lr=lr)
     loss_fn = loss_fn.to(device)
 
@@ -308,12 +385,13 @@ def train_model(
     best_model_state = None
     early_stop_counter = 0
 
+    # Adaptive delay clamping state
     update1 = 0
     update2 = 0
     thea1 = max_delay
     thea2 = max_delay
 
-    log: Dict[str, Any] = {
+    log = {
         "epoch": [],
         "train_loss": [],
         "val_loss": [],
@@ -322,110 +400,124 @@ def train_model(
     }
 
     total_steps = epochs * len(train_loader)
-    pbar = tqdm(total=total_steps, desc="Training (clean)")
+    with tqdm(total=total_steps, desc="Training (clean)") as pbar:
+        for epoch in range(epochs):
+            # --- Train (clean forward) ---
+            net.train()
+            batch_losses = []
 
-    for epoch in range(epochs):
-        net.train()
-        batch_losses = []
-
-        for x_batch, y_batch in train_loader:
-            x_batch = x_batch.unsqueeze(2).unsqueeze(3).float().to(device)
-            y_batch = y_batch.to(device).long()
-
-            target = torch.zeros((len(y_batch), num_classes, 1, 1, 1), device=device)
-            target.scatter_(1, y_batch[:, None, None, None, None], 1.0)
-
-            outputs = net(x_batch)
-            loss = loss_fn.numSpikes(outputs, target)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            batch_losses.append(loss.item())
-            pbar.update(1)
-
-        if use_delay:
-            if epoch <= 250:
-                net.clamp_delays(max_delay, max_delay)
-            else:
-                update1 += 1
-                update2 += 1
-                for name, param in net.named_parameters():
-                    if "delay1.delay" in name and update1 > 150:
-                        sorted_vals = torch.sort(
-                            torch.floor(param.detach().flatten())
-                        )[0]
-                        thea1_val = torch.max(sorted_vals)
-                        if sorted_vals[108] > (thea1_val - 5):
-                            thea1 = int(thea1_val.item()) + 1
-                            update1 = 0
-                    elif "delay2.delay" in name and update2 > 150:
-                        sorted_vals = torch.sort(
-                            torch.floor(param.detach().flatten())
-                        )[0]
-                        thea2_val = torch.max(sorted_vals)
-                        if sorted_vals[108] > (thea2_val - 5):
-                            thea2 = int(thea2_val.item()) + 1
-                            update2 = 0
-                net.clamp_delays(thea1, thea2)
-
-        net.eval()
-        val_loss = 0.0
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for x_batch, y_batch in val_loader:
+            for x_batch, y_batch in train_loader:
                 x_batch = x_batch.unsqueeze(2).unsqueeze(3).float().to(device)
                 y_batch = y_batch.to(device).long()
 
-                target = torch.zeros((len(y_batch), num_classes, 1, 1, 1), device=device)
+                target = torch.zeros(
+                    (len(y_batch), num_classes, 1, 1, 1), device=device
+                )
                 target.scatter_(1, y_batch[:, None, None, None, None], 1.0)
 
                 outputs = net(x_batch)
-                val_loss += loss_fn.numSpikes(outputs, target).item()
+                loss = loss_fn.numSpikes(outputs, target)
 
-                pred = snn.predict.getClass(outputs)
-                correct += (pred.cpu() == y_batch.cpu()).sum().item()
-                total += len(y_batch)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
-        val_loss /= max(1, len(val_loader))
-        val_acc = correct / max(1, total)
-        train_loss = np.mean(batch_losses)
+                batch_losses.append(loss.item())
+                pbar.update(1)
 
-        delays = net.get_delays()
-        avg_delay = (
-            np.mean([np.mean(d) for d in delays.values() if len(d) > 0])
-            if delays
-            else 0.0
-        )
+            # --- Adaptive delay clamping ---
+            if use_delay:
+                if epoch <= 250:
+                    net.clamp_delays(max_delay, max_delay)
+                else:
+                    update1 += 1
+                    update2 += 1
+                    for name, param in net.named_parameters():
+                        if "delay1.delay" in name and update1 > 150:
+                            sorted_ = torch.sort(
+                                torch.floor(param.detach().flatten())
+                            )[0]
+                            thea1_val = torch.max(sorted_)
+                            if sorted_[108] > (thea1_val - 5):
+                                thea1 = int(thea1_val.item()) + 1
+                                update1 = 0
+                        elif "delay2.delay" in name and update2 > 150:
+                            sorted_ = torch.sort(
+                                torch.floor(param.detach().flatten())
+                            )[0]
+                            thea2_val = torch.max(sorted_)
+                            if sorted_[108] > (thea2_val - 5):
+                                thea2 = int(thea2_val.item()) + 1
+                                update2 = 0
+                    net.clamp_delays(thea1, thea2)
 
-        log["epoch"].append(epoch)
-        log["train_loss"].append(float(train_loss))
-        log["val_loss"].append(float(val_loss))
-        log["val_acc"].append(float(val_acc))
-        log["delay_mean"].append(float(avg_delay))
+            # --- Validate (clean forward — no perturbation) ---
+            net.eval()
+            val_loss = 0.0
+            correct = 0
+            total = 0
+            with torch.no_grad():
+                for x_batch, y_batch in val_loader:
+                    x_batch = (
+                        x_batch.unsqueeze(2).unsqueeze(3).float().to(device)
+                    )
+                    y_batch = y_batch.to(device).long()
 
-        pbar.set_postfix(
-            epoch=epoch + 1,
-            train=f"{train_loss:.3f}",
-            val=f"{val_loss:.3f}",
-            acc=f"{val_acc:.2%}",
-            delay=f"{avg_delay:.1f}",
-        )
-        scheduler.step()
+                    target = torch.zeros(
+                        (len(y_batch), num_classes, 1, 1, 1), device=device
+                    )
+                    target.scatter_(
+                        1, y_batch[:, None, None, None, None], 1.0
+                    )
 
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            best_model_state = {k: v.clone() for k, v in net.state_dict().items()}
-            early_stop_counter = 0
-        else:
-            early_stop_counter += 1
-            if early_stop_counter >= patience:
-                print(f"\nEarly stopping at epoch {epoch + 1}")
-                break
+                    outputs = net(x_batch)
+                    val_loss += loss_fn.numSpikes(outputs, target).item()
 
-    pbar.close()
+                    pred = snn.predict.getClass(outputs)
+                    correct += (pred.cpu() == y_batch.cpu()).sum().item()
+                    total += len(y_batch)
+
+            val_loss /= max(1, len(val_loader))
+            val_acc = correct / max(1, total)
+            train_loss = np.mean(batch_losses)
+
+            # Log delay statistics
+            delays = net.get_delays()
+            avg_delay = (
+                np.mean([
+                    np.mean(d) for d in delays.values() if len(d) > 0
+                ])
+                if delays
+                else 0.0
+            )
+
+            log["epoch"].append(epoch)
+            log["train_loss"].append(float(train_loss))
+            log["val_loss"].append(float(val_loss))
+            log["val_acc"].append(float(val_acc))
+            log["delay_mean"].append(float(avg_delay))
+
+            pbar.set_postfix(
+                epoch=epoch + 1,
+                train=f"{train_loss:.3f}",
+                val=f"{val_loss:.3f}",
+                acc=f"{val_acc:.2%}",
+                delay=f"{avg_delay:.1f}",
+            )
+            scheduler.step()
+
+            # Early stopping
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                best_model_state = {
+                    k: v.clone() for k, v in net.state_dict().items()
+                }
+                early_stop_counter = 0
+            else:
+                early_stop_counter += 1
+                if early_stop_counter >= patience:
+                    print(f"\nEarly stopping at epoch {epoch + 1}")
+                    break
 
     if best_model_state is not None:
         net.load_state_dict(best_model_state)
@@ -433,8 +525,14 @@ def train_model(
     return net, log
 
 
-def test_with_jitter(net: JitterNetwork, test_loader: DataLoader, sigma: float = 0.0) -> float:
-    """Evaluate accuracy with hidden-layer jitter."""
+# ===================================================================== #
+#  Evaluation / jitter sweep
+# ===================================================================== #
+def test_with_jitter(
+    net: JitterSHDNetwork,
+    test_loader: DataLoader,
+    sigma: float = 0.0,
+) -> float:
     net.eval()
     correct = 0
     total = 0
@@ -454,9 +552,11 @@ def test_with_jitter(net: JitterNetwork, test_loader: DataLoader, sigma: float =
 
 
 def test_with_repeats(
-    net: JitterNetwork, test_loader: DataLoader, sigma: float, num_repeats: int = 3
-) -> Dict[str, Any]:
-    """Evaluate with jitter multiple times for error bars."""
+    net: JitterSHDNetwork,
+    test_loader: DataLoader,
+    sigma: float,
+    num_repeats: int = NUM_REPEATS,
+) -> dict:
     accuracies = []
     for repeat in range(num_repeats):
         np.random.seed(SEED + repeat)
@@ -470,93 +570,110 @@ def test_with_repeats(
     }
 
 
-def main() -> None:
-    """Main training and evaluation loop."""
-    print(f"Using device: {device}")
-    print(f"train_all_variation = {TRAIN_ALL_VARIATION}")
+# ===================================================================== #
+#  Single-variation runner: train once, sweep jitter, save artifacts
+# ===================================================================== #
+def run_variation(dataset_key: str, use_delay: bool) -> dict:
+    # Derive names and output paths locally so configurations never
+    # overwrite each other's files.
+    input_dim = DATASET_CONFIGS[dataset_key]["input_dim"]
+    mat_file = DATASET_CONFIGS[dataset_key]["mat_file"]
+    delay_tag = "delay" if use_delay else "nodelay"
+    model_prefix = f"jitter_{dataset_key}_{delay_tag}"
 
     os.makedirs("data", exist_ok=True)
     os.makedirs("log", exist_ok=True)
 
+    print(f"\n{'#'*70}")
+    print(f"#  Configuration: dataset={dataset_key} | {delay_tag}")
+    print(f"{'#'*70}")
+
+    # Load dataset for this configuration
+    X_cfg, Y_cfg = load_shd_data(mat_file, target_T=SIM_PARAMS["tSample"])
+    train_loader, val_loader, test_loader = build_dataloaders(
+        X_cfg, Y_cfg, batch_size=BATCH_SIZE, seed=SEED
+    )
+
+    # Train a single model on clean inputs
+    print(f"\n  --- Training (clean inputs, {delay_tag}) ---")
+    net, training_log = train_model(
+        train_loader=train_loader,
+        val_loader=val_loader,
+        input_dim=input_dim,
+        use_delay=use_delay,
+    )
+
+    # Save the trained model
+    model_path = f"data/{model_prefix}_trained.pt"
+    torch.save(net.state_dict(), model_path)
+    print(f"\n  Model saved to {model_path}")
+
+    # Evaluate across the jitter sweep
+    print(f"\n  --- Hidden-jitter sweep at evaluation ---")
+    all_test_results: dict[int, dict] = {}
+    for sigma in SIGMA_VALUES:
+        test_result = test_with_repeats(net, test_loader, sigma=sigma)
+        all_test_results[sigma] = test_result
+        print(
+            f"    sigma={sigma:3d} ms | "
+            f"accuracy = {test_result['mean']:.4f} +/- {test_result['std']:.4f}"
+        )
+
+    # Save sweep results
+    sweep_serialisable = {
+        str(sigma): {
+            "mean": data["mean"],
+            "std": data["std"],
+            "values": [float(v) for v in data["values"]],
+        }
+        for sigma, data in all_test_results.items()
+    }
+    results_path = f"log/{model_prefix}_jitter_sweep_results.json"
+    with open(results_path, "w") as fp:
+        json.dump(sweep_serialisable, fp, indent=2)
+    print(f"  Sweep results saved to {results_path}")
+
+    # Save the training log
+    log_path = f"log/{model_prefix}_training_log.json"
+    log_serialisable = {
+        k: [float(v) for v in vals] if isinstance(vals, list) else vals
+        for k, vals in training_log.items()
+    }
+    with open(log_path, "w") as fp:
+        json.dump(log_serialisable, fp, indent=2)
+    print(f"  Training log saved to {log_path}")
+
+    return {
+        "net": net,
+        "training_log": training_log,
+        "all_test_results": all_test_results,
+        "dataset_key": dataset_key,
+        "use_delay": use_delay,
+        "delay_tag": delay_tag,
+        "model_prefix": model_prefix,
+    }
+
+
+# ===================================================================== #
+#  Main dispatcher
+# ===================================================================== #
+def main() -> None:
+    print(f"Using device: {device}")
+
     if TRAIN_ALL_VARIATION:
-        config_grid = [(dk, ud) for dk in DATASET_CONFIGS for ud in (False, True)]
+        config_grid = [
+            (dk, ud) for dk in DATASET_VARIATIONS for ud in DELAY_VARIATIONS
+        ]
     else:
         config_grid = [(DATASET_KEY, USE_DELAY)]
 
-    print(f"Running {len(config_grid)} configuration(s): {config_grid}\n")
+    print(f"Running {len(config_grid)} configuration(s): {config_grid}")
 
+    all_runs: dict[tuple[str, bool], dict] = {}
     for dataset_key, use_delay in config_grid:
-        input_dim = DATASET_CONFIGS[dataset_key]["input_dim"]
-        mat_file = DATASET_CONFIGS[dataset_key]["mat_file"]
-        delay_tag = "delay" if use_delay else "nodelay"
-        model_prefix = f"jitter_{dataset_key}_{delay_tag}"
+        all_runs[(dataset_key, use_delay)] = run_variation(dataset_key, use_delay)
 
-        print(f"\n{'#'*70}")
-        print(f"#  Configuration: dataset={dataset_key} | {delay_tag}")
-        print(f"{'#'*70}")
-
-        X_cfg, Y_cfg = load_shd_data(mat_file, target_T=SIM_PARAMS["tSample"])
-        train_loader, val_loader, test_loader = build_dataloaders(
-            X_cfg, Y_cfg, batch_size=BATCH_SIZE, seed=SEED
-        )
-
-        print(f"\n  --- Training (clean inputs, {delay_tag}) ---")
-        net, training_log = train_model(
-            train_loader=train_loader,
-            val_loader=val_loader,
-            input_dim=input_dim,
-            use_delay=use_delay,
-        )
-
-        model_path = f"data/{model_prefix}_trained.pt"
-        torch.save(net.state_dict(), model_path)
-        print(f"\n  Model saved to {model_path}")
-
-        print(f"\n  --- Hidden-jitter sweep at evaluation ---")
-        cfg_test_results: Dict[int, Dict[str, Any]] = {}
-        for sigma in SIGMA_VALUES:
-            test_result = test_with_repeats(net, test_loader, sigma=sigma)
-            cfg_test_results[sigma] = test_result
-            print(
-                f"    sigma={sigma:3d} ms | "
-                f"accuracy = {test_result['mean']:.4f} +/- {test_result['std']:.4f}"
-            )
-
-        sweep_serialisable = {
-            str(sigma): {
-                "mean": data["mean"],
-                "std": data["std"],
-                "values": [float(v) for v in data["values"]],
-            }
-            for sigma, data in cfg_test_results.items()
-        }
-        results_path = f"log/{model_prefix}_jitter_sweep_results.json"
-        with open(results_path, "w") as fp:
-            json.dump(sweep_serialisable, fp, indent=2)
-        print(f"Sweep results saved to {results_path}")
-
-        log_path = f"log/{model_prefix}_training_log.json"
-        log_serialisable = {
-            k: [float(v) for v in vals] if isinstance(vals, list) else vals
-            for k, vals in training_log.items()
-        }
-        with open(log_path, "w") as fp:
-            json.dump(log_serialisable, fp, indent=2)
-        print(f"Training log saved to {log_path}")
-
-        print(f"\n=== Model Analysis: dataset={dataset_key}, {delay_tag} ===")
-        delays = net.get_delays()
-        if delays:
-            for delay_name, delay_values in delays.items():
-                if len(delay_values) > 0:
-                    print(
-                        f"  {delay_name}: mean={np.mean(delay_values):.2f}, "
-                        f"std={np.std(delay_values):.2f}, "
-                        f"min={np.min(delay_values):.2f}, "
-                        f"max={np.max(delay_values):.2f}"
-                    )
-        else:
-            print("  No delays (SGD mode)")
+    return all_runs
 
 
 if __name__ == "__main__":

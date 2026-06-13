@@ -1,17 +1,28 @@
-"""Experiment 3B: Hidden Per-Neuron Shift — SHD
+"""Experiment 3B: Hidden Per-Neuron Jitter (Shift) — SHD
 
-Train a single 2-hidden-layer SNN on clean SHD inputs, then evaluate
-with per-neuron Gaussian shift applied to 1st hidden layer spikes at
-test time. A single offset per neuron is drawn from N(0, sigma) and
-applied to all that neuron's spikes (preserves intra-neuron ISI).
+This script implements Experiment 3B from the "Beyond Beyond Rate" project.
 
-Architecture: Input → 128 hidden → 128 hidden → 20 output (SRMALPHA)
+We train a single 2-hidden-layer SNN on the SHD dataset with clean
+(unperturbed) inputs, then sweep per-neuron Gaussian shift at the 1st hidden
+layer output during evaluation only. This follows the branch-wide
+train-clean / eval-perturbed protocol.
+
+Unlike per-spike jitter (Exp 3A), a single Gaussian offset is drawn per neuron
+and applied to all spikes from that neuron. This preserves intra-neuron ISI
+patterns but disrupts cross-neuron (cross-channel) timing relationships.
+
+Key question: Does per-neuron shift at the hidden layer disrupt SGD-delay more
+than SGD? If so, cross-channel timing is maintained internally — not just at
+the input.
 """
 
+# =====================================================================
+# Imports and setup
+# =====================================================================
 import os
+import sys
 import json
 import random
-from pathlib import Path
 
 import numpy as np
 from scipy.io import loadmat
@@ -20,25 +31,41 @@ from torch import nn
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
+# Add SLAYER to path
+CURRENT_DIR = os.getcwd()
+sys.path.append(os.path.join(CURRENT_DIR, "../../../temporal_shd_project/code/src"))
 import slayerSNN as snn
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Using device: {device}")
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-DATA_DIR = SCRIPT_DIR / "data"
-LOG_DIR = SCRIPT_DIR / "log"
 
-train_all_variation: bool = True
+# =====================================================================
+# Global configuration
+# =====================================================================
+
+# When True: train one model for every combination of dataset variant ×
+# delay/no-delay. When False: run only the single (DATASET_KEY, USE_DELAY)
+# configuration set by the flags below.
+TRAIN_ALL_VARIATION: bool = False
+
+# The variation axes looped over when TRAIN_ALL_VARIATION is True.
+DATASET_VARIATIONS: list[str] = ["whole", "part", "norm"]
+DELAY_OPTIONS: list[bool] = [False, True]
+
+# Network variant: True for SGD-delay, False for SGD (no delay)
 USE_DELAY: bool = False
+
+# Dataset variant: "whole", "part", or "norm"
 DATASET_KEY: str = "norm"
 
+# --- Dataset configurations ---
 DATASET_CONFIGS = {
     "whole": {"mat_file": "../../realistic/shd/shd_data/shd_whole.mat", "input_dim": 700},
     "part":  {"mat_file": "../../realistic/shd/shd_data/shd_part_new.mat", "input_dim": 224},
     "norm":  {"mat_file": "../../realistic/shd/shd_data/shd_norm_new.mat", "input_dim": 224},
 }
 
+# --- SLAYER neuron and simulation descriptors ---
 SIM_PARAMS = {"Ts": 1, "tSample": 200}
 LIF_PARAMS = {
     "type": "SRMALPHA",
@@ -50,10 +77,12 @@ LIF_PARAMS = {
     "scaleRho": 0.1,
 }
 
+# --- Data split ratios ---
 TRAIN_RANGE = (0.0, 0.6)
 VAL_RANGE = (0.6, 0.75)
 TEST_RANGE = (0.75, 0.9)
 
+# --- Training hyper-parameters ---
 HIDDEN_UNITS: int = 128
 NUM_CLASSES: int = 20
 EPOCHS: int = 1250
@@ -63,18 +92,23 @@ SEED: int = 42
 MAX_DELAY: int = 64
 EARLY_STOP_PATIENCE: int = 300
 
+# --- Per-neuron shift sweep: sigma values in ms ---
 SIGMA_VALUES: list[int] = [0, 1, 3, 5, 10, 17, 25]
+
+# --- Evaluation ---
 NUM_REPEATS: int = 3
 
-ALL_VARIATIONS: list[tuple[str, bool]] = [
-    (dataset, delay)
-    for dataset in ("whole", "part", "norm")
-    for delay in (False, True)
-]
+# --- Derived names (default config; run_variation derives its own per call) ---
+INPUT_DIM: int = DATASET_CONFIGS[DATASET_KEY]["input_dim"]
+MAT_FILE: str = DATASET_CONFIGS[DATASET_KEY]["mat_file"]
+DELAY_TAG: str = "delay" if USE_DELAY else "nodelay"
+MODEL_PREFIX: str = f"shift_{DATASET_KEY}_{DELAY_TAG}"
 
 
+# =====================================================================
+# Load SHD dataset
+# =====================================================================
 def load_shd_data(mat_path: str, target_T: int = 200) -> tuple[np.ndarray, np.ndarray]:
-    """Load SHD dataset from .mat file and pad time dimension."""
     data = loadmat(mat_path)
     X = data["X"]
     Y = data["Y"].ravel()
@@ -90,11 +124,13 @@ def load_shd_data(mat_path: str, target_T: int = 200) -> tuple[np.ndarray, np.nd
     return X, Y
 
 
-def shift_spike_train(spike_train: np.ndarray, sigma: float = 0.0) -> np.ndarray:
-    """Apply per-neuron Gaussian shift to spike train.
-
-    Single offset per neuron drawn from N(0, sigma); preserves intra-neuron ISI.
-    """
+# =====================================================================
+# Per-neuron jitter (shift) utility
+# =====================================================================
+def shift_spike_train(
+    spike_train: np.ndarray,
+    sigma: float = 0.0,
+) -> np.ndarray:
     if sigma <= 0:
         return spike_train.copy()
 
@@ -106,34 +142,35 @@ def shift_spike_train(spike_train: np.ndarray, sigma: float = 0.0) -> np.ndarray
         if len(spike_times) == 0:
             continue
 
+        # Single offset per neuron — preserves intra-neuron ISI
         d = int(round(np.random.normal(0, sigma)))
         shifted_times = np.clip(spike_times + d, 0, T - 1)
         shifted_times = np.unique(shifted_times)
+
         new_train[neuron_idx, shifted_times] = 1
 
     return new_train
 
 
-@torch.no_grad()
-def shift_hidden_batch(hidden_spikes: torch.Tensor, sigma: float) -> torch.Tensor:
-    """Apply per-neuron shift to a batch of hidden spike tensors."""
-    if sigma <= 0:
-        return hidden_spikes
-
+def shift_hidden_batch(
+    hidden_spikes: torch.Tensor,
+    sigma: float,
+) -> torch.Tensor:
     dev = hidden_spikes.device
     spikes_np = hidden_spikes.detach().cpu().numpy()
     B, C, H, W, T = spikes_np.shape
 
     for b in range(B):
-        sample = spikes_np[b, :, 0, 0, :]
+        sample = spikes_np[b, :, 0, 0, :]  # (C, T)
         spikes_np[b, :, 0, 0, :] = shift_spike_train(sample, sigma)
 
     return torch.from_numpy(spikes_np).to(dev)
 
 
+# =====================================================================
+# Dataset and data splitting
+# =====================================================================
 class SpikeDataset(Dataset):
-    """Wrap numpy spike trains and labels into a PyTorch Dataset."""
-
     def __init__(self, X: np.ndarray, Y: np.ndarray):
         self.X = X
         self.Y = Y
@@ -147,8 +184,10 @@ class SpikeDataset(Dataset):
         return x, y
 
 
-def get_split_indices(split_range: tuple[float, float], total: int) -> np.ndarray:
-    """Return index array for a given fractional range of the dataset."""
+def get_split_indices(
+    split_range: tuple[float, float],
+    total: int,
+) -> np.ndarray:
     start = int(total * split_range[0])
     end = int(total * split_range[1])
     return np.arange(start, end)
@@ -160,7 +199,6 @@ def build_dataloaders(
     batch_size: int = 128,
     seed: int = 42,
 ) -> tuple[DataLoader, DataLoader, DataLoader]:
-    """Split data and build train/val/test DataLoaders."""
     N = len(Y)
     train_idx = get_split_indices(TRAIN_RANGE, N)
     val_idx = get_split_indices(VAL_RANGE, N)
@@ -181,9 +219,10 @@ def build_dataloaders(
     return train_loader, val_loader, test_loader
 
 
+# =====================================================================
+# Network architecture
+# =====================================================================
 class ShiftSHDNetwork(nn.Module):
-    """2-hidden-layer SLAYER SNN with optional per-neuron shift at 1st hidden layer."""
-
     def __init__(
         self,
         input_dim: int,
@@ -213,7 +252,6 @@ class ShiftSHDNetwork(nn.Module):
             self.delay2 = slayer.delay(hidden_units)
 
     def _prepare_input(self, x: torch.Tensor) -> torch.Tensor:
-        """Ensure input is 5-D NCHWT on the correct device."""
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
         if x.dim() == 3:
@@ -221,11 +259,11 @@ class ShiftSHDNetwork(nn.Module):
         return x.float().to(device)
 
     def _first_hidden(self, x: torch.Tensor) -> torch.Tensor:
-        """Input -> PSP -> fc1 -> spike -> hidden1 spikes."""
+        # Input -> PSP -> fc1 -> spike. Returns raw binary hidden1 spikes (pre-delay).
         return self.slayer.spike(self.fc1(self.slayer.psp(x)))
 
     def _second_hidden_and_output(self, hidden1: torch.Tensor) -> torch.Tensor:
-        """(delay1) -> hidden1 -> PSP -> fc2 -> spike -> (delay2) -> PSP -> fc3 -> spike."""
+        # (delay1) -> PSP -> fc2 -> spike -> (delay2) -> PSP -> fc3 -> spike
         if self.use_delay:
             hidden1 = self.delay1(hidden1)
         x = self.slayer.spike(self.fc2(self.slayer.psp(hidden1)))
@@ -235,15 +273,18 @@ class ShiftSHDNetwork(nn.Module):
         return x
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Clean forward pass — no shift. Used during training."""
+        # Clean forward pass — no shift. Used during training.
         x = self._prepare_input(x)
         hidden1 = self._first_hidden(x)
         return self._second_hidden_and_output(hidden1)
 
     def forward_with_hidden_perturbation(
-        self, x: torch.Tensor, sigma: float = 0.0
+        self,
+        x: torch.Tensor,
+        sigma: float = 0.0,
     ) -> torch.Tensor:
-        """Forward pass with per-neuron shift at 1st hidden layer."""
+        # Call only from eval loops inside torch.no_grad() — the numpy
+        # round-trip in shift_hidden_batch is not autograd-safe.
         x = self._prepare_input(x)
         hidden1 = self._first_hidden(x)
 
@@ -253,14 +294,12 @@ class ShiftSHDNetwork(nn.Module):
         return self._second_hidden_and_output(hidden1)
 
     def clamp_delays(self, max1: int = 64, max2: int = 64) -> None:
-        """Clamp delay parameters to [0, max]."""
         if not self.use_delay:
             return
         self.delay1.delay.data.clamp_(0, max1)
         self.delay2.delay.data.clamp_(0, max2)
 
     def get_delays(self) -> dict[str, np.ndarray]:
-        """Return current delay values as a dict."""
         delays = {}
         if self.use_delay:
             delays["delay1"] = self.delay1.delay.data.cpu().numpy()
@@ -268,8 +307,10 @@ class ShiftSHDNetwork(nn.Module):
         return delays
 
 
+# =====================================================================
+# Training loop
+# =====================================================================
 def set_seed(seed: int) -> None:
-    """Set random seeds for reproducibility."""
     import torch.backends.cudnn as cudnn
     random.seed(seed)
     np.random.seed(seed)
@@ -282,8 +323,10 @@ def set_seed(seed: int) -> None:
         cudnn.enabled = False
 
 
-def build_loss_and_optimizer(net: ShiftSHDNetwork, lr: float = 0.1) -> tuple:
-    """Build NumSpikes loss, Nadam optimizer, and LR scheduler."""
+def build_loss_and_optimizer(
+    net: ShiftSHDNetwork,
+    lr: float = 0.1,
+) -> tuple:
     error_cfg = {
         "neuron": LIF_PARAMS,
         "simulation": SIM_PARAMS,
@@ -306,17 +349,16 @@ def build_loss_and_optimizer(net: ShiftSHDNetwork, lr: float = 0.1) -> tuple:
 def train_model(
     train_loader: DataLoader,
     val_loader: DataLoader,
-    input_dim: int,
-    hidden_units: int = 128,
-    num_classes: int = 20,
-    use_delay: bool = True,
-    max_delay: int = 64,
-    epochs: int = 1250,
-    lr: float = 0.1,
-    seed: int = 42,
-    patience: int = 300,
+    input_dim: int = INPUT_DIM,
+    hidden_units: int = HIDDEN_UNITS,
+    num_classes: int = NUM_CLASSES,
+    use_delay: bool = USE_DELAY,
+    max_delay: int = MAX_DELAY,
+    epochs: int = EPOCHS,
+    lr: float = LEARNING_RATE,
+    seed: int = SEED,
+    patience: int = EARLY_STOP_PATIENCE,
 ) -> tuple[ShiftSHDNetwork, dict]:
-    """Train ShiftSHDNetwork on unperturbed inputs."""
     set_seed(seed)
 
     net = ShiftSHDNetwork(
@@ -329,6 +371,7 @@ def train_model(
     best_model_state = None
     early_stop_counter = 0
 
+    # Adaptive delay clamping state
     update1 = 0
     update2 = 0
     thea1 = max_delay
@@ -345,6 +388,7 @@ def train_model(
     total_steps = epochs * len(train_loader)
     with tqdm(total=total_steps, desc="Training (clean)") as pbar:
         for epoch in range(epochs):
+            # --- Train (clean forward) ---
             net.train()
             batch_losses = []
 
@@ -367,6 +411,7 @@ def train_model(
                 batch_losses.append(loss.item())
                 pbar.update(1)
 
+            # --- Adaptive delay clamping ---
             if use_delay:
                 if epoch <= 250:
                     net.clamp_delays(max_delay, max_delay)
@@ -392,6 +437,7 @@ def train_model(
                                 update2 = 0
                     net.clamp_delays(thea1, thea2)
 
+            # --- Validate (clean forward — no perturbation) ---
             net.eval()
             val_loss = 0.0
             correct = 0
@@ -421,6 +467,7 @@ def train_model(
             val_acc = correct / max(1, total)
             train_loss = np.mean(batch_losses)
 
+            # Log delay statistics
             delays = net.get_delays()
             avg_delay = (
                 np.mean([
@@ -445,6 +492,7 @@ def train_model(
             )
             scheduler.step()
 
+            # Early stopping
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 best_model_state = {
@@ -463,10 +511,14 @@ def train_model(
     return net, log
 
 
+# =====================================================================
+# Testing with hidden-layer per-neuron shift
+# =====================================================================
 def test_with_shift(
-    net: ShiftSHDNetwork, test_loader: DataLoader, sigma: float = 0.0
+    net: ShiftSHDNetwork,
+    test_loader: DataLoader,
+    sigma: float = 0.0,
 ) -> float:
-    """Evaluate accuracy with hidden-layer per-neuron shift at level sigma."""
     net.eval()
     correct = 0
     total = 0
@@ -489,9 +541,8 @@ def test_with_repeats(
     net: ShiftSHDNetwork,
     test_loader: DataLoader,
     sigma: float,
-    num_repeats: int = 3,
+    num_repeats: int = NUM_REPEATS,
 ) -> dict:
-    """Evaluate with per-neuron shift multiple times for error bars."""
     accuracies = []
     for repeat in range(num_repeats):
         np.random.seed(SEED + repeat)
@@ -505,73 +556,108 @@ def test_with_repeats(
     }
 
 
-def main() -> None:
-    """Run shift perturbation experiment across all variations."""
-    os.makedirs(DATA_DIR, exist_ok=True)
-    os.makedirs(LOG_DIR, exist_ok=True)
+# =====================================================================
+# Run a single (dataset_key, use_delay) variation end-to-end
+# =====================================================================
+def run_variation(dataset_key: str, use_delay: bool) -> dict:
+    os.makedirs("data", exist_ok=True)
+    os.makedirs("log", exist_ok=True)
 
-    variations_to_run = (
-        ALL_VARIATIONS if train_all_variation else [(DATASET_KEY, USE_DELAY)]
+    # Derived names / paths local to this configuration
+    input_dim = DATASET_CONFIGS[dataset_key]["input_dim"]
+    mat_file = DATASET_CONFIGS[dataset_key]["mat_file"]
+    delay_tag = "delay" if use_delay else "nodelay"
+    model_prefix = f"shift_{dataset_key}_{delay_tag}"
+
+    print(f"\n{'#'*70}")
+    print(f"#  Configuration: dataset={dataset_key} | {delay_tag}")
+    print(f"{'#'*70}")
+
+    # Load dataset for this configuration
+    X_cfg, Y_cfg = load_shd_data(mat_file, target_T=SIM_PARAMS["tSample"])
+    train_loader, val_loader, test_loader = build_dataloaders(
+        X_cfg, Y_cfg, batch_size=BATCH_SIZE, seed=SEED
     )
 
-    for dataset_key, use_delay in variations_to_run:
-        input_dim = DATASET_CONFIGS[dataset_key]["input_dim"]
-        mat_file = DATASET_CONFIGS[dataset_key]["mat_file"]
-        delay_tag = "delay" if use_delay else "nodelay"
-        model_prefix = f"shift_{dataset_key}_{delay_tag}"
+    # Train a single model on clean inputs
+    print(f"\n  --- Training (clean inputs, {delay_tag}) ---")
+    cfg_net, cfg_training_log = train_model(
+        train_loader=train_loader,
+        val_loader=val_loader,
+        input_dim=input_dim,
+        use_delay=use_delay,
+    )
 
-        print(f"\n{'#' * 70}")
-        print(f"# Configuration: dataset={dataset_key} | {delay_tag}")
-        print(f"{'#' * 70}")
+    # Save the trained model
+    model_path = f"data/{model_prefix}_trained.pt"
+    torch.save(cfg_net.state_dict(), model_path)
+    print(f"\n  Model saved to {model_path}")
 
-        X, Y = load_shd_data(mat_file, target_T=SIM_PARAMS["tSample"])
-        train_loader, val_loader, test_loader = build_dataloaders(
-            X, Y, batch_size=BATCH_SIZE, seed=SEED
+    # Evaluate across the per-neuron shift sweep
+    print(f"\n  --- Hidden per-neuron shift sweep at evaluation ---")
+    cfg_test_results: dict[int, dict] = {}
+    for sigma in SIGMA_VALUES:
+        test_result = test_with_repeats(cfg_net, test_loader, sigma=sigma)
+        cfg_test_results[sigma] = test_result
+        print(
+            f"    sigma={sigma:3d} ms | "
+            f"accuracy = {test_result['mean']:.4f} +/- {test_result['std']:.4f}"
         )
 
-        print(f"\n  --- Training (clean inputs, {delay_tag}) ---")
-        net, training_log = train_model(
-            train_loader=train_loader,
-            val_loader=val_loader,
-            input_dim=input_dim,
-            use_delay=use_delay,
-        )
-
-        model_path = DATA_DIR / f"{model_prefix}_trained.pt"
-        torch.save(net.state_dict(), model_path)
-        print(f"\n  Model saved to {model_path}")
-
-        print(f"\n  --- Hidden per-neuron shift sweep at evaluation ---")
-        test_results: dict[int, dict] = {}
-        for sigma in SIGMA_VALUES:
-            test_result = test_with_repeats(net, test_loader, sigma=sigma)
-            test_results[sigma] = test_result
-            print(
-                f"    sigma={sigma:3d} ms | "
-                f"accuracy = {test_result['mean']:.4f} +/- {test_result['std']:.4f}"
-            )
-
-        sweep_serialisable = {
-            str(sigma): {
-                "mean": data["mean"],
-                "std": data["std"],
-                "values": [float(v) for v in data["values"]],
-            }
-            for sigma, data in test_results.items()
+    # Save sweep results
+    sweep_serialisable = {
+        str(sigma): {
+            "mean": data["mean"],
+            "std": data["std"],
+            "values": [float(v) for v in data["values"]],
         }
-        results_path = LOG_DIR / f"{model_prefix}_shift_sweep_results.json"
-        with open(results_path, "w") as fp:
-            json.dump(sweep_serialisable, fp, indent=2)
-        print(f"Sweep results saved to {results_path}")
+        for sigma, data in cfg_test_results.items()
+    }
+    results_path = f"log/{model_prefix}_shift_sweep_results.json"
+    with open(results_path, "w") as fp:
+        json.dump(sweep_serialisable, fp, indent=2)
+    print(f"  Sweep results saved to {results_path}")
 
-        log_path = LOG_DIR / f"{model_prefix}_training_log.json"
-        log_serialisable = {
-            k: [float(v) for v in vals] if isinstance(vals, list) else vals
-            for k, vals in training_log.items()
-        }
-        with open(log_path, "w") as fp:
-            json.dump(log_serialisable, fp, indent=2)
-        print(f"Training log saved to {log_path}")
+    # Save the training log
+    log_path = f"log/{model_prefix}_training_log.json"
+    log_serialisable = {
+        k: [float(v) for v in vals] if isinstance(vals, list) else vals
+        for k, vals in cfg_training_log.items()
+    }
+    with open(log_path, "w") as fp:
+        json.dump(log_serialisable, fp, indent=2)
+    print(f"  Training log saved to {log_path}")
+
+    return {
+        "net": cfg_net,
+        "training_log": cfg_training_log,
+        "all_test_results": cfg_test_results,
+        "dataset_key": dataset_key,
+        "use_delay": use_delay,
+        "delay_tag": delay_tag,
+        "model_prefix": model_prefix,
+    }
+
+
+# =====================================================================
+# Main dispatcher
+# =====================================================================
+def main() -> None:
+    print(f"Using device: {device}")
+    print(f"TRAIN_ALL_VARIATION = {TRAIN_ALL_VARIATION}")
+
+    if TRAIN_ALL_VARIATION:
+        config_grid = [
+            (dk, ud) for dk in DATASET_VARIATIONS for ud in DELAY_OPTIONS
+        ]
+    else:
+        config_grid = [(DATASET_KEY, USE_DELAY)]
+
+    print(f"Running {len(config_grid)} configuration(s): {config_grid}")
+
+    all_runs: dict[tuple[str, bool], dict] = {}
+    for dataset_key, use_delay in config_grid:
+        all_runs[(dataset_key, use_delay)] = run_variation(dataset_key, use_delay)
 
 
 if __name__ == "__main__":
