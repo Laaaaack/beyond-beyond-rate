@@ -37,7 +37,7 @@ print(f"Using device: {device}")
 # =====================================================================
 # Global Configuration
 # =====================================================================
-TRAIN_ALL_VARIATION: bool = False
+TRAIN_ALL_VARIATION: bool = True
 USE_DELAY: bool = True
 DATASET_KEY: str = "whole"
 

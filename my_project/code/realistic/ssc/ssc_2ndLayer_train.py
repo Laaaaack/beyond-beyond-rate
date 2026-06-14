@@ -33,7 +33,7 @@ LOG_DIR = SCRIPT_DIR / "log"
 # =====================================================================
 # Global Configuration
 # =====================================================================
-TRAIN_ALL_VARIATION: bool = False
+TRAIN_ALL_VARIATION: bool = True
 USE_DELAY: bool = False
 DATASET_KEY: str = "part"
 
