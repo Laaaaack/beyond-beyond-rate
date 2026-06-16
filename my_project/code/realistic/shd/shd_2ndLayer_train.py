@@ -41,7 +41,7 @@ DATASET_KEY: str = "norm"
 ALL_VARIATIONS: list[tuple[str, bool]] = [
     (dataset, delay)
     #for dataset in ("norm", "part", "whole")
-    for dataset in ("whole")
+    for dataset in ("whole",)
     for delay in (False, True)
 ]
 

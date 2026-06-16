@@ -90,7 +90,7 @@ TEST_RANGE  = (0.75, 0.9)
 # --- Training hyper-parameters ---
 HIDDEN_UNITS: int        = 128
 NUM_CLASSES: int         = 35   # SSC has 35 spoken-word classes
-EPOCHS: int              = 1250
+EPOCHS: int              = 2500
 BATCH_SIZE: int          = 128
 LEARNING_RATE: float     = 0.1
 SEED: int                = 42

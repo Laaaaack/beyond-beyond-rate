@@ -42,7 +42,7 @@ LOG_DIR = SCRIPT_DIR / "log"
 # Batch mode: when True, the main run trains EVERY combination of
 # (dataset_key, use_delay) listed in ALL_VARIATIONS case-by-case.
 # When False, only the single (DATASET_KEY, USE_DELAY) pair below is run.
-TRAIN_ALL_VARIATION: bool = False
+TRAIN_ALL_VARIATION: bool = True
 
 # Network variant: True for SGD-delay, False for SGD (no delay).
 # Ignored when TRAIN_ALL_VARIATION is True.
@@ -55,7 +55,8 @@ DATASET_KEY: str = "part"
 # All (dataset_key, use_delay) pairs to iterate over in batch mode.
 ALL_VARIATIONS: list[tuple[str, bool]] = [
     (dataset, delay)
-    for dataset in ("norm", "part", "whole")
+    #for dataset in ("norm", "part", "whole")
+    for dataset in ("whole",)
     for delay in (False, True)
 ]
 
@@ -90,7 +91,7 @@ TEST_RANGE  = (0.75, 0.9)
 # --- Training hyper-parameters ---
 HIDDEN_UNITS: int        = 128
 NUM_CLASSES: int         = 35   # SSC has 35 spoken-word classes
-EPOCHS: int              = 1250
+EPOCHS: int              = 2500
 BATCH_SIZE: int          = 128
 LEARNING_RATE: float     = 0.1
 SEED: int                = 42
