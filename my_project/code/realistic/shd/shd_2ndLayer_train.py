@@ -34,9 +34,9 @@ LOG_DIR = SCRIPT_DIR / "log"
 # =====================================================================
 # Global Configuration
 # =====================================================================
-TRAIN_ALL_VARIATION: bool = True
+TRAIN_ALL_VARIATION: bool = False
 USE_DELAY: bool = True
-DATASET_KEY: str = "norm"
+DATASET_KEY: str = "whole"
 
 ALL_VARIATIONS: list[tuple[str, bool]] = [
     (dataset, delay)
