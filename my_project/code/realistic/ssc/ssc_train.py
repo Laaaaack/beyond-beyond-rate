@@ -236,12 +236,18 @@ def build_dataloaders(
         Tuple of (train_loader, val_loader, test_loader).
     """
     N = len(Y)
-    train_idx = get_split_indices(TRAIN_RANGE, N)
-    val_idx = get_split_indices(VAL_RANGE, N)
-    test_idx = get_split_indices(TEST_RANGE, N)
 
+    # Globally shuffle before slicing the splits. The "whole" dataset is the
+    # raw train+test+valid concatenation and is ordered by class, so a
+    # position-based split would leave entire classes out of val/test (e.g.
+    # train sees classes 0-27 while val is dominated by unseen classes 28-34).
+    # A single permutation guarantees all classes appear in every split; for
+    # the already-shuffled "part"/"norm" datasets this is harmless.
     np.random.seed(seed)
-    np.random.shuffle(train_idx)
+    perm = np.random.permutation(N)
+    train_idx = perm[get_split_indices(TRAIN_RANGE, N)]
+    val_idx = perm[get_split_indices(VAL_RANGE, N)]
+    test_idx = perm[get_split_indices(TEST_RANGE, N)]
 
     train_ds = SpikeDataset(X[train_idx], Y[train_idx])
     val_ds = SpikeDataset(X[val_idx], Y[val_idx])
