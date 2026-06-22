@@ -9,6 +9,8 @@ import json
 import os
 import random
 import sys
+from pathlib import Path
+
 import numpy as np
 from scipy.io import loadmat
 import torch
@@ -16,8 +18,11 @@ from torch import nn
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
-CURRENT_DIR = os.getcwd()
-sys.path.append(os.path.join(CURRENT_DIR, "../../../temporal_shd_project/code/src"))
+SCRIPT_DIR = Path(__file__).resolve().parent
+DATA_DIR = SCRIPT_DIR / "data"
+LOG_DIR = SCRIPT_DIR / "log"
+
+sys.path.append(str(SCRIPT_DIR / "../../../temporal_shd_project/code/src"))
 import slayerSNN as snn
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -40,9 +45,9 @@ USE_DELAY: bool = False
 DATASET_KEY: str = "whole"
 
 DATASET_CONFIGS = {
-    "whole": {"mat_file": "../../realistic/shd/shd_data/shd_whole.mat", "input_dim": 700},
-    "part":  {"mat_file": "../../realistic/shd/shd_data/shd_part_new.mat", "input_dim": 224},
-    "norm":  {"mat_file": "../../realistic/shd/shd_data/shd_norm_new.mat", "input_dim": 224},
+    "whole": {"mat_file": str(SCRIPT_DIR / "../../realistic/shd/shd_data/shd_whole.mat"), "input_dim": 700},
+    "part":  {"mat_file": str(SCRIPT_DIR / "../../realistic/shd/shd_data/shd_part_new.mat"), "input_dim": 224},
+    "norm":  {"mat_file": str(SCRIPT_DIR / "../../realistic/shd/shd_data/shd_norm_new.mat"), "input_dim": 224},
 }
 
 SIM_PARAMS = {"Ts": 1, "tSample": 200}
@@ -62,7 +67,7 @@ TEST_RANGE = (0.75, 0.9)
 
 HIDDEN_UNITS: int = 128
 NUM_CLASSES: int = 20
-EPOCHS: int = 1250
+EPOCHS: int = 9
 BATCH_SIZE: int = 128
 LEARNING_RATE: float = 0.1
 SEED: int = 42
@@ -674,7 +679,7 @@ def run_sweep(dataset_key: str, use_delay: bool) -> None:
                 reverse=rev,
             )
 
-            model_path = f"data/{model_prefix}_{cond_name}_f{f_val}.pt"
+            model_path = DATA_DIR / f"{model_prefix}_{cond_name}_f{f_val}.pt"
             torch.save(net.state_dict(), model_path)
 
             result = test_with_repeats(
@@ -700,7 +705,7 @@ def run_sweep(dataset_key: str, use_delay: bool) -> None:
         }
         for cond, cond_results in sweep_results.items()
     }
-    results_path = f"log/{model_prefix}_reversal_sweep_results.json"
+    results_path = LOG_DIR / f"{model_prefix}_reversal_sweep_results.json"
     with open(results_path, "w") as fp:
         json.dump(results_serialisable, fp, indent=2)
     print(f"\nResults saved to {results_path}")
@@ -716,7 +721,7 @@ def run_sweep(dataset_key: str, use_delay: bool) -> None:
         }
         for cond, cond_logs in all_logs.items()
     }
-    log_path = f"log/{model_prefix}_training_log.json"
+    log_path = LOG_DIR / f"{model_prefix}_training_log.json"
     with open(log_path, "w") as fp:
         json.dump(logs_serialisable, fp, indent=2)
     print(f"Training logs saved to {log_path}")
@@ -732,8 +737,8 @@ def run_sweep(dataset_key: str, use_delay: bool) -> None:
 
 def main() -> None:
     """Dispatch single or all-variation sweeps depending on TRAIN_ALL_VARIATIONS."""
-    os.makedirs("data", exist_ok=True)
-    os.makedirs("log", exist_ok=True)
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(LOG_DIR, exist_ok=True)
 
     if TRAIN_ALL_VARIATIONS:
         for dataset_key in DATASET_CONFIGS:
