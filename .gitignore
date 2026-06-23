@@ -10,6 +10,7 @@ trainAll_evalAll_test/
 original_code_test/
 HPC_jobs/
 HPC_requirements.txt
+my_project/results_visualisation/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
