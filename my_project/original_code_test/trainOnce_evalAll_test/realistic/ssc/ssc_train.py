@@ -40,7 +40,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # --- Train-all switch ---
 # When True, main() loops over every (delay x dataset-variant) combination.
 # When False, main() runs the single config set by USE_DELAY / DATASET_KEY.
-TRAIN_ALL_VARIATION: bool = False
+TRAIN_ALL_VARIATION: bool = True
 
 # Option lists used when TRAIN_ALL_VARIATION is True.
 DELAY_OPTIONS: list   = [True, False]
@@ -83,7 +83,7 @@ TEST_RANGE  = (0.75, 0.9)
 # --- Training hyper-parameters ---
 HIDDEN_UNITS: int        = 128
 NUM_CLASSES: int         = 35   # SSC has 35 spoken-word classes
-EPOCHS: int              = 600
+EPOCHS: int              = 1250
 BATCH_SIZE: int          = 128
 LEARNING_RATE: float     = 0.1
 SEED: int                = 42
@@ -130,16 +130,25 @@ def probe_and_load_eval_data(
     with h5py.File(h5_path, "r") as hf:
         n_samples = hf["X"].shape[0]
 
-    # Compute split indices
-    train_idx = np.arange(
-        int(n_samples * TRAIN_RANGE[0]), int(n_samples * TRAIN_RANGE[1])
-    )
-    val_idx = np.arange(
-        int(n_samples * VAL_RANGE[0]), int(n_samples * VAL_RANGE[1])
-    )
-    test_idx = np.arange(
-        int(n_samples * TEST_RANGE[0]), int(n_samples * TEST_RANGE[1])
-    )
+    # Shuffle the sample order before splitting, using the same mechanism the
+    # part/norm datasets are permuted with at generation time
+    # (np.random.permutation). The whole dataset is stored in sorted
+    # class-blocks, so without this the contiguous train/val/test ranges below
+    # would see skewed, partially-missing classes. Seeded here for
+    # reproducibility; train_model() re-seeds the global RNG afterwards.
+    np.random.seed(SEED)
+    shuffled_idx = np.random.permutation(n_samples)
+
+    # Compute split indices over the shuffled order
+    train_idx = shuffled_idx[
+        int(n_samples * TRAIN_RANGE[0]):int(n_samples * TRAIN_RANGE[1])
+    ]
+    val_idx = shuffled_idx[
+        int(n_samples * VAL_RANGE[0]):int(n_samples * VAL_RANGE[1])
+    ]
+    test_idx = shuffled_idx[
+        int(n_samples * TEST_RANGE[0]):int(n_samples * TEST_RANGE[1])
+    ]
 
     # Load val and test fully into memory (small enough)
     X_val, Y_val = load_split_from_h5(h5_path, val_idx, target_T)

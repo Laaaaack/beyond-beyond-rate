@@ -38,7 +38,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # When True, run every combination of {delay, no_delay} x {norm, part, whole}.
 # When False, run only the single (USE_DELAY, DATASET_KEY) configuration below.
-TRAIN_ALL_VARIATION: bool = False
+TRAIN_ALL_VARIATION: bool = True
 
 # Network variant: True for SGD-delay, False for SGD (no delay)
 USE_DELAY: bool = True
@@ -72,7 +72,7 @@ TEST_RANGE = (0.75, 0.9)
 # Training hyper-parameters
 HIDDEN_UNITS: int = 128
 NUM_CLASSES: int = 20
-EPOCHS: int = 800
+EPOCHS: int = 1250
 BATCH_SIZE: int = 128
 LEARNING_RATE: float = 0.1
 SEED: int = 42
