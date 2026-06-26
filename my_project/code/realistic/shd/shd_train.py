@@ -24,6 +24,9 @@ import slayerSNN as snn
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
+# Resolve all file paths relative to this script's location, not the CWD.
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 # =====================================================================
 # Global configuration
@@ -65,7 +68,7 @@ TEST_RANGE = (0.75, 0.9)
 # Training hyper-parameters
 HIDDEN_UNITS: int = 128
 NUM_CLASSES: int = 20
-EPOCHS: int = 800
+EPOCHS: int = 1250
 BATCH_SIZE: int = 128
 LEARNING_RATE: float = 0.1
 SEED: int = 42
@@ -245,12 +248,13 @@ class SHDNetwork(nn.Module):
         return x.float().to(device)
 
     def _first_hidden(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.slayer.spike(self.fc1(self.slayer.psp(x)))
-        if self.use_delay:
-            x = self.delay1(x)
-        return x
+        # Input -> PSP -> fc1 -> spike. Returns raw binary hidden1 spikes (pre-delay).
+        return self.slayer.spike(self.fc1(self.slayer.psp(x)))
 
     def _second_hidden_and_output(self, hidden1: torch.Tensor) -> torch.Tensor:
+        # (delay1) -> PSP -> fc2 -> spike -> (delay2) -> PSP -> fc3 -> spike.
+        if self.use_delay:
+            hidden1 = self.delay1(hidden1)
         x = self.slayer.spike(self.fc2(self.slayer.psp(hidden1)))
         if self.use_delay:
             x = self.delay2(x)
@@ -552,9 +556,12 @@ def run_hidden_perturbation_sweep(
 
 def run_variation(use_delay: bool, dataset_key: str) -> None:
     input_dim = DATASET_CONFIGS[dataset_key]["input_dim"]
-    mat_file = DATASET_CONFIGS[dataset_key]["mat_file"]
+    mat_file = os.path.join(SCRIPT_DIR, DATASET_CONFIGS[dataset_key]["mat_file"])
     delay_tag = "delay" if use_delay else "nodelay"
     model_prefix = f"shd_{dataset_key}_{delay_tag}"
+
+    data_dir = os.path.join(SCRIPT_DIR, "data")
+    log_dir = os.path.join(SCRIPT_DIR, "log")
 
     print(f"\n{'=' * 70}")
     print(f"Dataset: {dataset_key} | Input dim: {input_dim}")
@@ -590,8 +597,8 @@ def run_variation(use_delay: bool, dataset_key: str) -> None:
     print(f"\nClean test accuracy (f=0): {clean_acc:.4f}")
 
     # Save trained model
-    os.makedirs("data", exist_ok=True)
-    model_path = f"data/{model_prefix}_trained.pt"
+    os.makedirs(data_dir, exist_ok=True)
+    model_path = os.path.join(data_dir, f"{model_prefix}_trained.pt")
     torch.save(net.state_dict(), model_path)
     print(f"Model saved to {model_path}")
 
@@ -614,16 +621,16 @@ def run_variation(use_delay: bool, dataset_key: str) -> None:
         for f_val, data in sweep_results.items()
     }
 
-    os.makedirs("log", exist_ok=True)
-    results_path = (
-        f"log/shd_{dataset_key}_{delay_tag}_hidden_perturbation_results.json"
+    os.makedirs(log_dir, exist_ok=True)
+    results_path = os.path.join(
+        log_dir, f"{model_prefix}_hidden_perturbation_results.json"
     )
     with open(results_path, "w") as fp:
         json.dump(results_serialisable, fp, indent=2)
     print(f"Results saved to {results_path}")
 
     # Save training log
-    log_path = f"log/shd_{dataset_key}_{delay_tag}_training_log.json"
+    log_path = os.path.join(log_dir, f"{model_prefix}_training_log.json")
     training_log_serialisable = {
         k: [float(v) for v in vals] if isinstance(vals, list) else vals
         for k, vals in training_log.items()

@@ -261,12 +261,13 @@ class SSCNetwork(nn.Module):
         return x.float().to(device)
 
     def _first_hidden(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.slayer.spike(self.fc1(self.slayer.psp(x)))
-        if self.use_delay:
-            x = self.delay1(x)
-        return x
+        # Input -> PSP -> fc1 -> spike. Returns raw binary hidden1 spikes (pre-delay).
+        return self.slayer.spike(self.fc1(self.slayer.psp(x)))
 
     def _second_hidden_and_output(self, hidden1: torch.Tensor) -> torch.Tensor:
+        # (delay1) -> PSP -> fc2 -> spike -> (delay2) -> PSP -> fc3 -> spike.
+        if self.use_delay:
+            hidden1 = self.delay1(hidden1)
         x = self.slayer.spike(self.fc2(self.slayer.psp(hidden1)))
         if self.use_delay:
             x = self.delay2(x)

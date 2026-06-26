@@ -1,23 +1,21 @@
-"""Second-Hidden-Layer Time Reversal — SHD (eval-only, train-per-f / eval-per-f).
+"""First-Hidden-Layer Time Reversal — SHD (eval-only, train-per-f / eval-per-f).
 
-Reproduces the Beyond Rate reversal protocol at the **output of the 2nd hidden
+Reproduces the Beyond Rate reversal protocol at the **output of the 1st hidden
 layer**. For every perturbation level f a *separate* 2-hidden-layer SLAYER SNN
-checkpoint — one trained with 2nd-hidden-layer perturbation at that same f (see
-my_project/code/realistic/shd/shd_2ndLayer_train.py) — is loaded and evaluated
-at that f. Training the model at each f lets it adapt its code to the
-perturbation level (relying more on rate as timing is destroyed), so the
-reversal curve recovers the paper's rate-level plateau instead of collapsing to
-chance. The per-f checkpoints live next to this script in ``data/``. No training
-is performed here.
+checkpoint — one trained with 1st-hidden-layer perturbation at that same f (see
+my_project/code/realistic/shd/shd_train.py) — is loaded and evaluated at that f.
+Training the model at each f lets it adapt its code to the perturbation level
+(relying more on rate as timing is destroyed), so the reversal curve recovers
+the paper's rate-level plateau instead of collapsing to chance. The per-f
+checkpoints live next to this script in ``data/``. No training is performed here.
 
-The reversal and perturbation are applied to the binary spikes at the 2nd hidden
-layer's output, *before* delay2 — exactly where shd_2ndLayer_train.py injects
-its perturbation — so the loaded weights and the perturbation site match
-training.
+The reversal and perturbation are applied to the spikes at the 1st hidden
+layer's output (after delay1) — exactly where shd_train.py injects its
+perturbation — so the loaded weights and the perturbation site match training.
 
 Two conditions are swept for every f (each using the f-matched checkpoint):
-  - no_reversal: 2nd-hidden-layer spike-timing perturbation only (fraction f).
-  - reversal:    2nd-hidden-layer time reversal, then the same f perturbation.
+  - no_reversal: 1st-hidden-layer spike-timing perturbation only (fraction f).
+  - reversal:    1st-hidden-layer time reversal, then the same f perturbation.
 
 Time reversal preserves spike counts, neuron identities, per-neuron ISIs, and
 coincidence patterns, but flips temporal/causal order.
@@ -78,15 +76,13 @@ DATASET_CONFIGS = {
     "norm":  {"mat_file": "../../realistic/shd/shd_data/shd_norm_new.mat", "input_dim": 224},
 }
 
-# --- Per-perturbation-level checkpoints (2nd-layer-trained) ---
-# One checkpoint per (dataset, delay, f): each was trained with perturbation at
-# the 2nd hidden layer at that f. Evaluating the f-matched checkpoint at level f
-# reproduces the Beyond Rate protocol, where the model adapts to each
-# perturbation level. The files live in the local ``data/`` directory next to
-# this script. Note this directory also holds the 1st-layer ``shd_*`` files; the
-# ``shd_2ndLayer_*`` prefix selects the 2nd-layer set.
+# --- Per-perturbation-level checkpoints ---
+# One checkpoint per (dataset, delay, f): each was trained on data perturbed at
+# that f. Evaluating the f-matched checkpoint at level f reproduces the Beyond
+# Rate protocol, where the model adapts to each perturbation level. The files
+# live in the local ``data/`` directory next to this script.
 CHECKPOINT_DIR = os.path.join(SCRIPT_DIR, "data")
-CHECKPOINT_TEMPLATE = "shd_2ndLayer_{dataset_key}_{delay_tag}_f{f:.1f}.pt"
+CHECKPOINT_TEMPLATE = "shd_{dataset_key}_{delay_tag}_f{f:.1f}.pt"
 
 # --- SLAYER neuron and simulation descriptors ---
 SIM_PARAMS = {"Ts": 1, "tSample": 200}
@@ -361,29 +357,26 @@ class SHDNetwork(nn.Module):
         return x.float().to(device)
 
     def _first_hidden(self, x: torch.Tensor) -> torch.Tensor:
-        # 1st hidden layer: PSP -> fc1 -> spike -> (delay1).
+        # 1st hidden layer: PSP -> fc1 -> spike -> (delay1). This layer's
+        # output is the perturbation site for this experiment, matching
+        # shd_train.py.
         x = self.slayer.spike(self.fc1(self.slayer.psp(x)))
         if self.use_delay:
             x = self.delay1(x)
         return x
 
-    def _second_hidden(self, hidden1: torch.Tensor) -> torch.Tensor:
-        # 2nd hidden layer BEFORE delay2 — returns BINARY spikes. This is the
-        # perturbation site for this experiment, matching shd_2ndLayer_train.py
-        # (delay2 is applied later so the hook sees a strictly 0/1 tensor).
-        return self.slayer.spike(self.fc2(self.slayer.psp(hidden1)))
-
-    def _output(self, hidden2: torch.Tensor) -> torch.Tensor:
-        # Routing (delay2) + output layer.
-        x = self.delay2(hidden2) if self.use_delay else hidden2
+    def _second_hidden_and_output(self, hidden1: torch.Tensor) -> torch.Tensor:
+        # Remaining forward: PSP -> fc2 -> spike -> (delay2) -> PSP -> fc3 -> spike.
+        x = self.slayer.spike(self.fc2(self.slayer.psp(hidden1)))
+        if self.use_delay:
+            x = self.delay2(x)
         x = self.slayer.spike(self.fc3(self.slayer.psp(x)))
         return x
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self._prepare_input(x)
         hidden1 = self._first_hidden(x)
-        hidden2 = self._second_hidden(hidden1)
-        return self._output(hidden2)
+        return self._second_hidden_and_output(hidden1)
 
     def forward_with_perturbation(
         self,
@@ -391,17 +384,16 @@ class SHDNetwork(nn.Module):
         f: float = 0.0,
         reverse: bool = False,
     ) -> torch.Tensor:
-        # Apply reversal and/or perturbation at the 2nd hidden layer's output
-        # (before delay2) — the same site shd_2ndLayer_train.py perturbs during
-        # training. Reversal is applied before perturbation (they do not commute).
+        # Apply reversal and/or perturbation at the 1st hidden layer's output
+        # (after delay1) — the same site shd_train.py perturbs during training.
+        # Reversal is applied before perturbation (the two do not commute).
         x = self._prepare_input(x)
         hidden1 = self._first_hidden(x)
-        hidden2 = self._second_hidden(hidden1)
         if reverse:
-            hidden2 = reverse_hidden_batch(hidden2)
+            hidden1 = reverse_hidden_batch(hidden1)
         if f > 0:
-            hidden2 = perturb_hidden_batch(hidden2, f)
-        return self._output(hidden2)
+            hidden1 = perturb_hidden_batch(hidden1, f)
+        return self._second_hidden_and_output(hidden1)
 
     def get_delays(self) -> dict[str, np.ndarray]:
         delays = {}
@@ -450,7 +442,7 @@ def test_with_reversal(
     f: float = 0.0,
     reverse: bool = True,
 ) -> float:
-    # Eval-only: reverse and/or perturb at the 2nd hidden layer's output, then
+    # Eval-only: reverse and/or perturb at the 1st hidden layer's output, then
     # finish the forward. The numpy round-trip is not autograd-safe, so this
     # must stay inside torch.no_grad().
     net.eval()
@@ -475,7 +467,7 @@ def test_with_perturbation(
     test_loader: DataLoader,
     f: float = 0.0,
 ) -> float:
-    # Eval-only: perturb at the 2nd hidden layer's output (no reversal), then
+    # Eval-only: perturb at the 1st hidden layer's output (no reversal), then
     # finish the forward. Stays inside torch.no_grad() for the numpy round-trip.
     net.eval()
     correct = 0
@@ -575,7 +567,7 @@ def run_variation(dataset_key: str, use_delay: bool) -> dict:
     input_dim = DATASET_CONFIGS[dataset_key]["input_dim"]
     mat_file = os.path.join(SCRIPT_DIR, DATASET_CONFIGS[dataset_key]["mat_file"])
     delay_tag = "delay" if use_delay else "nodelay"
-    model_prefix = f"shd_2ndLayer_{dataset_key}_{delay_tag}"
+    model_prefix = f"shd_{dataset_key}_{delay_tag}"
 
     log_dir = os.path.join(SCRIPT_DIR, "log")
     os.makedirs(log_dir, exist_ok=True)
@@ -604,9 +596,9 @@ def run_variation(dataset_key: str, use_delay: bool) -> dict:
         )
         return load_pretrained_model(checkpoint_path, input_dim, use_delay)
 
-    # Evaluate across the 2nd-hidden-layer reversal sweep (no reversal vs
+    # Evaluate across the 1st-hidden-layer reversal sweep (no reversal vs
     # reversal), loading the f-matched checkpoint for each perturbation level.
-    print(f"\n  --- 2nd-hidden-layer reversal sweep (per-f checkpoints) ---")
+    print(f"\n  --- 1st-hidden-layer reversal sweep (per-f checkpoints) ---")
     sweep_results = run_reversal_sweep(get_net, test_loader, F_VALUES, NUM_REPEATS)
 
     # Save sweep results
@@ -622,7 +614,7 @@ def run_variation(dataset_key: str, use_delay: bool) -> dict:
         for condition, cond_results in sweep_results.items()
     }
     results_path = os.path.join(
-        log_dir, f"{model_prefix}_hidden2_reversal_sweep_results.json"
+        log_dir, f"{model_prefix}_hidden1_reversal_sweep_results.json"
     )
     with open(results_path, "w") as fp:
         json.dump(results_serialisable, fp, indent=2)
