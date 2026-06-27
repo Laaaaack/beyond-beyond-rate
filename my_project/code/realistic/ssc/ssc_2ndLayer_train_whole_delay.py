@@ -74,7 +74,8 @@ SEED: int                = 42
 MAX_DELAY: int           = 64
 EARLY_STOP_PATIENCE: int = 300
 
-F_VALUES: list   = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+#F_VALUES: list   = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+F_VALUES: list   = [1.0]
 NUM_REPEATS: int = 3
 
 
