@@ -105,7 +105,7 @@ EARLY_STOP_PATIENCE: int = 300
 # Hidden-layer sites at which to inject the shift, each in 1..NUM_HIDDEN_LAYERS.
 PERTURB_LAYERS: list[int] = [1, 2, 3, 4]
 # Per-neuron shift std dev sigma, in ms.
-SIGMA_VALUES: list[int] = [0, 1, 3, 5, 10, 17, 25]
+SIGMA_VALUES: list[int] = [0, 5, 10, 15, 20, 25]
 NUM_REPEATS: int = 3
 
 
