@@ -77,7 +77,7 @@ DATASET_CONFIGS = {
 SIM_PARAMS = {"Ts": 1, "tSample": 200}
 LIF_PARAMS = {
     "type": "SRMALPHA",
-    "theta": 10,
+    "theta": 2,  # lowered from 10: keeps spikes and gradient alive through all 4 hidden layers
     "tauSr": 1,
     "tauRho": 0.1,
     "tauRef": 2,

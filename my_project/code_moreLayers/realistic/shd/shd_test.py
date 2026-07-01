@@ -77,7 +77,7 @@ DATASET_CONFIGS = {
 SIM_PARAMS = {"Ts": 1, "tSample": 200}
 LIF_PARAMS = {
     "type": "SRMALPHA",
-    "theta": 10,
+    "theta": 2,  # lowered from 10: keeps spikes and gradient alive through all 4 hidden layers
     "tauSr": 1,
     "tauRho": 0.1,
     "tauRef": 2,
@@ -94,7 +94,7 @@ TEST_RANGE = (0.75, 0.9)
 HIDDEN_UNITS: int = 128
 NUM_CLASSES: int = 20
 NUM_HIDDEN_LAYERS: int = 4
-EPOCHS: int = 1250
+EPOCHS: int = 150
 BATCH_SIZE: int = 128
 LEARNING_RATE: float = 0.1
 SEED: int = 42
@@ -103,8 +103,8 @@ EARLY_STOP_PATIENCE: int = 300
 
 # --- Hidden-perturbation sweep ---
 # Hidden-layer sites at which to inject perturbation, each in 1..NUM_HIDDEN_LAYERS.
-PERTURB_LAYERS: list[int] = [1]
-F_VALUES: list[float] = [0.0]
+PERTURB_LAYERS: list[int] = [1,2,3,4]
+F_VALUES: list[float] = [0.0, 0.2]
 NUM_REPEATS: int = 3
 
 
