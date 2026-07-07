@@ -97,7 +97,8 @@ MAX_DELAY: int = 64
 EARLY_STOP_PATIENCE: int = 300
 
 # --- Deletion sweep: deletion probability p_d ---
-PD_VALUES: list[float] = [0.0, 0.2, 0.4, 0.6, 0.8]
+#PD_VALUES: list[float] = [0.0, 0.2, 0.4, 0.6, 0.8]
+PD_VALUES: list[float] = [0.1]
 
 # --- Evaluation ---
 NUM_REPEATS: int = 3
