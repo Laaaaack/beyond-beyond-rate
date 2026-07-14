@@ -1,0 +1,1 @@
+The experiments under this folder test the training scripts under different sample rate to see if sample rate affects performance

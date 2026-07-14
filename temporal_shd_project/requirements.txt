@@ -1,0 +1,28 @@
+# Requirements for temporal_shd_project
+# Install with: pip install -r requirements.txt
+#
+# NOTE: PyTorch must be installed separately with the appropriate CUDA version.
+# Visit https://pytorch.org/get-started/locally/ for the correct install command.
+# Example (CUDA 11.8): pip install torch --index-url https://download.pytorch.org/whl/cu118
+# Example (CPU only):  pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# Numerical & Scientific Computing
+numpy
+scipy
+h5py
+
+# Visualization
+matplotlib
+
+# Data Download / HTTP
+requests
+six
+
+# Progress Bars
+tqdm
+
+# Spiking Neural Network Framework (SLAYER)
+# Requires PyTorch to be installed first.
+# If not available on PyPI, install from source:
+#   pip install git+https://github.com/bamsumit/slayerPytorch.git
+#slayerpytorch
