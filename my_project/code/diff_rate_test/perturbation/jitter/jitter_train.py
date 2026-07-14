@@ -58,7 +58,8 @@ DATASET_KEY: str = "whole"
 # All (dataset_key, use_delay) pairs to iterate over in batch mode.
 ALL_VARIATIONS: list[tuple[str, bool]] = [
     (dataset, delay)
-    for dataset in ("norm", "part", "whole")
+#    for dataset in ("norm", "part", "whole")
+    for dataset in ("whole",)
     for delay in (False, True)
 ]
 
