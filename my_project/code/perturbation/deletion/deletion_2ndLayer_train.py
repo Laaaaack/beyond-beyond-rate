@@ -77,8 +77,7 @@ SEED: int = 42
 MAX_DELAY: int = 64
 EARLY_STOP_PATIENCE: int = 300
 
-#PD_VALUES: list[float] = [0.0, 0.2, 0.4, 0.6, 0.8]
-PD_VALUES: list[float] = [0.1]
+PD_VALUES: list[float] = [0.0, 0.2, 0.4, 0.6, 0.8]
 NUM_REPEATS: int = 3
 
 INPUT_DIM: int = DATASET_CONFIGS[DATASET_KEY]["input_dim"]
