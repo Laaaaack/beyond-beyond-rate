@@ -1,11 +1,30 @@
-# Phase 1 Investigation — Why Train-at-f Works for Input Perturbation but Not for Hidden Perturbation
+# Why the Two Protocols Answer Different Questions (Fixed-Weight vs Perturbation-Aware)
 
-## The puzzle
+This project runs every perturbation experiment under two training protocols,
+kept as parallel tracks because they measure genuinely different things:
+
+- **Perturbation aware training** (a.k.a. train-all / eval-all, or
+  train-at-f / eval-at-f): a separate model is trained from scratch at each
+  perturbation level *f* and evaluated at that level. Folder:
+  `exp_perturbation_awared_training/`.
+- **Fixed weight perturbation** (a.k.a. train-once / eval-all, or
+  train-clean / eval-perturbed): one model is trained on clean data and the
+  perturbation level is swept only at evaluation, inside `torch.no_grad()`.
+  Folder: `exp_fixed_weight_perturbation/`.
+
+The two protocols coincide at the **input** site (which is why the original
+paper's train-at-f curves are clean and interpretable) but diverge sharply at a
+**hidden** site. This note explains why, so the results from each track are read
+against the right question. Neither protocol is "wrong" — they probe different
+properties, and the shape of a curve only means something once you know which
+protocol produced it.
+
+## The observation
 
 The original *Beyond Rate* paper applies its perturbation directly to the
-**input spike trains**, with a separate model trained from scratch at each
-perturbation level *f*. Under this train-at-f / eval-at-f protocol, the ISI
-accuracy curve degrades cleanly as *f* increases:
+**input spike trains**, using perturbation aware training (a separate model
+trained from scratch at each level *f*). Under this protocol, the ISI accuracy
+curve degrades cleanly as *f* increases:
 
 | f   | input perturbation (original) |
 |-----|--------------------------------|
@@ -102,8 +121,8 @@ signal is preserved by the perturbation by construction.
 
 When we train under f=1 hidden perturbation, the loss landscape rewards
 exactly this kind of representation, and the network finds it. So the
-train-at-f curve at the hidden layer answers a different — and much less
-interesting — question:
+train-at-f curve at the hidden layer answers a different question — one about
+solvability rather than reliance:
 
 > "Can the first layer find an input-feature → hidden-rate mapping that lets
 > the readout solve the task without using hidden timing?"
@@ -114,25 +133,27 @@ learnable filter + spike. The flat 0.95 curve is the network confirming
 this. It tells us almost nothing about whether the *unperturbed-trained*
 network would actually use hidden timing if free to do so.
 
-## Why this isn't just a minor methodology nit
+## What each protocol measures — and why we keep both
 
-The two protocols answer fundamentally different questions, and only one of
-them lines up with our research goal.
+The protocols answer fundamentally different questions. Rather than pick one,
+the project runs both and reads each curve against its own question.
 
-| Protocol | What it asks |
+| Protocol × site | What it asks |
 |----------|--------------|
-| Input train-at-f / eval-at-f | "How much class signal survives at the input under perturbation level f?" |
-| Hidden train-at-f / eval-at-f | "Can the first layer find a hidden representation that's robust to perturbation level f?" |
-| Hidden train-at-0 / eval-at-f (test-time only) | "Does the trained network's hidden representation rely on spike timing?" |
+| Perturbation aware, **input** (train-at-f / eval-at-f) | "How much class signal survives at the input under perturbation level f?" |
+| Perturbation aware, **hidden** (train-at-f / eval-at-f) | "Can the first layer find a hidden representation that's robust to perturbation level f?" |
+| Fixed weight, **hidden** (train-at-0 / eval-at-f) | "Does the trained network's hidden representation rely on spike timing?" |
 
-The Phase 1–4 research question — "do hidden layers maintain spike-timing-
-based representations?" — is the third row. The first row was the right
-question for the original Beyond Rate paper because the input is the only
-information source it could probe. The second row is what *isi_tau.ipynb*
-and *isi_delay.ipynb* were doing before the protocol fix; it sounded like
-the natural transposition of the original method, but it isn't.
+The headline Beyond Beyond Rate question — "do hidden layers maintain
+spike-timing-based representations?" — is the **third row**, and that is what the
+`exp_fixed_weight_perturbation/` track is built to answer. The **first row** is
+the original Beyond Rate question; the input is the only information source it
+can probe, so perturbation aware training there is exactly right. The **second
+row** is a distinct, still-meaningful question — *is the task solvable under a
+corrupted hidden representation?* — and it is what the
+`exp_perturbation_awared_training/` track measures at the hidden site.
 
-Test-time-only is the right protocol for hidden perturbation because:
+Fixed weight perturbation is the right lens for the third-row question because:
 
 1. **It freezes the representation we want to probe.** The network commits
    to whatever hidden code it finds when training is unconstrained. We then
@@ -145,6 +166,11 @@ Test-time-only is the right protocol for hidden perturbation because:
    eval-at-f means the trained network's representation depends on hidden
    timing for that fraction of its discriminative power. A flat curve means
    it doesn't.
+
+Perturbation aware training at the hidden site is not discarded — its flat
+curve is a *positive result* for that protocol's question: it is direct
+evidence that a rate-coded hidden representation is sufficient to solve the
+task when the network is allowed to adapt to the perturbation.
 
 ## A subtle caveat that applies to both protocols
 
@@ -161,15 +187,20 @@ train-at-f does for the hidden site; it just doesn't get us all the way.
 
 ## Summary
 
-- Train-at-f / eval-at-f is the right protocol when the perturbation site
-  is at a hard bottleneck the network cannot route around (the **input**).
-  It measures the information content remaining in the surviving channel.
-- Train-at-f / eval-at-f is the wrong protocol when there is a learnable
-  layer upstream of the perturbation site (the **hidden layer**). The
-  upstream layer pre-translates information into the surviving channel and
-  the curve flattens regardless of whether the unperturbed-trained network
-  actually uses the destroyed channel.
-- For Phase 1 onward, hidden perturbation experiments must train once at
-  f=0 and sweep f only at evaluation. `isi_tau.ipynb` and `isi_delay.ipynb`
-  have been refactored to follow this; `ccisi_*`, `coin_*`, `shd_train`,
-  `ssc_train`, and `inverse_train` already follow it.
+- **Perturbation aware training** measures information content in the
+  surviving channel. At the **input** (a hard bottleneck the network cannot
+  route around) this coincides with "how much class signal survives," which is
+  the original Beyond Rate question. At a **hidden** site it instead measures
+  "can an upstream layer pre-translate the signal into the surviving (rate)
+  channel," so the curve flattens once the network is allowed to adapt — a
+  meaningful answer to *that* question, not a bug.
+- **Fixed weight perturbation** freezes a naturally-trained model and sweeps
+  the perturbation only at evaluation. This is the track that answers the
+  Beyond Beyond Rate question — *does the trained hidden representation rely on
+  spike timing?* — because it removes the upstream layer's incentive to
+  pre-translate.
+- Both tracks therefore coexist by design: `exp_fixed_weight_perturbation/`
+  for the representation-reliance question and `exp_perturbation_awared_training/`
+  for the solvability question, each reproduced at the input under
+  `exp_beyond_rate/` as a pipeline check. The two tracks agree at the input
+  site and diverge at hidden sites exactly as the analysis above predicts.
