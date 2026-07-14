@@ -1,0 +1,1 @@
+This folder contains code for the 'Beyond Beyond Rate' paper. The experiment follows the perturbation awared training protocol, meaning that the SNN models are trained on each perturbation level separately, and tested at that perturbation level.

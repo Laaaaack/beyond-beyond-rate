@@ -1,0 +1,1 @@
+This folder contains test code for the experiments from the 'Beyond Beyond Rate' project. The aim is to test whether different sample rate affects the model performance.

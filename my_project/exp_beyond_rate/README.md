@@ -1,0 +1,1 @@
+This folder contains test code for the experiments from the original 'Beyond Rate' paper. The paper follows perturbation awared training protocol by default.

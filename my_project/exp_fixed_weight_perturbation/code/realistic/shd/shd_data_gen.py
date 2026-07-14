@@ -2,7 +2,7 @@ import os
 import numpy as np
 import h5py
 import scipy.io as io
-from utils import get_shd_dataset
+from my_project.exp_fixed_weight_perturbation.code.realistic.shd.utils import get_shd_dataset
 
 
 # ==============================

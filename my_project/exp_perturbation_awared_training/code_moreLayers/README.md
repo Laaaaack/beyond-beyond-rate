@@ -1,0 +1,1 @@
+This folder contains the code for the experiments that uses the SNN models with more than 2 hidden layers.

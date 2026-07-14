@@ -1,0 +1,1 @@
+This folder contains code for the 'Beyond Beyond Rate' paper. The experiment follows the fixed weight perturbation training protocol, meaning that the SNN models are trained on clean dataset with no perturbation applied, then tested with perturbation applied at different levels.

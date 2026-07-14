@@ -1,1 +1,0 @@
-Test original code from 'Beyond Rate' repo.
