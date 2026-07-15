@@ -1,8 +1,14 @@
-"""Experiment 2A: SHD - Hidden-Layer Perturbation.
+"""Experiment 2A: SHD - 2nd-Hidden-Layer Perturbation (evaluation only).
 
-Train a 2-hidden-layer SLAYER SNN on the Spiking Heidelberg Digits (SHD)
-dataset with no perturbation (f=0), then evaluate it by applying spike-timing
-perturbation at the output of the 1st hidden layer instead of the input.
+Load pre-trained 2-hidden-layer SLAYER SNN checkpoints from `data/` and sweep
+spike-timing perturbation applied at the output of the 2nd hidden layer. No
+training is performed.
+
+The network definition and test split mirror shd_2ndLayer_train.py, so the
+checkpoints that script produces load without modification. Note the difference
+from shd_evalOnly.py: delay1 is folded into the 1st hidden layer and delay2 into
+the output routing, so the perturbation hook sees strictly binary
+2nd-hidden-layer spikes.
 
 Architecture: Input -> 128 hidden -> 128 hidden -> 20 output (SRMALPHA)
 Dataset variants: whole (700 input neurons), part (224), norm (224)
@@ -10,14 +16,12 @@ Dataset variants: whole (700 input neurons), part (224), norm (224)
 
 import os
 import json
-import random
 
 import numpy as np
 from scipy.io import loadmat
 import torch
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
-from tqdm import tqdm
 
 import slayerSNN as snn
 
@@ -34,7 +38,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # When True, run every combination of {delay, no_delay} x {norm, part, whole}.
 # When False, run only the single (USE_DELAY, DATASET_KEY) configuration below.
-TRAIN_ALL_VARIATION: bool = False
+EVAL_ALL_VARIATION: bool = True
 
 # Network variant: True for SGD-delay, False for SGD (no delay)
 USE_DELAY: bool = True
@@ -60,35 +64,48 @@ LIF_PARAMS = {
     "scaleRho": 0.1,
 }
 
-# Data split ratios
+# Data split ratios. Must match shd_2ndLayer_train.py, or the "test" set would
+# overlap the data the checkpoints were fitted on.
 TRAIN_RANGE = (0.0, 0.6)
 VAL_RANGE = (0.6, 0.75)
 TEST_RANGE = (0.75, 0.9)
 
-# Training hyper-parameters
+# Model hyper-parameters (must match the checkpoints)
 HIDDEN_UNITS: int = 128
 NUM_CLASSES: int = 20
-EPOCHS: int = 1250
 BATCH_SIZE: int = 128
-LEARNING_RATE: float = 0.1
 SEED: int = 42
 MAX_DELAY: int = 64
-EARLY_STOP_PATIENCE: int = 300
 
 # Hidden-perturbation sweep
 F_VALUES: list[float] = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
 NUM_REPEATS: int = 3
 
-# All variations to sweep when TRAIN_ALL_VARIATION is True
+# All variations to sweep when EVAL_ALL_VARIATION is True
 ALL_DATASET_KEYS: list[str] = ["norm", "part", "whole"]
 ALL_DELAY_OPTIONS: list[bool] = [True, False]
+
+# Checkpoints in data/ are stored as "<model_prefix><CHECKPOINT_SUFFIX>".
+CHECKPOINT_SUFFIX: str = "_f0.0.pt"
 
 
 # =====================================================================
 # Load SHD dataset
 # =====================================================================
 
-def load_shd_data(mat_path: str, target_T: int = 200) -> tuple[np.ndarray, np.ndarray]:
+def load_shd_data(
+    mat_path: str,
+    target_T: int = 200,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Load an SHD .mat file, zero-padding the time dimension if needed.
+
+    Args:
+        mat_path: Path to the .mat file holding "X" (spikes) and "Y" (labels).
+        target_T: Number of timesteps to pad each sample out to.
+
+    Returns:
+        A tuple of (X, Y), where X has shape (n_samples, n_neurons, target_T).
+    """
     data = loadmat(mat_path)
     X = data["X"]
     Y = data["Y"].ravel()
@@ -166,6 +183,7 @@ def perturb_hidden_batch(
 # =====================================================================
 
 class SpikeDataset(Dataset):
+    """Wraps spike arrays as a torch Dataset, casting to float on access."""
 
     def __init__(self, X: np.ndarray, Y: np.ndarray):
         self.X = X
@@ -184,35 +202,38 @@ def get_split_indices(
     split_range: tuple[float, float],
     total: int,
 ) -> np.ndarray:
+    """Return the contiguous sample indices covered by a split range."""
     start = int(total * split_range[0])
     end = int(total * split_range[1])
     return np.arange(start, end)
 
 
-def build_dataloaders(
+def build_test_loader(
     X: np.ndarray,
     Y: np.ndarray,
     batch_size: int = 128,
-    seed: int = 42,
-) -> tuple[DataLoader, DataLoader, DataLoader]:
+) -> DataLoader:
+    """Build a loader over the test split only.
+
+    Uses the same contiguous TEST_RANGE slice as shd_2ndLayer_train.py's
+    build_dataloaders(); the train shuffle there does not affect which samples
+    land in the test split.
+
+    Args:
+        X: All spike samples.
+        Y: All labels.
+        batch_size: Evaluation batch size.
+
+    Returns:
+        A DataLoader over the test split, unshuffled.
+    """
     N = len(Y)
-    train_idx = get_split_indices(TRAIN_RANGE, N)
-    val_idx = get_split_indices(VAL_RANGE, N)
     test_idx = get_split_indices(TEST_RANGE, N)
-
-    np.random.seed(seed)
-    np.random.shuffle(train_idx)
-
-    train_ds = SpikeDataset(X[train_idx], Y[train_idx])
-    val_ds = SpikeDataset(X[val_idx], Y[val_idx])
     test_ds = SpikeDataset(X[test_idx], Y[test_idx])
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
-
-    print(f"Train: {len(train_ds)} | Val: {len(val_ds)} | Test: {len(test_ds)}")
-    return train_loader, val_loader, test_loader
+    n_classes = len(np.unique(Y[test_idx]))
+    print(f"Test: {len(test_ds)} samples | classes present: {n_classes}")
+    return DataLoader(test_ds, batch_size=batch_size, shuffle=False)
 
 
 # =====================================================================
@@ -220,6 +241,11 @@ def build_dataloaders(
 # =====================================================================
 
 class SHDNetwork(nn.Module):
+    """2-hidden-layer SLAYER SNN with an optional learnable-delay variant.
+
+    Structurally identical to the network in shd_2ndLayer_train.py so that its
+    checkpoints load with strict key matching.
+    """
 
     def __init__(
         self,
@@ -259,44 +285,54 @@ class SHDNetwork(nn.Module):
         return x.float().to(device)
 
     def _first_hidden(self, x: torch.Tensor) -> torch.Tensor:
-        # Input -> PSP -> fc1 -> spike. Returns raw binary hidden1 spikes (pre-delay).
-        return self.slayer.spike(self.fc1(self.slayer.psp(x)))
+        x = self.slayer.spike(self.fc1(self.slayer.psp(x)))
+        if self.use_delay:
+            x = self.delay1(x)
+        return x
 
-    def _second_hidden_and_output(self, hidden1: torch.Tensor) -> torch.Tensor:
-        # (delay1) -> PSP -> fc2 -> spike -> (delay2) -> PSP -> fc3 -> spike.
-        if self.use_delay:
-            hidden1 = self.delay1(hidden1)
-        x = self.slayer.spike(self.fc2(self.slayer.psp(hidden1)))
-        if self.use_delay:
-            x = self.delay2(x)
+    def _second_hidden(self, hidden1: torch.Tensor) -> torch.Tensor:
+        # Compute block for hidden layer 2. Returns BINARY spikes.
+        # delay2 is applied later (in _output), so the perturbation hook
+        # sees a strictly 0/1 tensor.
+        return self.slayer.spike(self.fc2(self.slayer.psp(hidden1)))
+
+    def _output(self, hidden2: torch.Tensor) -> torch.Tensor:
+        # Routing (delay2) + output layer.
+        x = self.delay2(hidden2) if self.use_delay else hidden2
         x = self.slayer.spike(self.fc3(self.slayer.psp(x)))
         return x
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self._prepare_input(x)
         hidden1 = self._first_hidden(x)
-        return self._second_hidden_and_output(hidden1)
+        hidden2 = self._second_hidden(hidden1)
+        return self._output(hidden2)
 
     def forward_with_hidden_perturbation(
         self,
         x: torch.Tensor,
         f: float = 0.0,
     ) -> torch.Tensor:
+        """Run a forward pass, perturbing the 2nd hidden layer's spikes.
+
+        Args:
+            x: Input spikes, 3-D (batch, neurons, T) or SLAYER's 5-D format.
+            f: Probability that any given hidden-layer spike is relocated.
+
+        Returns:
+            Output-layer spikes in SLAYER's 5-D format.
+        """
         x = self._prepare_input(x)
         hidden1 = self._first_hidden(x)
+        hidden2 = self._second_hidden(hidden1)
 
         if f > 0:
-            hidden1 = perturb_hidden_batch(hidden1, f)
+            hidden2 = perturb_hidden_batch(hidden2, f)
 
-        return self._second_hidden_and_output(hidden1)
-
-    def clamp_delays(self, max1: int = 64, max2: int = 64) -> None:
-        if not self.use_delay:
-            return
-        self.delay1.delay.data.clamp_(0, max1)
-        self.delay2.delay.data.clamp_(0, max2)
+        return self._output(hidden2)
 
     def get_delays(self) -> dict[str, np.ndarray]:
+        """Return the learned delay parameters, or an empty dict if unused."""
         delays = {}
         if self.use_delay:
             delays["delay1"] = self.delay1.delay.data.cpu().numpy()
@@ -305,208 +341,40 @@ class SHDNetwork(nn.Module):
 
 
 # =====================================================================
-# Training loop
+# Checkpoint loading
 # =====================================================================
 
-def set_seed(seed: int) -> None:
-    import torch.backends.cudnn as cudnn
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-        cudnn.benchmark = False
-        cudnn.deterministic = True
-        cudnn.enabled = False
-
-
-def build_loss_and_optimizer(
-    net: SHDNetwork,
-    lr: float = 0.1,
-) -> tuple:
-    error_cfg = {
-        "neuron": LIF_PARAMS,
-        "simulation": SIM_PARAMS,
-        "training": {
-            "error": {
-                "type": "NumSpikes",
-                "tgtSpikeRegion": {"start": 0, "stop": 200},
-                "tgtSpikeCount": {True: 40, False: 4},
-            }
-        },
-    }
-    loss_fn = snn.spikeLoss.spikeLoss(error_cfg)
-    optimizer = snn.utils.optim.Nadam(net.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[300], gamma=0.1
-    )
-    return loss_fn, optimizer, scheduler
-
-
-def train_model(
-    train_loader: DataLoader,
-    val_loader: DataLoader,
+def load_trained_model(
+    checkpoint_path: str,
     input_dim: int,
-    hidden_units: int = 128,
-    num_classes: int = 20,
-    use_delay: bool = True,
-    max_delay: int = 64,
-    epochs: int = 1000,
-    lr: float = 0.1,
-    seed: int = 42,
-    patience: int = 300,
-) -> tuple[SHDNetwork, dict]:
-    set_seed(seed)
+    use_delay: bool,
+) -> SHDNetwork:
+    """Build an SHDNetwork and restore its weights from a checkpoint.
+
+    Args:
+        checkpoint_path: Path to a state_dict saved by shd_2ndLayer_train.py.
+        input_dim: Number of input neurons for the dataset variant.
+        use_delay: Whether the checkpoint is a delay-enabled variant.
+
+    Returns:
+        The network in eval mode on `device`.
+
+    Raises:
+        FileNotFoundError: If the checkpoint does not exist.
+    """
+    if not os.path.isfile(checkpoint_path):
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
 
     net = SHDNetwork(
-        input_dim, hidden_units, num_classes, use_delay, max_delay
+        input_dim, HIDDEN_UNITS, NUM_CLASSES, use_delay, MAX_DELAY
     ).to(device)
-    loss_fn, optimizer, scheduler = build_loss_and_optimizer(net, lr=lr)
-    loss_fn = loss_fn.to(device)
 
-    best_val_loss = float("inf")
-    best_model_state = None
-    early_stop_counter = 0
+    state_dict = torch.load(checkpoint_path, map_location=device)
+    net.load_state_dict(state_dict)
+    net.eval()
 
-    # Adaptive delay clamping state
-    update1 = 0
-    update2 = 0
-    thea1 = max_delay
-    thea2 = max_delay
-
-    log = {
-        "epoch": [],
-        "train_loss": [],
-        "val_loss": [],
-        "val_acc": [],
-        "delay_mean": [],
-    }
-
-    total_steps = epochs * len(train_loader)
-    with tqdm(total=total_steps, desc="Training") as pbar:
-        for epoch in range(epochs):
-            # --- Train ---
-            net.train()
-            batch_losses = []
-
-            for x_batch, y_batch in train_loader:
-                x_batch = x_batch.unsqueeze(2).unsqueeze(3).float().to(device)
-                y_batch = y_batch.to(device).long()
-
-                target = torch.zeros(
-                    (len(y_batch), num_classes, 1, 1, 1), device=device
-                )
-                target.scatter_(1, y_batch[:, None, None, None, None], 1.0)
-
-                outputs = net(x_batch)
-                loss = loss_fn.numSpikes(outputs, target)
-
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-
-                batch_losses.append(loss.item())
-                pbar.update(1)
-
-            # --- Adaptive delay clamping ---
-            if use_delay:
-                if epoch <= 250:
-                    net.clamp_delays(max_delay, max_delay)
-                else:
-                    update1 += 1
-                    update2 += 1
-                    for name, param in net.named_parameters():
-                        if "delay1.delay" in name and update1 > 150:
-                            sorted_ = torch.sort(
-                                torch.floor(param.detach().flatten())
-                            )[0]
-                            thea1_val = torch.max(sorted_)
-                            if sorted_[108] > (thea1_val - 5):
-                                thea1 = int(thea1_val.item()) + 1
-                                update1 = 0
-                        elif "delay2.delay" in name and update2 > 150:
-                            sorted_ = torch.sort(
-                                torch.floor(param.detach().flatten())
-                            )[0]
-                            thea2_val = torch.max(sorted_)
-                            if sorted_[108] > (thea2_val - 5):
-                                thea2 = int(thea2_val.item()) + 1
-                                update2 = 0
-                    net.clamp_delays(thea1, thea2)
-
-            # --- Validate ---
-            net.eval()
-            val_loss = 0.0
-            correct = 0
-            total = 0
-            with torch.no_grad():
-                for x_batch, y_batch in val_loader:
-                    x_batch = (
-                        x_batch.unsqueeze(2).unsqueeze(3).float().to(device)
-                    )
-                    y_batch = y_batch.to(device).long()
-
-                    target = torch.zeros(
-                        (len(y_batch), num_classes, 1, 1, 1), device=device
-                    )
-                    target.scatter_(
-                        1, y_batch[:, None, None, None, None], 1.0
-                    )
-
-                    outputs = net(x_batch)
-                    val_loss += loss_fn.numSpikes(outputs, target).item()
-
-                    pred = snn.predict.getClass(outputs)
-                    correct += (pred.cpu() == y_batch.cpu()).sum().item()
-                    total += len(y_batch)
-
-            val_loss /= max(1, len(val_loader))
-            val_acc = correct / max(1, total)
-            train_loss = np.mean(batch_losses)
-
-            # Log delay statistics
-            delays = net.get_delays()
-            avg_delay = (
-                np.mean([
-                    np.mean(d) for d in delays.values() if len(d) > 0
-                ])
-                if delays
-                else 0.0
-            )
-
-            log["epoch"].append(epoch)
-            log["train_loss"].append(float(train_loss))
-            log["val_loss"].append(float(val_loss))
-            log["val_acc"].append(float(val_acc))
-            log["delay_mean"].append(float(avg_delay))
-
-            pbar.set_postfix(
-                epoch=epoch + 1,
-                train=f"{train_loss:.3f}",
-                val=f"{val_loss:.3f}",
-                acc=f"{val_acc:.2%}",
-                delay=f"{avg_delay:.1f}",
-            )
-            scheduler.step()
-
-            # Early stopping
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-                best_model_state = {
-                    k: v.clone() for k, v in net.state_dict().items()
-                }
-                early_stop_counter = 0
-            else:
-                early_stop_counter += 1
-                if early_stop_counter >= patience:
-                    print(f"\nEarly stopping at epoch {epoch + 1}")
-                    break
-
-    if best_model_state is not None:
-        net.load_state_dict(best_model_state)
-
-    return net, log
+    print(f"Loaded checkpoint: {checkpoint_path}")
+    return net
 
 
 # =====================================================================
@@ -518,6 +386,16 @@ def test_with_hidden_perturbation(
     test_loader: DataLoader,
     f: float = 0.0,
 ) -> float:
+    """Measure test accuracy with the 2nd hidden layer perturbed.
+
+    Args:
+        net: A loaded SHDNetwork.
+        test_loader: Loader over the test split.
+        f: Probability that any given hidden-layer spike is relocated.
+
+    Returns:
+        Classification accuracy in [0, 1].
+    """
     net.eval()
     correct = 0
     total = 0
@@ -542,6 +420,17 @@ def run_hidden_perturbation_sweep(
     f_values: list[float],
     num_repeats: int = 3,
 ) -> dict[float, dict]:
+    """Sweep perturbation strength, repeating each level with fresh RNG seeds.
+
+    Args:
+        net: A loaded SHDNetwork.
+        test_loader: Loader over the test split.
+        f_values: Perturbation probabilities to evaluate.
+        num_repeats: Number of seeded repeats per f value.
+
+    Returns:
+        A dict mapping each f value to {"mean", "std", "values"}.
+    """
     results: dict[float, dict] = {}
 
     for f in f_values:
@@ -568,14 +457,26 @@ def run_hidden_perturbation_sweep(
 # Run one variation
 # =====================================================================
 
-def run_variation(use_delay: bool, dataset_key: str) -> None:
+def run_variation(use_delay: bool, dataset_key: str) -> dict[float, dict]:
+    """Evaluate one (delay x dataset) checkpoint across the perturbation sweep.
+
+    Args:
+        use_delay: True for the SGD-delay variant, False for plain SGD.
+        dataset_key: One of "whole", "part", or "norm".
+
+    Returns:
+        The sweep results, as returned by run_hidden_perturbation_sweep().
+    """
     input_dim = DATASET_CONFIGS[dataset_key]["input_dim"]
     mat_file = os.path.join(SCRIPT_DIR, DATASET_CONFIGS[dataset_key]["mat_file"])
     delay_tag = "delay" if use_delay else "nodelay"
-    model_prefix = f"shd_{dataset_key}_{delay_tag}"
+    model_prefix = f"shd_2ndLayer_{dataset_key}_{delay_tag}"
 
     data_dir = os.path.join(SCRIPT_DIR, "data")
     log_dir = os.path.join(SCRIPT_DIR, "log")
+    checkpoint_path = os.path.join(
+        data_dir, f"{model_prefix}{CHECKPOINT_SUFFIX}"
+    )
 
     print(f"\n{'=' * 70}")
     print(f"Dataset: {dataset_key} | Input dim: {input_dim}")
@@ -583,42 +484,21 @@ def run_variation(use_delay: bool, dataset_key: str) -> None:
     print(f"Model prefix: {model_prefix}")
     print(f"{'=' * 70}")
 
-    # Load data
+    # Load the trained model
+    net = load_trained_model(checkpoint_path, input_dim, use_delay)
+
+    delays = net.get_delays()
+    if delays:
+        avg_delay = np.mean([np.mean(d) for d in delays.values() if len(d) > 0])
+        print(f"Mean learned delay: {avg_delay:.1f}")
+
+    # Load data and build the test loader
     X_all, Y_all = load_shd_data(mat_file, target_T=SIM_PARAMS["tSample"])
-
-    # Build data loaders (unperturbed)
-    train_loader, val_loader, test_loader = build_dataloaders(
-        X_all, Y_all, batch_size=BATCH_SIZE, seed=SEED
-    )
-
-    # Train on unperturbed data (f=0)
-    net, training_log = train_model(
-        train_loader=train_loader,
-        val_loader=val_loader,
-        input_dim=input_dim,
-        hidden_units=HIDDEN_UNITS,
-        num_classes=NUM_CLASSES,
-        use_delay=use_delay,
-        max_delay=MAX_DELAY,
-        epochs=EPOCHS,
-        lr=LEARNING_RATE,
-        seed=SEED,
-        patience=EARLY_STOP_PATIENCE,
-    )
-
-    # Quick sanity check: accuracy on clean test set (f=0)
-    clean_acc = test_with_hidden_perturbation(net, test_loader, f=0.0)
-    print(f"\nClean test accuracy (f=0): {clean_acc:.4f}")
-
-    # Save trained model
-    os.makedirs(data_dir, exist_ok=True)
-    model_path = os.path.join(data_dir, f"{model_prefix}_trained.pt")
-    torch.save(net.state_dict(), model_path)
-    print(f"Model saved to {model_path}")
+    test_loader = build_test_loader(X_all, Y_all, batch_size=BATCH_SIZE)
 
     # Hidden-perturbation sweep
     print(
-        f"=== Hidden-Layer Perturbation Sweep "
+        f"=== 2nd-Hidden-Layer Perturbation Sweep "
         f"(SHD {dataset_key}, {delay_tag}) ==="
     )
     sweep_results = run_hidden_perturbation_sweep(
@@ -643,15 +523,7 @@ def run_variation(use_delay: bool, dataset_key: str) -> None:
         json.dump(results_serialisable, fp, indent=2)
     print(f"Results saved to {results_path}")
 
-    # Save training log
-    log_path = os.path.join(log_dir, f"{model_prefix}_training_log.json")
-    training_log_serialisable = {
-        k: [float(v) for v in vals] if isinstance(vals, list) else vals
-        for k, vals in training_log.items()
-    }
-    with open(log_path, "w") as fp:
-        json.dump(training_log_serialisable, fp, indent=2)
-    print(f"Training log saved to {log_path}")
+    return sweep_results
 
 
 # =====================================================================
@@ -659,7 +531,8 @@ def run_variation(use_delay: bool, dataset_key: str) -> None:
 # =====================================================================
 
 def main() -> None:
-    if TRAIN_ALL_VARIATION:
+    """Evaluate either every variation or the single configured one."""
+    if EVAL_ALL_VARIATION:
         for dataset_key in ALL_DATASET_KEYS:
             for use_delay in ALL_DELAY_OPTIONS:
                 run_variation(use_delay, dataset_key)

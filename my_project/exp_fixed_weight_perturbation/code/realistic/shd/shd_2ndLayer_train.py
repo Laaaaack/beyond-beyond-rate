@@ -108,46 +108,57 @@ def load_shd_data(mat_path: str, target_T: int = 200) -> tuple[np.ndarray, np.nd
 # Hidden-layer spike perturbation
 # =====================================================================
 
-def partial_randomize_spike_train(
-    spike_train: np.ndarray,
-    f: float = 0.0,
-    max_attempts: int = 50,
-) -> np.ndarray:
-    if f <= 0:
-        return spike_train
-
-    num_neurons, T = spike_train.shape
-    new_train = np.copy(spike_train)
-
-    for neuron_idx in range(num_neurons):
-        spike_times = np.where(spike_train[neuron_idx] == 1)[0]
-        for old_time in spike_times:
-            if np.random.rand() < f:
-                new_train[neuron_idx, old_time] = 0
-                inserted = False
-                attempts = 0
-                while not inserted and attempts < max_attempts:
-                    attempts += 1
-                    new_t = np.random.randint(0, T)
-                    if new_train[neuron_idx, new_t] == 0:
-                        new_train[neuron_idx, new_t] = 1
-                        inserted = True
-    return new_train
-
-
+@torch.no_grad()
 def perturb_hidden_batch(
     hidden_spikes: torch.Tensor,
-    f: float,
+    f: float = 0.0,
 ) -> torch.Tensor:
-    dev = hidden_spikes.device
-    spikes_np = hidden_spikes.cpu().numpy()
-    B, C, H, W, T = spikes_np.shape
+    """Vectorised GPU-side partial spike relocation.
 
-    for b in range(B):
-        sample = spikes_np[b, :, 0, 0, :]  # (C, T)
-        spikes_np[b, :, 0, 0, :] = partial_randomize_spike_train(sample, f)
+    For each (batch, neuron), a fraction *f* of the existing spikes are
+    removed and replaced with the same number of spikes placed at randomly
+    chosen previously-unoccupied time bins. Spike count per neuron is
+    preserved exactly. All operations stay on the input tensor's device,
+    avoiding the CPU/numpy round-trip that dominates cost when perturbation
+    runs on every batch.
 
-    return torch.from_numpy(spikes_np).to(dev)
+    Args:
+        hidden_spikes: SLAYER-format tensor of shape (B, C, 1, 1, T).
+        f: Fraction of spikes to relocate (0 = untouched, 1 = fully random).
+
+    Returns:
+        Perturbed tensor with the same shape, dtype, and device.
+    """
+    if f <= 0:
+        return hidden_spikes
+
+    B, C, H, W, T = hidden_spikes.shape
+    x = hidden_spikes.view(B, C, T)
+    is_spike = x > 0.5
+
+    # Count spikes per (batch, neuron) and compute how many to move.
+    n_spikes = is_spike.sum(dim=-1, keepdim=True)  # (B, C, 1)
+    num_to_move = (n_spikes.float() * f).floor().long()  # (B, C, 1)
+
+    # --- 1. Choose which existing spikes to remove ---
+    # Random key per time bin; non-spike bins sort last.
+    key = torch.rand_like(x)
+    key = torch.where(is_spike, key, torch.full_like(key, 2.0))
+    # rank[b, c, t] = position of t in the per-(b,c) ascending sort of `key`.
+    rank = key.argsort(dim=-1).argsort(dim=-1)
+    remove_mask = rank < num_to_move  # (B, C, T)
+
+    keep_mask = is_spike & ~remove_mask
+
+    # --- 2. Place the same number of spikes in currently-unoccupied bins ---
+    available = ~keep_mask  # everything except positions we are keeping
+    key2 = torch.rand_like(x)
+    key2 = torch.where(available, key2, torch.full_like(key2, 2.0))
+    rank2 = key2.argsort(dim=-1).argsort(dim=-1)
+    add_mask = rank2 < num_to_move  # disjoint from keep_mask by construction
+
+    new_spikes = (keep_mask | add_mask).to(hidden_spikes.dtype)
+    return new_spikes.view(B, C, H, W, T)
 
 
 # =====================================================================
@@ -543,6 +554,9 @@ def run_hidden_perturbation_sweep(
         accuracies = []
         for repeat in range(num_repeats):
             np.random.seed(SEED + repeat)
+            torch.manual_seed(SEED + repeat)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(SEED + repeat)
             acc = test_with_hidden_perturbation(net, test_loader, f=f)
             accuracies.append(acc)
 
