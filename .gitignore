@@ -9,6 +9,10 @@ ssc_data/
 final_report/
 HPC_jobs/
 
+# Legacy directories
+code/
+code_moreLayers/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
