@@ -1,10 +1,12 @@
 """SSC — Input-Layer Perturbation (eval-only, train-once / eval-all).
 
 Loads a pretrained clean (no-perturbation) 2-hidden-layer SLAYER SNN
-checkpoint — from the realistic SSC experiment
-(my_project/code/realistic/ssc/data) — and evaluates the frozen model by
-applying spike-timing perturbation to the *input* spike trains at test time,
-across a sweep of perturbation levels f. No training is performed here.
+checkpoint — the first-layer checkpoints from the realistic SSC
+fixed-weight-perturbation experiment
+(my_project/exp_fixed_weight_perturbation/code/realistic/ssc/data) — and
+evaluates the frozen model by applying spike-timing perturbation to the
+*input* spike trains at test time, across a sweep of perturbation levels f.
+No training is performed here.
 
 This mirrors the original Beyond Rate input-perturbation experiments but
 follows the train-once / eval-all protocol: a single clean-trained model is
@@ -63,10 +65,16 @@ DATASET_CONFIGS = {
 # --- Pretrained clean checkpoints (no perturbation) ---
 # Loaded for evaluation instead of training a new model, so the input- and
 # hidden-perturbation experiments share identical weights. Configs whose
-# checkpoint is absent (e.g. "whole" if it has not been trained) are reported
-# and skipped at run time.
-PRETRAINED_DIR = os.path.join(SCRIPT_DIR, "../../../../code/realistic/ssc/data")
-CHECKPOINT_TEMPLATE = "ssc_{dataset_key}_{delay_tag}_trained.pt"
+# checkpoint is absent are reported and skipped at run time.
+#
+# These are the first-layer checkpoints from the fixed-weight-perturbation
+# experiment. The "_f0.0" suffix denotes the clean model (zero weight
+# perturbation); checkpoints carrying a "2ndLayer" tag belong to the
+# second-layer sweep and are deliberately not used here.
+PRETRAINED_DIR = os.path.join(
+    SCRIPT_DIR, "../../../../exp_fixed_weight_perturbation/code/realistic/ssc/data"
+)
+CHECKPOINT_TEMPLATE = "ssc_{dataset_key}_{delay_tag}_f0.0.pt"
 
 # --- SLAYER neuron and simulation descriptors ---
 # tSample=200 matches the original Beyond Rate training pipeline.
