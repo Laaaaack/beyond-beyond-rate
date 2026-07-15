@@ -7,6 +7,7 @@ CLAUDE.md
 shd_data/
 ssc_data/
 final_report/
+HPC_jobs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
