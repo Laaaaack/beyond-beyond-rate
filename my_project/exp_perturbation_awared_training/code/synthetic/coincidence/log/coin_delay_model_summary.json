@@ -1,0 +1,50 @@
+{
+  "0.0": {
+    "clean_accuracy": 0.896,
+    "learned_tau_ms": 147.0,
+    "delay_mean": 12.288752555847168,
+    "delay_std": 1.9377261400222778,
+    "delay_min": 10.588129043579102,
+    "delay_max": 15.0
+  },
+  "0.2": {
+    "clean_accuracy": 0.33866666666666667,
+    "learned_tau_ms": 105.0,
+    "delay_mean": 0.710378885269165,
+    "delay_std": 0.5023161768913269,
+    "delay_min": 0.0,
+    "delay_max": 1.067499041557312
+  },
+  "0.4": {
+    "clean_accuracy": 0.28,
+    "learned_tau_ms": 135.0,
+    "delay_mean": 0.7663190960884094,
+    "delay_std": 0.6489173769950867,
+    "delay_min": 0.0,
+    "delay_max": 1.5867507457733154
+  },
+  "0.6": {
+    "clean_accuracy": 0.312,
+    "learned_tau_ms": 144.0,
+    "delay_mean": 0.5255351066589355,
+    "delay_std": 0.6927551031112671,
+    "delay_min": 0.016901850700378418,
+    "delay_max": 1.504995584487915
+  },
+  "0.8": {
+    "clean_accuracy": 0.304,
+    "learned_tau_ms": 9.999999776482582,
+    "delay_mean": 0.9232738614082336,
+    "delay_std": 0.42966946959495544,
+    "delay_min": 0.3171214759349823,
+    "delay_max": 1.263203501701355
+  },
+  "1.0": {
+    "clean_accuracy": 0.3546666666666667,
+    "learned_tau_ms": 123.0,
+    "delay_mean": 1.1466611623764038,
+    "delay_std": 0.3940327763557434,
+    "delay_min": 0.5951626300811768,
+    "delay_max": 1.4915460348129272
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "0.0": {
+    "clean_accuracy": 0.9733333333333334,
+    "learned_tau_ms": 147.0
+  },
+  "0.2": {
+    "clean_accuracy": 0.8133333333333334,
+    "learned_tau_ms": 147.0
+  },
+  "0.4": {
+    "clean_accuracy": 0.352,
+    "learned_tau_ms": 126.0
+  },
+  "0.6": {
+    "clean_accuracy": 0.30933333333333335,
+    "learned_tau_ms": 141.0
+  },
+  "0.8": {
+    "clean_accuracy": 0.3253333333333333,
+    "learned_tau_ms": 147.0
+  },
+  "1.0": {
+    "clean_accuracy": 0.3546666666666667,
+    "learned_tau_ms": 132.0
+  }
+}
