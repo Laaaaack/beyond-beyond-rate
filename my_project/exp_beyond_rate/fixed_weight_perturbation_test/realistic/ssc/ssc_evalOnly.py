@@ -3,8 +3,8 @@
 Loads a pretrained clean (no-perturbation) 2-hidden-layer SLAYER SNN
 checkpoint — the first-layer checkpoints from the realistic SSC
 fixed-weight-perturbation experiment
-(my_project/exp_fixed_weight_perturbation/code/realistic/ssc/data) — and
-evaluates the frozen model by applying spike-timing perturbation to the
+(my_project/exp_beyond_rate/fixed_weight_perturbation_test/realistic/ssc/data)
+— and evaluates the frozen model by applying spike-timing perturbation to the
 *input* spike trains at test time, across a sweep of perturbation levels f.
 No training is performed here.
 
@@ -71,9 +71,7 @@ DATASET_CONFIGS = {
 # experiment. The "_f0.0" suffix denotes the clean model (zero weight
 # perturbation); checkpoints carrying a "2ndLayer" tag belong to the
 # second-layer sweep and are deliberately not used here.
-PRETRAINED_DIR = os.path.join(
-    SCRIPT_DIR, "../../../../exp_fixed_weight_perturbation/code/realistic/ssc/data"
-)
+PRETRAINED_DIR = os.path.join(SCRIPT_DIR, "data")
 CHECKPOINT_TEMPLATE = "ssc_{dataset_key}_{delay_tag}_f0.0.pt"
 
 # --- SLAYER neuron and simulation descriptors ---
