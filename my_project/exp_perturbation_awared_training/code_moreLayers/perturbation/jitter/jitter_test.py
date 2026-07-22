@@ -92,7 +92,7 @@ TEST_RANGE = (0.75, 0.9)
 HIDDEN_UNITS: int = 128
 NUM_CLASSES: int = 20
 NUM_HIDDEN_LAYERS: int = 4
-EPOCHS: int = 20
+EPOCHS: int = 2000
 BATCH_SIZE: int = 128
 LEARNING_RATE: float = 0.1
 SEED: int = 42
@@ -101,9 +101,9 @@ EARLY_STOP_PATIENCE: int = 300
 
 # --- Hidden-perturbation sweep ---
 # Hidden-layer sites at which to inject jitter, each in 1..NUM_HIDDEN_LAYERS.
-PERTURB_LAYERS: list[int] = [1, 2, 3, 4]
+PERTURB_LAYERS: list[int] = [1]
 # Per-spike jitter std dev sigma, in ms.
-SIGMA_VALUES: list[int] = [0, 5]
+SIGMA_VALUES: list[int] = [0, 3, 5, 10, 15, 20, 25]
 NUM_REPEATS: int = 3
 
 
