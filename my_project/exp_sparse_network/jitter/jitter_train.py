@@ -1,9 +1,19 @@
 """First milestone (training): induce hidden-layer sparsity on SHD.
 
 Trains 2-hidden-layer SLAYER SNNs on SHD ``whole`` (SGD-delay) under the
-**fixed-weight** protocol: training is on *clean* data (no jitter), with an L1
-penalty on the 1st hidden layer's spikes to push that layer sparse. A fresh
-model is trained for every ``(lambda, seed)`` pair and its checkpoint is saved.
+**fixed-weight** protocol: training is on *clean* data (no jitter), with a
+one-sided **hinge** penalty that pushes the 1st hidden layer's firing down
+toward a target rate (applied from the start of training). A fresh model is
+trained for every ``(target_rate, seed)`` pair and its checkpoint is saved.
+
+A plain L1 penalty does not work here: under Adam/Nadam it is rescaled to
+full-size suppression steps and silences the layer within one epoch regardless
+of its coefficient (a coefficient of 1e-4 already drives firing to zero). The
+hinge penalises only firing *above* ``target_rate`` and has zero gradient at or
+below it, so it trims excess without driving neurons to silence. It is applied
+from the start of training: an earlier variant delayed the penalty behind a clean
+warm-up, but that parked the net in a dense solution the hinge could not escape,
+so the warm-up was dropped (see the progress log).
 
 The timing perturbation that measures "temporal processing" is applied **only at
 evaluation** by the companion script (``jitter_eval.py`` / the sigma sweep) — it
@@ -14,13 +24,13 @@ must never be switched on here. See:
 - ``my_project/docs/knowledge_bank/phase1_investigation.md`` — why the
   fixed-weight protocol (clean train / perturb at eval) is the correct lens.
 
-What this script produces, per ``(lambda, seed)``:
+What this script produces, per ``(target_rate, seed)``:
 
-- a checkpoint ``data/sparse_whole_delay_lam{lam}_seed{seed}.pt``;
+- a checkpoint ``data/sparse_whole_delay_tgt{target_rate}_seed{seed}.pt``;
 - a training-curve log ``log/..._training_log.json``;
 - a row in ``log/sparse_whole_delay_train_summary.json`` recording the achieved
   hidden sparsity (firing rate) and clean test accuracy — the two numbers used
-  to calibrate the ``lambda`` grid before committing to the full sweep.
+  to pick the target-rate grid before committing to the full sweep.
 """
 
 import os
@@ -65,12 +75,34 @@ INPUT_DIM: int = 700          # SHD whole
 USE_DELAY: bool = True        # SGD-delay
 MAT_FILE: str = str(SHD_DATA_DIR / "shd_whole.mat")
 
-# --- Sparsity sweep: L1 penalty strength on 1st hidden layer spikes ---
-# Analyse results against the *measured* firing rate each lambda produces, never
-# against lambda itself (the map is nonlinear and seed-dependent). These are
-# starting guesses — calibrate with QUICK_TEST first (progress doc §1d).
-LAM_VALUES: list[float] = [0.0, 3e-4, 1e-3, 3e-3, 1e-2]
+# --- Sparsity sweep: hold the target FIXED, sweep the penalty STRENGTH ---
+# Calibration showed the target is NOT the binding control: the task loss pulls
+# hidden firing up to a plateau ABOVE any target, and the hinge only lowers where
+# that plateau sits (partly by silencing neurons). The penalty STRENGTH is what
+# actually sets the achieved sparsity here -- cleanly, monotonically, and without
+# collapse -- so we fix one aggressive target and sweep strength (see
+# PENALTY_STRENGTHS). Always analyse against the *measured* firing rate, since the
+# achieved rate is seed-dependent.
+SPARSITY_TARGETS: list[float] = [3.0]
 SEEDS: list[int] = [42, 43, 44]
+
+# Hinge penalty coefficient — now the SWEPT sparsity axis (target held fixed).
+# Calibrated at target=3, warmup=0, seed 42, 400 ep (measured spikes/neuron,
+# clean_acc): 1e-3 -> 11.6, 84% ; 1e-2 -> 9.2, 83% ; 3e-2 -> ~7.5 (interpolated) ;
+# 1e-1 -> 5.8, 80% ; 1.0 -> 3.3, 79%. This spans a ~3.5x firing spread with every
+# model well above chance and no collapse (strength 3e-1 was dropped: it saturates
+# at ~5.5, on top of 1e-1). Analyse against the *measured* firing rate, not these
+# coefficients (the map is nonlinear and seed-dependent).
+PENALTY_STRENGTHS: list[float] = [1e-3, 1e-2, 3e-2, 1e-1, 1.0]
+
+# Clean warm-up before the hinge engages, in epochs. Now 0: an earlier warm-up
+# (100-200 ep) let the task loss settle the net into a dense solution the additive
+# hinge could not escape, so firing never fell toward the target (progress log,
+# attempt 3). Shaping firing from epoch 0 is required for sparsity, and the hinge
+# is its own collapse guard (zero gradient at/below the target), so no warm-up is
+# needed for safety. If the layer collapses to silence from the start, re-add a
+# short warm-up (10-20 ep). Keep below EARLY_STOP_PATIENCE.
+WARMUP_EPOCHS: int = 0
 
 # --- SLAYER neuron and simulation descriptors ---
 SIM_PARAMS = {"Ts": 1, "tSample": 200}
@@ -99,18 +131,28 @@ MAX_DELAY: int = 64
 EARLY_STOP_PATIENCE: int = 300
 
 
-def resolve_run_config() -> tuple[list[float], list[int], int]:
-    """Return the (lam_values, seeds, epochs) for this run.
+def resolve_run_config() -> tuple[list[float], list[float], list[int], int, int]:
+    """Return (target_rates, penalty_strengths, seeds, epochs, warmup_epochs).
 
     Collapses to a tiny, fast grid when ``QUICK_TEST`` is set so the pipeline can
     be validated cheaply before the full milestone.
 
     Returns:
-        Tuple of (lam_values, seeds, epochs).
+        Tuple of (target_rates, penalty_strengths, seeds, epochs, warmup_epochs).
     """
     if QUICK_TEST:
-        return [0.0, 1e-2], [42], 400
-    return LAM_VALUES, SEEDS, EPOCHS
+        # Sparse-end probe. The low/mid strengths at target=3 are already mapped
+        # (warmup=0, 400 ep, seed 42): 1e-3 -> 11.6 sp/neuron (83.9% acc, 27% silent),
+        # 1e-2 -> 9.2 (82.6%, 49%), 1e-1 -> 5.8 (79.8%, 63%). Firing plateaus ABOVE
+        # the target (the task loss pulls it up; the hinge only lowers the plateau,
+        # partly by silencing neurons), so STRENGTH -- not the target -- is the
+        # binding sparsity control here, and it gives a clean monotonic gradient.
+        # This probe pushes the strong end (1e-1, 3e-1, 1.0) to find how far firing
+        # drops before clean_acc falls toward chance (<~70%) or silent_fraction gets
+        # extreme; that fixes the sparse end of the final swept-STRENGTH grid (with
+        # the target held at 3). Re-run, then we lock PENALTY_STRENGTHS to ~5 values.
+        return [3.0], [1e-1, 3e-1, 1.0], [42], 400, 0
+    return SPARSITY_TARGETS, PENALTY_STRENGTHS, SEEDS, EPOCHS, WARMUP_EPOCHS
 
 
 def load_shd_data(mat_path: str, target_T: int = 200) -> tuple[np.ndarray, np.ndarray]:
@@ -209,8 +251,8 @@ class JitterSHDNetwork(nn.Module):
     """2-hidden-layer SLAYER SNN for the fixed-weight sparsity experiment.
 
     Training uses the clean ``forward`` (no jitter). ``forward`` can optionally
-    return the 1st hidden layer's spike tensor so the training loop can add an L1
-    sparsity penalty to it. ``forward_with_hidden_perturbation`` jitters that
+    return the 1st hidden layer's spike tensor so the training loop can add a
+    hinge sparsity penalty to it. ``forward_with_hidden_perturbation`` jitters that
     same 1st hidden layer and is used **only at evaluation** by the sweep script;
     it is never called during training.
     """
@@ -386,22 +428,50 @@ def jitter_hidden_batch(
     return new_spikes.to(hidden_spikes.dtype).view(B, C, H, W, T)
 
 
-def hidden_spike_penalty(hidden_spikes: torch.Tensor) -> torch.Tensor:
-    """L1 sparsity penalty: mean spikes per hidden neuron per sample.
+def hidden_mean_rate(hidden_spikes: torch.Tensor) -> torch.Tensor:
+    """Mean spikes per hidden neuron per sample (raw firing, for logging).
 
     ``hidden_spikes`` is the binary 1st-hidden output of shape (B, C, 1, 1, T).
     Summing over time gives each neuron's spike count; averaging over batch and
-    neurons gives a scalar that shrinks as the layer fires less. SLAYER's spike
-    function is surrogate-gradient differentiable, so this term propagates back
-    to ``fc1`` and genuinely drives the layer sparse.
+    neurons gives a scalar. This is the quantity to watch per epoch to confirm
+    firing settles at the target rather than collapsing to zero.
 
     Args:
         hidden_spikes: 1st hidden layer spikes, shape (B, C, 1, 1, T).
 
     Returns:
-        Scalar penalty tensor (mean spikes per neuron per sample).
+        Scalar tensor (mean spikes per neuron per sample).
     """
     return hidden_spikes.sum(dim=-1).mean()
+
+
+def hidden_rate_hinge(hidden_spikes: torch.Tensor, target: float) -> torch.Tensor:
+    """One-sided (hinge) sparsity penalty toward a target per-neuron firing rate.
+
+    For each hidden neuron, take its mean spike count across the batch and
+    penalise only the amount by which it *exceeds* ``target``::
+
+        per_neuron_rate = hidden_spikes.sum(dim=-1).mean(dim=0)   # (C, 1, 1)
+        penalty = relu(per_neuron_rate - target).mean()
+
+    Because the ReLU has zero gradient at or below ``target``, a neuron already
+    at/under the target gets no downward push and a silent neuron gets none at
+    all. This structurally removes the drive-to-zero cascade that a plain L1
+    penalty suffers under Adam/Nadam (which rescales the persistent L1 gradient
+    to full-size suppression steps and silences the layer within one epoch). The
+    induced sparsity is therefore set by ``target`` — a firing rate one can
+    reason about — not by the penalty coefficient. SLAYER's spike function is
+    surrogate-gradient differentiable, so the penalty propagates back to ``fc1``.
+
+    Args:
+        hidden_spikes: 1st hidden layer spikes, shape (B, C, 1, 1, T).
+        target: Desired upper bound on mean spikes per neuron per sample.
+
+    Returns:
+        Scalar penalty tensor (mean over neurons of the above-target excess).
+    """
+    per_neuron_rate = hidden_spikes.sum(dim=-1).mean(dim=0)
+    return torch.relu(per_neuron_rate - target).mean()
 
 
 def set_seed(seed: int) -> None:
@@ -456,9 +526,11 @@ def build_loss_and_optimizer(
 def train_model(
     train_loader: DataLoader,
     val_loader: DataLoader,
-    lam: float,
+    target_rate: float,
     seed: int,
     epochs: int,
+    penalty_strength: float = PENALTY_STRENGTHS[0],
+    warmup_epochs: int = WARMUP_EPOCHS,
     input_dim: int = INPUT_DIM,
     hidden_units: int = HIDDEN_UNITS,
     num_classes: int = NUM_CLASSES,
@@ -467,19 +539,26 @@ def train_model(
     lr: float = LEARNING_RATE,
     patience: int = EARLY_STOP_PATIENCE,
 ) -> tuple[JitterSHDNetwork, dict]:
-    """Train one clean model with an L1 hidden-sparsity penalty.
+    """Train one clean model with a hinge hidden-sparsity penalty + warm-up.
 
-    The forward pass is clean (no jitter). The total loss is the NumSpikes task
-    loss plus ``lam`` times the 1st-hidden spike penalty. Early stopping and
-    best-model selection use the *task* validation loss only, so we keep the most
-    accurate model at whatever sparsity ``lam`` induces.
+    The forward pass is clean (no jitter). For the first ``warmup_epochs`` the
+    penalty is off so the task loss can establish firing; after that the total
+    loss is the NumSpikes task loss plus ``penalty_strength`` times the hinge
+    penalty toward ``target_rate``. Best-model selection and early stopping use
+    the *task* validation loss and are reset when the penalty engages, so the
+    saved checkpoint is the most accurate *sparsified* model, not the denser
+    warm-up one.
 
     Args:
         train_loader: Training DataLoader.
         val_loader: Validation DataLoader.
-        lam: L1 penalty strength on 1st hidden layer spikes (0 = no penalty).
+        target_rate: Target mean spikes per neuron per sample; the hinge only
+            penalises firing above this.
         seed: Random seed (controls init and shuffle order).
         epochs: Maximum training epochs.
+        penalty_strength: Hinge penalty coefficient (only has to be large enough
+            to reach the target; the target sets the sparsity).
+        warmup_epochs: Clean epochs before the penalty engages.
         input_dim: Number of input neurons.
         hidden_units: Hidden layer size.
         num_classes: Number of output classes.
@@ -511,22 +590,31 @@ def train_model(
 
     log = {
         "epoch": [],
-        "train_loss": [],       # total (task + lam * reg)
+        "train_loss": [],       # total (task + penalty)
         "train_task_loss": [],
-        "train_reg": [],        # mean spikes / neuron / sample (unweighted)
+        "train_rate": [],       # mean spikes / neuron / sample (raw firing)
         "val_loss": [],         # task only
         "val_acc": [],
         "delay_mean": [],
     }
 
     total_steps = epochs * len(train_loader)
-    with tqdm(total=total_steps, desc=f"Train lam={lam:g} seed={seed}") as pbar:
+    with tqdm(total=total_steps, desc=f"Train tgt={target_rate:g} seed={seed}") as pbar:
         for epoch in range(epochs):
-            # --- Train (clean forward + sparsity penalty) ---
+            # Reset best-model tracking when the penalty engages, so the saved
+            # checkpoint is the best *sparsified* model, not the warm-up one.
+            if epoch == warmup_epochs and warmup_epochs > 0:
+                best_val_loss = float("inf")
+                best_model_state = None
+                early_stop_counter = 0
+
+            penalty_on = epoch >= warmup_epochs
+
+            # --- Train (clean forward + hinge sparsity penalty once warmed up) ---
             net.train()
             batch_total_losses = []
             batch_task_losses = []
-            batch_regs = []
+            batch_rates = []
 
             for x_batch, y_batch in train_loader:
                 x_batch = x_batch.unsqueeze(2).unsqueeze(3).float().to(device)
@@ -539,8 +627,12 @@ def train_model(
 
                 outputs, hidden1 = net(x_batch, return_hidden=True)
                 task_loss = loss_fn.numSpikes(outputs, target)
-                reg = hidden_spike_penalty(hidden1)
-                loss = task_loss + lam * reg
+                rate = hidden_mean_rate(hidden1)
+                if penalty_on:
+                    penalty = hidden_rate_hinge(hidden1, target_rate)
+                    loss = task_loss + penalty_strength * penalty
+                else:
+                    loss = task_loss
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -548,7 +640,7 @@ def train_model(
 
                 batch_total_losses.append(loss.item())
                 batch_task_losses.append(task_loss.item())
-                batch_regs.append(reg.item())
+                batch_rates.append(rate.item())
                 pbar.update(1)
 
             # --- Adaptive delay clamping (SGD-delay only) ---
@@ -607,7 +699,7 @@ def train_model(
             val_acc = correct / max(1, total)
             train_loss = float(np.mean(batch_total_losses))
             train_task_loss = float(np.mean(batch_task_losses))
-            train_reg = float(np.mean(batch_regs))
+            train_rate = float(np.mean(batch_rates))
 
             delays = net.get_delays()
             avg_delay = (
@@ -621,15 +713,16 @@ def train_model(
             log["epoch"].append(epoch)
             log["train_loss"].append(train_loss)
             log["train_task_loss"].append(train_task_loss)
-            log["train_reg"].append(train_reg)
+            log["train_rate"].append(train_rate)
             log["val_loss"].append(float(val_loss))
             log["val_acc"].append(float(val_acc))
             log["delay_mean"].append(float(avg_delay))
 
             pbar.set_postfix(
                 epoch=epoch + 1,
+                pen="on" if penalty_on else "off",
                 task=f"{train_task_loss:.3f}",
-                reg=f"{train_reg:.2f}",
+                rate=f"{train_rate:.2f}",
                 val=f"{val_loss:.3f}",
                 acc=f"{val_acc:.2%}",
             )
@@ -707,14 +800,17 @@ def evaluate_clean_and_activity(
 
 
 def run_milestone() -> None:
-    """Train the (lambda, seed) grid and record sparsity + clean accuracy."""
-    lam_values, seeds, epochs = resolve_run_config()
+    """Train the (target_rate, seed) grid and record sparsity + clean accuracy."""
+    target_rates, penalty_strengths, seeds, epochs, warmup_epochs = (
+        resolve_run_config()
+    )
 
+    n_models = len(target_rates) * len(penalty_strengths) * len(seeds)
     print(f"{'#' * 70}")
     print("# Sparse-network milestone (training): SHD whole, SGD-delay")
-    print(f"# QUICK_TEST={QUICK_TEST} | epochs={epochs}")
-    print(f"# lambda grid: {lam_values}")
-    print(f"# seeds: {seeds}  ->  {len(lam_values) * len(seeds)} models")
+    print(f"# QUICK_TEST={QUICK_TEST} | epochs={epochs} | warmup={warmup_epochs}")
+    print(f"# penalty=hinge | targets: {target_rates} | strengths: {penalty_strengths}")
+    print(f"# seeds: {seeds}  ->  {n_models} models")
     print(f"{'#' * 70}")
 
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -729,47 +825,55 @@ def run_milestone() -> None:
 
     summary: dict[str, dict] = {}
 
-    for lam in lam_values:
-        for seed in seeds:
-            run_tag = f"sparse_{DATASET_KEY}_delay_lam{lam:g}_seed{seed}"
-            print(f"\n{'=' * 60}")
-            print(f"  Training {run_tag}")
-            print(f"{'=' * 60}")
+    for target_rate in target_rates:
+        for strength in penalty_strengths:
+            for seed in seeds:
+                run_tag = (
+                    f"sparse_{DATASET_KEY}_delay_"
+                    f"tgt{target_rate:g}_str{strength:g}_seed{seed}"
+                )
+                print(f"\n{'=' * 60}")
+                print(f"  Training {run_tag}")
+                print(f"{'=' * 60}")
 
-            net, training_log = train_model(
-                train_loader=train_loader,
-                val_loader=val_loader,
-                lam=lam,
-                seed=seed,
-                epochs=epochs,
-            )
+                net, training_log = train_model(
+                    train_loader=train_loader,
+                    val_loader=val_loader,
+                    target_rate=target_rate,
+                    seed=seed,
+                    epochs=epochs,
+                    penalty_strength=strength,
+                    warmup_epochs=warmup_epochs,
+                )
 
-            ckpt_path = DATA_DIR / f"{run_tag}.pt"
-            torch.save(net.state_dict(), ckpt_path)
-            print(f"Model saved to {ckpt_path}")
+                ckpt_path = DATA_DIR / f"{run_tag}.pt"
+                torch.save(net.state_dict(), ckpt_path)
+                print(f"Model saved to {ckpt_path}")
 
-            metrics = evaluate_clean_and_activity(net, test_loader)
-            print(
-                f"  clean_acc={metrics['clean_acc']:.4f} | "
-                f"firing_rate={metrics['firing_rate']:.4f} | "
-                f"spikes/neuron={metrics['spikes_per_neuron']:.2f} | "
-                f"silent={metrics['silent_fraction']:.2%}"
-            )
+                metrics = evaluate_clean_and_activity(net, test_loader)
+                print(
+                    f"  clean_acc={metrics['clean_acc']:.4f} | "
+                    f"firing_rate={metrics['firing_rate']:.4f} | "
+                    f"spikes/neuron={metrics['spikes_per_neuron']:.2f} | "
+                    f"silent={metrics['silent_fraction']:.2%}"
+                )
 
-            summary[run_tag] = {
-                "lam": float(lam),
-                "seed": int(seed),
-                **{k: float(v) for k, v in metrics.items()},
-            }
+                summary[run_tag] = {
+                    "target_rate": float(target_rate),
+                    "penalty_strength": float(strength),
+                    "seed": int(seed),
+                    **{k: float(v) for k, v in metrics.items()},
+                }
 
-            # Persist per-model training curve.
-            log_path = LOG_DIR / f"{run_tag}_training_log.json"
-            log_serialisable = {
-                k: [float(v) for v in vals] for k, vals in training_log.items()
-            }
-            with open(log_path, "w") as fp:
-                json.dump(log_serialisable, fp, indent=2)
-            print(f"  Training log saved to {log_path}")
+                # Persist per-model training curve.
+                log_path = LOG_DIR / f"{run_tag}_training_log.json"
+                log_serialisable = {
+                    k: [float(v) for v in vals]
+                    for k, vals in training_log.items()
+                }
+                with open(log_path, "w") as fp:
+                    json.dump(log_serialisable, fp, indent=2)
+                print(f"  Training log saved to {log_path}")
 
     # Persist the sweep summary (the calibration/analysis table).
     summary_path = LOG_DIR / f"sparse_{DATASET_KEY}_delay_train_summary.json"
@@ -777,10 +881,17 @@ def run_milestone() -> None:
         json.dump(summary, fp, indent=2)
     print(f"\nSummary saved to {summary_path}")
 
-    # Final table (dense -> sparse), for eyeballing calibration.
-    print(f"\n{'run_tag':<40} {'clean_acc':>9} {'firing_rate':>12}")
+    # Final table, for eyeballing calibration (aim: spikes/neuron near the
+    # target with high clean_acc).
+    print(
+        f"\n{'run_tag':<52} {'clean_acc':>9} {'firing_rate':>12} "
+        f"{'spikes/neuron':>14}"
+    )
     for run_tag, row in summary.items():
-        print(f"{run_tag:<40} {row['clean_acc']:>9.4f} {row['firing_rate']:>12.4f}")
+        print(
+            f"{run_tag:<52} {row['clean_acc']:>9.4f} {row['firing_rate']:>12.4f} "
+            f"{row['spikes_per_neuron']:>14.2f}"
+        )
 
 
 if __name__ == "__main__":

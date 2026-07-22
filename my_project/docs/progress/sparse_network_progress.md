@@ -1,10 +1,83 @@
 # First Milestone — Does sparsity increase temporal processing?
 
-**Status:** not started
+**Status:** in progress — Step 1 (inducing sparsity): **calibration complete**,
+full 15-model run ready to launch. Steps 2–4 not started. See the Progress log below.
 **Owner:** _(you)_
 **Full design & rationale:** [sparse_network.md](sparse_network.md) — read that first if
 anything below is unclear; this file is the execution checklist for the *first,
 smallest* experiment only.
+
+---
+
+## Progress log — current state (updated 2026-07-18)
+
+We are still on **Step 1 (induce sparsity)**; the eval/analysis Steps 2–4 are
+unchanged and not started. What follows is the record of getting the sparsity
+mechanism to work, because the original §5 plan (plain L1 penalty, swept over
+`lam`) turned out **not** to work with this optimiser.
+
+**Where the code actually lives.** The training script is
+[jitter_train.py](../../exp_sparse_network/jitter/jitter_train.py) under
+`my_project/exp_sparse_network/jitter/` — *not* the `exp_fixed_weight_perturbation/…`
+folder sketched in §4. Checkpoints → `.../jitter/data/`, logs and
+`sparse_whole_delay_train_summary.json` → `.../jitter/log/`. `QUICK_TEST=True`
+runs a tiny fast grid for calibration; set it `False` for the real 15-model run.
+
+**How the method evolved (three attempts):**
+
+| Attempt | Result | Lesson |
+|---|---|---|
+| **1. Plain L1** `lam·Σspikes`, penalty on from epoch 0 | Every `lam` in 1e-4…1e-2 silences the hidden layer within **one epoch** → chance acc, 0 firing, unrecoverable. `lam=0` trains fine (86%). | Nadam/Adam rescales the persistent L1 gradient to full-size suppression steps regardless of `lam`; once a neuron is silent its surrogate gradient vanishes (dead-neuron) → total collapse. Calibrating `lam` *down* is impossible — there is no value between "no effect" and "instant death" (this is why AdamW exists). |
+| **2. Hinge** `relu(rate−target)` **+ warm-up** (penalty off 100 ep) | No collapse (85–86% acc), but firing won't drop: at `target=3`, strengths 0.01→0.3 all leave firing at **9.5–12** (≈ dense anchor 11). | An additive penalty cannot escape the dense basin the warm-up settled into. |
+| **3. Read attempt-2 trajectories** | After the penalty engages (ep 100), `train_rate` only ever **rises** (task pulls firing to ~13); even strength 0.3 dips to 8.2 then rebounds. The sparsest the net *ever* is = **4.67 at epoch 1**, before warm-up ends. | **The warm-up is counter-productive for sparsity** — it parks the net dense. Sparsity must be shaped *from the start of training*. |
+
+**Calibration snapshot** (QUICK_TEST: SHD whole, SGD-delay, seed 42, 400 ep,
+warm-up 100, target=3 — *not* final numbers):
+
+| strength | spikes/neuron | clean_acc | silent |
+|---|---|---|---|
+| dense anchor (no penalty) | 10.98 | 86.2% | 35% |
+| 0.01 | 11.59 | 86.4% | 33% |
+| 0.03 | 12.12 | 84.6% | 27% |
+| 0.10 | 10.90 | 84.6% | 31% |
+| 0.30 | 9.50 | 85.2% | 37% |
+
+No usable spread — the "sparsest" is 0.87× the anchor, far from the >2× the
+milestone needs.
+
+**✅ RESOLVED (2026-07-19) — drop the warm-up, sweep the strength.** Setting
+`WARMUP_EPOCHS = 0` fixed it: with the hinge shaping firing from epoch 0 (no dense
+basin to fight), calibration gives a clean, monotonic, no-collapse sparsity
+gradient. Two-part quick-test at `target=3` (seed 42, 400 ep, warm-up 0), measured
+spikes/neuron and clean_acc:
+
+| strength | spikes/neuron | clean_acc | silent |
+|---|---|---|---|
+| 1e-3 | 11.57 | 83.9% | 27% |
+| 1e-2 | 9.16 | 82.6% | 49% |
+| 1e-1 | 5.79 | 79.8% | 63% |
+| 3e-1 | 5.47 | 83.2% | 62% |
+| 1.0 | 3.30 | 79.2% | 67% |
+
+A **~3.5× firing spread** (11.6 → 3.3), every model well above chance, and **no
+accuracy floor** even at strength 1.0 — the hinge is a robust collapse guard.
+
+**Key correction to the plan.** The *target* is **not** the binding control: the
+task loss pulls hidden firing up to a plateau *above* any target, and the hinge
+only lowers where that plateau sits — partly by **silencing** neurons
+(`silent_fraction` climbs 27% → 67% across the sweep). The penalty **strength** is
+what actually sets the achieved sparsity. So the real run **sweeps strength at a
+fixed target**, not the target sweep §5 sketched.
+
+**Locked configuration for the 15-model run** (`QUICK_TEST = False`):
+`SPARSITY_TARGETS = [3.0]` (fixed), `PENALTY_STRENGTHS = [1e-3, 1e-2, 3e-2, 1e-1,
+1.0]` (the swept axis; 3e-1 dropped — it saturates on top of 1e-1),
+`SEEDS = [42, 43, 44]`, `WARMUP_EPOCHS = 0`, `EPOCHS = 1250` → 5 × 3 = 15 models.
+
+**Sweep knobs (final):** we sweep the **penalty strength** (`PENALTY_STRENGTHS`) at
+a fixed **target** (`SPARSITY_TARGETS = [3.0]`), not `lam` and not the target.
+Always analyse against the **measured** firing rate, never the target/strength.
+Full rationale in the memory note `l1-spike-penalty-collapses-under-nadam`.
 
 ---
 
@@ -22,8 +95,9 @@ plot that either shows that trend or clearly doesn't.
 
 ## 2. Key idea in three lines
 
-- **Sparsity** = how few spikes the 1st hidden layer fires. We set it with an
-  L1 penalty on hidden spikes during training.
+- **Sparsity** = how few spikes the 1st hidden layer fires. We set it with a
+  **hinge** penalty toward a target firing rate during training (a plain L1
+  penalty collapses the layer under Nadam — see the Progress log).
 - **Temporal processing** = how much test accuracy drops when we jitter (randomly
   shift in time) that layer's spikes at evaluation only. Big drop = the network
   was relying on timing.
@@ -166,23 +240,37 @@ Then make three plots:
     diagnostics in [sparse_network.md](sparse_network.md) §"Pitfalls and confounds"
     before concluding.
 
-## 7. Watch out for (top 3)
+## 7. Watch out for
 
-1. **Dead network** — if a model sits at ~5% accuracy, `lam` was too high; drop
-   it from the analysis (a broken net is not "maximally temporal").
-2. **Plot against measured `firing_rate`, never against `lam`** — the map from
-   `lam` to sparsity is nonlinear and seed-dependent.
-3. **Do not enable jitter during training** — training must be clean; jitter is
+1. **A plain L1 spike penalty collapses the layer under Nadam** — never use it;
+   use the hinge `relu(rate − target)`. Any nonzero `lam` silenced the layer in
+   one epoch (Progress log, attempt 1).
+2. **A warm-up before the penalty prevents sparsity** — the net settles into a
+   dense solution the additive penalty can't move. Apply the penalty from the
+   start (Progress log, attempt 3).
+3. **Dead network** — if a model sits at ~5% accuracy it silenced; a broken net
+   is not "maximally temporal", so drop it from the analysis.
+4. **Plot/analyse against measured `firing_rate`, never the target or strength** —
+   the map from penalty settings to achieved sparsity is nonlinear and
+   seed-dependent.
+5. **Do not enable jitter during training** — training must be clean; jitter is
    eval-only.
 
 ## 8. Progress checklist
 
-- [ ] Step 0 — folder created, copied scripts run unchanged
-- [ ] Step 1a/1b — `return_hidden` + penalty added
-- [ ] Step 1d — `lam` grid calibrated (dense anchor + above-chance sparse end)
-- [ ] Step 1c — all 15 models trained and checkpointed
-- [ ] Step 2 — sparsity + clean accuracy table produced
-- [ ] Step 3 — jitter sweep run for all 15 checkpoints
+- [x] Training pipeline built ([jitter_train.py](../../exp_sparse_network/jitter/jitter_train.py)):
+  `return_hidden` + sparsity penalty + clean-eval/summary in one script
+- [x] Step 1 pitfall found & fixed: plain L1 collapses under Nadam → switched to
+  hinge; also learned best-model tracking must be reset when the penalty engages
+- [x] **Step 1 calibration DONE (2026-07-19)** — dropped the warm-up; sweeping the
+  hinge **strength** (not the target) gives a clean ~3.5× firing spread, all above
+  chance, no collapse (see the Progress log RESOLVED entry)
+- [x] Step 1 done — strength grid `[1e-3,1e-2,3e-2,1e-1,1.0]` at target=3 spans
+  11.6 → 3.3 spikes/neuron (>3× spread), all above chance
+- [ ] Step 1c — all 15 models trained (5 strengths × 3 seeds) at fixed target=3
+- [ ] Step 2 — sparsity + clean accuracy table (largely produced inline by the
+  training script's summary; may not need a separate `measure_sparsity.py`)
+- [ ] Step 3 — jitter sweep (eval-only, **1st** layer) run for all 15 checkpoints
 - [ ] Step 4 — temporal scores + 3 plots produced
 - [ ] Milestone verdict recorded (supports / does not support H1)
 
