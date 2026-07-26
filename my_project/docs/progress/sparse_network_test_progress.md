@@ -230,6 +230,63 @@ as the rejected alternative.*
 > chance-corrected and baseline-normalised (§4): the two arms must be compared on the
 > normalised score, never on raw `acc(sigma)` drops.
 
+### Full-run results (2026-07-26): no-delay ready, delay needs a re-tune
+
+Both arms completed the full 15-model × 1250-ep run. Measured spikes/neuron (seeds
+42/43/44) and clean_acc:
+
+**No-delay (warm-up 15) — clean, ready:**
+
+| str | sp/neuron (s42,43,44) | mean | clean_acc |
+|---|---|---|---|
+| 0.01 | 6.50, 7.85, 6.80 | 7.05 | .59/.56/.56 |
+| 0.5 | 4.31, 4.71, 3.99 | 4.34 | .56/.58/.58 |
+| 1.0 | 2.91, 3.36, 3.17 | 3.15 | .55/.57/.53 |
+| 3.0 | 2.04, 1.72, 1.82 | 1.86 | .55/.53/.52 |
+| 10.0 | 1.42, 1.38, 1.21 | 1.34 | .50/.52/.49 |
+
+Monotone every seed, **6.5× spread** (1.2 → 7.9), all well above chance, silent tops
+at 61%. The full run reproduced probe 4. Nothing to fix.
+
+**Delay (warm-up 0) — regressed at full epochs:**
+
+| str | sp/neuron (s42,43,44) | mean | clean_acc |
+|---|---|---|---|
+| 0.001 | 12.63, 7.15, 12.76 | 10.85 | .87/.87/.89 |
+| 0.01 | 11.66, 8.30, 9.41 | 9.79 | .89/.86/.86 |
+| 0.03 | 8.15, 6.91, 8.53 | 7.86 | .88/.85/.87 |
+| 0.1 | 8.69, 8.91, 8.28 | 8.63 | .87/.86/.86 |
+| 1.0 | 4.80, 4.98, 4.79 | 4.85 | .86/.84/.84 |
+
+Three problems: mean firing is **non-monotone** (0.03 → 0.1 rises, 7.86 → 8.63); the
+four weak strengths **bunch at ~7–13 and are lost in seed noise** (str0.001 s43 = 7.15
+is sparser than str0.03 s42 = 8.15 — seed spread exceeds the strength effect); and only
+str1.0 clearly separates, so the arm has **two firing levels (~8–11 and ~4.8), not
+five**. It clears >2× (2.66×) only technically, and its sparsest model (4.8 sp/neuron)
+barely reaches the regime the no-delay arm covers down to 1.2.
+
+**Root cause — the sparsity penalty re-densifies under longer training.** The delay
+grid was calibrated at **400 ep** (seed 42: 11.6 → 3.3, monotone); the real run is
+**1250 ep**, and over the extra 850 epochs the task loss pulls firing back up past
+where the weak hinge held it (str0.1: 5.8 at 400 ep → 8.7 at 1250 ep). **Weak penalties
+don't survive long training; only strong ones hold firing down.** This is the same
+lesson the no-delay arm learned the hard way — its grid was pushed to `[1e-2…10]` and
+held; the delay arm kept the weak `[1e-3…1.0]` grid and re-densified. See the memory
+note [[sparsity-penalty-redensifies-at-full-epochs]].
+
+**Why fix it before extending.** The sparsity-trained checkpoints are **reused across
+jitter, shift, and deletion** (only the eval perturbation changes), so a weak delay
+spread propagates into all three analyses. And `str1.0` delay still holds **84%
+accuracy** — large headroom to push much sparser at no accuracy cost.
+
+**Plan.** No-delay: proceed to Step 3 (eval-jitter sweep) against its 15 checkpoints.
+Delay: re-tune stronger before extending — efficient path reuses existing checkpoints
+(keep one dense anchor + str1.0, **add str 3, 10, 30** = 9 new models) for a clean
+~10 → ~1.5 monotone spread. Caveat: with warm-up 0 the delay net didn't collapse even
+at str1.0 (it fires ~2× denser than no-delay, so it is more robust), but str30 is
+untested and may need the warm-up guard — validate str 3/10/30 with a short probe
+first, reading it knowing reduced-epoch numbers **under-estimate** full-run firing.
+
 ---
 
 ## 1. What this milestone proves (in one paragraph)
@@ -422,7 +479,10 @@ Then make three plots:
 - [x] No-delay arm scripted (2026-07-22,
   [jitter_test_noDelay.py](../../exp_sparse_network/jitter/jitter_test_noDelay.py)):
   delays + clamping stripped, everything else held identical to the delay arm
-- [ ] Step 1c (delay arm) — all 15 models trained (5 strengths × 3 seeds) at target=3
+- [x] Step 1c (delay arm) — 15 models trained (1250 ep), BUT the full run re-densified
+  vs the 400-ep calibration: firing bunched/non-monotone at the weak end, only ~2.66×
+  spread, sparsest model just 4.8 sp/neuron. **Grid needs re-tuning stronger before use**
+  (add str 3/10/30; see Full-run results, 2026-07-26)
 - [x] Step 1b (no-delay arm), probe 1 — inherited delay grid run; found the map does
   NOT transfer (fires ~half; 1e-1/1.0 collapse to silence then recover degenerate)
 - [x] Step 1b (no-delay arm), probe 2 — recalibration grid `[0,1e-3,3e-3,1e-2,3e-2,1e-1]`
@@ -434,8 +494,8 @@ Then make three plots:
 - [x] Step 1b (no-delay arm), probe 4 (Path A) — warm-up 15 + high-strength grid
   `[1e-2,5e-1,1.0,3.0,10.0]` gave a clean monotonic 5.8→1.2 spread, no collapse, all
   above chance. **Grid LOCKED**; `PENALTY_STRENGTHS` updated
-- [~] Step 1b (no-delay arm) — `QUICK_TEST = False` set (2026-07-23); full run armed
-  (5 strengths × seeds 42/43/44, `EPOCHS = 1250`, warm-up 15). **Launch pending**
+- [x] Step 1b (no-delay arm) — full run complete (2026-07-26): clean 6.5× monotone
+  spread (7.05 → 1.34 sp/neuron), all above chance, no collapse. **Ready for Step 3**
 - [ ] Step 2 — sparsity + clean accuracy table, per arm (largely produced inline by
   the training script's summary; may not need a separate `measure_sparsity.py`)
 - [ ] Step 3 — jitter sweep (eval-only, **1st** layer) run for all checkpoints, per arm
