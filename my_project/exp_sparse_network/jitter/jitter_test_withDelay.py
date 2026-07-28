@@ -64,17 +64,21 @@ print(f"Using device: {device}")
 # =====================================================================
 # Global Configuration
 # =====================================================================
-# Quick pipeline check / re-tune probe. The first full 15-model run (grid
-# [1e-3..1.0], 1250 ep) RE-DENSIFIED vs the 400-ep calibration: firing bunched at
-# ~8-13 sp/neuron for every strength <=1e-1 and only 1.0 separated (to ~4.8), giving
-# a poor ~2.66x non-monotone spread that barely reaches the sparse regime. Root cause:
-# weak penalties do not survive long training -- over 1250 ep the task loss re-inflates
-# firing past where a weak hinge held it (str0.1: 5.8 @400ep -> 8.7 @1250ep). Only
-# STRONG penalties hold. So the grid must shift up. This probe (below) checks the new
-# strong strengths for collapse + ordering before committing the full re-run. Set False
-# for the real 15-model run once the grid is re-locked. See the progress log
-# (Full-run results, 2026-07-26) and memory `sparsity-penalty-redensifies-at-full-epochs`.
-QUICK_TEST: bool = True
+# Quick pipeline check / probe. Calibration is COMPLETE. The first full 15-model run
+# (old grid [1e-3..1.0], 1250 ep) RE-DENSIFIED vs its 400-ep calibration (bunched,
+# non-monotone, ~2.66x spread, sparsest only 4.8 sp/neuron), because weak penalties do
+# not hold firing down over long training. The re-tune probe (grid [1.0,3,10,30] @400 ep)
+# then fixed the grid to the strong end: PENALTY_STRENGTHS is now re-LOCKED to
+# [1e-2,1.0,3.0,10.0]. False = the real 12-model full re-run (4 strengths x 3 seeds,
+# EPOCHS). Set True only to re-enter a probe via resolve_run_config; probe artifacts are
+# written with a _probe suffix (RUN_SUFFIX) so they never clobber a real run. See the
+# progress log (2026-07-26) and memory `sparsity-penalty-redensifies-at-full-epochs`.
+QUICK_TEST: bool = False
+
+# Suffix appended to every output name (checkpoints, per-model logs, summary) when
+# running a probe, so a QUICK_TEST probe can never overwrite real-run artifacts that
+# share the same (strength, seed). Empty for the real run.
+RUN_SUFFIX: str = "_probe" if QUICK_TEST else ""
 
 # --- Milestone scope (deliberately narrow; see progress doc §3) ---
 DATASET_KEY: str = "whole"
@@ -94,17 +98,21 @@ SPARSITY_TARGETS: list[float] = [3.0]
 SEEDS: list[int] = [42, 43, 44]
 
 # Hinge penalty coefficient — the SWEPT sparsity axis (target held fixed).
-# SUPERSEDED / being re-tuned (2026-07-26). This grid was locked from a 400-ep
-# calibration (seed 42: 1e-3->11.6, 1e-2->9.2, 1e-1->5.8, 1.0->3.3, monotone) but the
-# full 1250-ep run RE-DENSIFIED it: measured means 10.85, 9.79, 7.86, 8.63, 4.85 --
-# non-monotone, the four weak strengths bunched at ~8-11 and lost in seed noise, only
-# ~2.66x spread, sparsest model just 4.8 sp/neuron. Weak penalties do not hold firing
-# down over 1250 ep; the grid must move to STRONGER values (str1.0 still holds 84% acc,
-# so there is ample headroom). Provisional new grid pending the probe in
-# resolve_run_config; do NOT run QUICK_TEST=False against this list as-is. Always
-# analyse against the *measured full-run* firing rate, never these coefficients or any
-# reduced-epoch probe number (both under-estimate; the map is nonlinear/seed-dependent).
-PENALTY_STRENGTHS: list[float] = [1e-2, 1.0, 3.0, 10.0, 30.0]
+# RE-LOCKED (2026-07-26) after the first full run re-densified the old [1e-3..1.0]
+# grid (means 10.85/9.79/7.86/8.63/4.85 -- non-monotone, bunched, ~2.66x spread, only
+# reaching 4.8 sp/neuron). Weak penalties do not hold firing down over 1250 ep, so the
+# grid moved to the strong end. The re-tune probe (grid [1.0,3,10,30] @400 ep, seed 42,
+# warm-up 0) measured a monotone, stably-recovering spread: 1.0->3.30, 3.0->1.74,
+# 10.0->0.93, 30.0->0.63 sp/neuron. str30 was dropped (fragile: reached via a 20-ep
+# collapse, 0.63 sp/neuron @80% silent @62% acc). Applying the str1.0 re-densification
+# reference (3.30 @400ep -> 4.85 @1250ep, ~1.47x upper bound) projects the full-run
+# grid to ~9.8/4.85/2.2/1.3 sp/neuron -- a clean ~7x spread whose sparse end matches the
+# no-delay arm (1.34). Note: at warm-up 0 the strong strengths transit a brief init
+# collapse (~13-20 ep) then recover; the high-capacity delay net recovers robustly
+# (unlike no-delay), so no warm-up guard is used. str1e-2 and str1.0 checkpoints already
+# exist from the first full run (same recipe) and can be reused. Always analyse against
+# the *measured full-run* firing rate, not these coefficients or any probe number.
+PENALTY_STRENGTHS: list[float] = [1e-2, 1.0, 3.0, 10.0]
 
 # Clean warm-up before the hinge engages, in epochs. Now 0: an earlier warm-up
 # (100-200 ep) let the task loss settle the net into a dense solution the additive
@@ -845,7 +853,7 @@ def run_milestone() -> None:
             for seed in seeds:
                 run_tag = (
                     f"sparse_{DATASET_KEY}_delay_"
-                    f"tgt{target_rate:g}_str{strength:g}_seed{seed}"
+                    f"tgt{target_rate:g}_str{strength:g}_seed{seed}{RUN_SUFFIX}"
                 )
                 print(f"\n{'=' * 60}")
                 print(f"  Training {run_tag}")
@@ -891,7 +899,7 @@ def run_milestone() -> None:
                 print(f"  Training log saved to {log_path}")
 
     # Persist the sweep summary (the calibration/analysis table).
-    summary_path = LOG_DIR / f"sparse_{DATASET_KEY}_delay_train_summary.json"
+    summary_path = LOG_DIR / f"sparse_{DATASET_KEY}_delay_train_summary{RUN_SUFFIX}.json"
     with open(summary_path, "w") as fp:
         json.dump(summary, fp, indent=2)
     print(f"\nSummary saved to {summary_path}")

@@ -87,6 +87,11 @@ print(f"Using device: {device}")
 # resolve_run_config (its grid is now a pipeline smoke-test, not calibration).
 QUICK_TEST: bool = False
 
+# Suffix appended to every output name (checkpoints, per-model logs, summary) when
+# running a probe, so a QUICK_TEST probe can never overwrite real-run artifacts that
+# share the same (strength, seed). Empty for the real run.
+RUN_SUFFIX: str = "_probe" if QUICK_TEST else ""
+
 # --- Milestone scope (deliberately narrow; see progress doc §3) ---
 # Network: plain SGD, no learnable delays — that is the whole point of this file.
 # Everything else is held identical to the with-delay run so the two are comparable.
@@ -793,7 +798,7 @@ def run_milestone() -> None:
             for seed in seeds:
                 run_tag = (
                     f"sparse_{DATASET_KEY}_{DELAY_TAG}_"
-                    f"tgt{target_rate:g}_str{strength:g}_seed{seed}"
+                    f"tgt{target_rate:g}_str{strength:g}_seed{seed}{RUN_SUFFIX}"
                 )
                 print(f"\n{'=' * 60}")
                 print(f"  Training {run_tag}")
@@ -839,7 +844,7 @@ def run_milestone() -> None:
                 print(f"  Training log saved to {log_path}")
 
     # Persist the sweep summary (the calibration/analysis table).
-    summary_path = LOG_DIR / f"sparse_{DATASET_KEY}_{DELAY_TAG}_train_summary.json"
+    summary_path = LOG_DIR / f"sparse_{DATASET_KEY}_{DELAY_TAG}_train_summary{RUN_SUFFIX}.json"
     with open(summary_path, "w") as fp:
         json.dump(summary, fp, indent=2)
     print(f"\nSummary saved to {summary_path}")

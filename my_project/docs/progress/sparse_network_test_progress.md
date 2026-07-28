@@ -1,9 +1,10 @@
 # First Milestone — Does sparsity increase temporal processing?
 
-**Status:** in progress — Step 1 (inducing sparsity): **calibration complete** on the
-**SGD-delay** arm, full 15-model run ready to launch. A second **no-delay** arm has
-been added (script written 2026-07-22, calibration probe not yet run). Steps 2–4 not
-started for either arm. See the Progress log below.
+**Status:** in progress — **Step 1 (inducing sparsity) COMPLETE for both arms**
+(2026-07-27). no-delay: 6.5× monotone firing spread (1.3–7.9 sp/neuron, 49–59% acc);
+delay (re-tuned): 5.5× monotone spread (2.1–11.7 sp/neuron, 78–89% acc). Both above
+chance, no collapse. Next: **Step 3** — the eval-only 1st-layer jitter sweep — then
+extend to shift/deletion. Steps 2–4 not started. See the Progress log below.
 **Owner:** _(you)_
 **Full design & rationale:** [sparse_network.md](sparse_network.md) — read that first if
 anything below is unclear; this file is the execution checklist for the *first,
@@ -280,12 +281,71 @@ spread propagates into all three analyses. And `str1.0` delay still holds **84%
 accuracy** — large headroom to push much sparser at no accuracy cost.
 
 **Plan.** No-delay: proceed to Step 3 (eval-jitter sweep) against its 15 checkpoints.
-Delay: re-tune stronger before extending — efficient path reuses existing checkpoints
-(keep one dense anchor + str1.0, **add str 3, 10, 30** = 9 new models) for a clean
-~10 → ~1.5 monotone spread. Caveat: with warm-up 0 the delay net didn't collapse even
-at str1.0 (it fires ~2× denser than no-delay, so it is more robust), but str30 is
-untested and may need the warm-up guard — validate str 3/10/30 with a short probe
-first, reading it knowing reduced-epoch numbers **under-estimate** full-run firing.
+Delay: re-tune stronger before extending — validate strong strengths with a short probe
+first, then run the full re-tune.
+
+**Delay re-tune probe (2026-07-26).** Grid `[1.0, 3.0, 10.0, 30.0]`, seed 42, 400 ep,
+warm-up 0 (str1.0 included as a re-densification reference):
+
+| str | sp/neuron | clean_acc | silent | trajectory |
+|---|---|---|---|---|
+| 1.0 | 3.30 | 79.2% | 67% | dead ~13 ep → stable 3.29 |
+| 3.0 | 1.74 | 78.2% | 76% | dead ~18 ep → stable 1.71 |
+| 10.0 | 0.93 | 72.6% | 80% | dead ~19 ep → stable 0.93 |
+| 30.0 | 0.63 | 62.5% | 80% | dead ~20 ep → stable 0.69 |
+
+Monotone, and every run **recovers to a stable plateau**. Three findings: (1) **the
+delay arm collapses-and-recovers at warm-up 0 too — including str1.0** (correcting the
+earlier "no collapse" claim, which never checked the trajectory). Every strong strength
+goes dead for ~13–20 ep at init then recovers; unlike the no-delay net (which stayed
+degenerate), the high-capacity delay net recovers, and str1.0's recovery is known-benign
+(the full run gave tight 4.80/4.98/4.79, 84% acc across seeds). So transient collapse +
+robust recovery is acceptable, and warm-up 0 stays consistent with the existing dense
+anchors. (2) **Re-densification reference confirmed:** str1.0 → 3.30 @400 ep vs 4.85
+@1250 ep = **1.47× factor** (an upper bound; strong hinges hold better), projecting str3
+→ ~2.2 and str10 → ~1.3 at full epochs. (3) **Recovery degrades with strength:** str30
+recovers only weakly (20-ep collapse, 0.63 sp/neuron, 80% silent, 62% acc) — fragile,
+degenerate, seed-risky.
+
+**Delay grid re-LOCKED (2026-07-26):** `PENALTY_STRENGTHS = [1e-2, 1.0, 3.0, 10.0]`,
+warm-up 0. Projected full-run firing ~9.8 → 4.85 → ~2.2 → ~1.3: a clean ~7× monotone
+spread whose sparse end matches the no-delay arm (1.34), all above chance, no degenerate
+points. **str30 dropped** (fragile/degenerate per finding 3). This is 4 strengths vs the
+no-delay arm's 5; str0.3 is the natural 5th (fills the 9.8→4.85 gap) but is unprobed, so
+4 probe-validated points are preferred over gambling a 5th. `str1e-2` and `str1.0`
+checkpoints already exist from the first full run (same warm-up-0 recipe) and can be
+reused; only `str3`/`str10` are new. The pre-re-tune 1250-ep summary is backed up at
+`log/sparse_whole_delay_train_summary_redensified_1250ep.json`.
+
+**Delay re-tune full run (2026-07-27): SUCCESS.** Fresh 12-model run of
+`[1e-2, 1.0, 3.0, 10.0]`, 1250 ep, warm-up 0:
+
+| str | sp/neuron (s42,43,44) | mean | clean_acc | silent |
+|---|---|---|---|---|
+| 0.01 | 11.66, 8.30, 9.41 | 9.79 | .89/.86/.86 | 25–39% |
+| 1.0 | 4.80, 4.98, 4.79 | 4.85 | .86/.84/.84 | 43–47% |
+| 3.0 | 3.01, 2.78, 3.21 | 3.00 | .82/.80/.85 | 42–55% |
+| 10.0 | 2.12, 2.21, 2.48 | 2.27 | .82/.78/.82 | 35–51% |
+
+**Monotone in the mean and every individual seed, 5.51× spread (11.7 → 2.1), all
+78–89% acc** — the clean gradient the original run lacked (2.66×, bunched, non-monotone).
+str3/str10 recovered tightly on all three seeds (the seed-fragility worry was unfounded
+for str ≤ 10). The fresh run also self-healed the probe-clobbered str1.0-seed42
+checkpoint.
+
+**Projection correction:** str10 landed at 2.27, not the ~1.3 I projected from str1.0's
+1.47× factor — the strong penalties re-densified *more* than str1.0 (str10: 0.93 @400 ep
+→ 2.27 @1250 ep, 2.44×), so the reduced-epoch under-estimate is *worse* for stronger
+penalties, not better. Harmless (we analyse measured firing), but it left the delay
+sparse end at 2.1 rather than ~1.3. See [[sparsity-penalty-redensifies-at-full-epochs]].
+
+**Both arms are now ready (Step 1 complete).** no-delay: 6.5× spread, 1.3–7.9 sp/neuron,
+49–59% acc. delay: 5.5× spread, 2.1–11.7 sp/neuron, 78–89% acc. Both monotone, all above
+chance. The arms overlap in firing (2.1–7.9), so the cross-arm comparison is supported;
+each arm's within-arm trend is what H1 is tested on. Optional (not required): add
+`str30` to the delay arm to reach ~1.5 sp/neuron and 5-point parity — at full epochs it
+would likely land healthy (~1.5, not the degenerate 0.63 the 400-ep probe showed), given
+how much the strong end re-densifies. Proceeding without it.
 
 ---
 
@@ -479,10 +539,17 @@ Then make three plots:
 - [x] No-delay arm scripted (2026-07-22,
   [jitter_test_noDelay.py](../../exp_sparse_network/jitter/jitter_test_noDelay.py)):
   delays + clamping stripped, everything else held identical to the delay arm
-- [x] Step 1c (delay arm) — 15 models trained (1250 ep), BUT the full run re-densified
-  vs the 400-ep calibration: firing bunched/non-monotone at the weak end, only ~2.66×
-  spread, sparsest model just 4.8 sp/neuron. **Grid needs re-tuning stronger before use**
-  (add str 3/10/30; see Full-run results, 2026-07-26)
+- [x] Step 1c (delay arm) — DONE. First 15-model run re-densified (bunched, ~2.66×);
+  re-tuned to strong grid `[1e-2,1.0,3.0,10.0]` → clean 5.51× monotone spread (2026-07-27)
+- [x] Delay re-tune probe (2026-07-26) — `[1.0,3,10,30]` @400 ep confirmed monotone +
+  stable recovery; str30 dropped (fragile/degenerate). **Grid re-LOCKED to
+  `[1e-2,1.0,3.0,10.0]`** (warm-up 0), projected ~9.8→~1.3 spread
+- [x] Delay arm full re-run (2026-07-27) — fresh 12-model run `[1e-2,1.0,3.0,10.0]` at
+  1250 ep gave a clean **5.51× monotone spread** (11.7 → 2.1 sp/neuron), all seeds
+  monotone, 78–89% acc. **Delay arm ready.**
+- [x] Probe-clobber fix (2026-07-26) — both jitter scripts now append `RUN_SUFFIX`
+  (`_probe` when `QUICK_TEST`) to checkpoints/logs/summary, so probes can't overwrite
+  real-run artifacts. Carry this into the shift/deletion scripts
 - [x] Step 1b (no-delay arm), probe 1 — inherited delay grid run; found the map does
   NOT transfer (fires ~half; 1e-1/1.0 collapse to silence then recover degenerate)
 - [x] Step 1b (no-delay arm), probe 2 — recalibration grid `[0,1e-3,3e-3,1e-2,3e-2,1e-1]`
