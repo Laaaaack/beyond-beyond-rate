@@ -19,21 +19,29 @@ unchanged and not started. What follows is the record of getting the sparsity
 mechanism to work, because the original §5 plan (plain L1 penalty, swept over
 `lam`) turned out **not** to work with this optimiser.
 
-**Where the code actually lives.** The training scripts are
-[jitter_test_withDelay.py](../../exp_sparse_network/jitter/jitter_test_withDelay.py)
-and [jitter_test_noDelay.py](../../exp_sparse_network/jitter/jitter_test_noDelay.py)
-under `my_project/exp_sparse_network/jitter/` — *not* the
-`exp_fixed_weight_perturbation/…` folder sketched in §4. (Naming history: the
-with-delay script began as `jitter_train.py`; it became `jitter_train_withDelay.py`
-when the no-delay arm was added, and both were renamed `jitter_test_*` on 2026-07-23
-to mark that `jitter` is the *pilot* experiment — once its full run checks out the
-protocol extends to `shift`, `deletion`, etc. Earlier log entries below may refer to
-the old names.) Both write checkpoints → `.../jitter/data/` and logs
-→ `.../jitter/log/`, tagged apart by `delay` vs `nodelay` in the run tag, so the two
-arms share a folder without colliding; the summaries are
-`sparse_whole_delay_train_summary.json` and `sparse_whole_nodelay_train_summary.json`.
-`QUICK_TEST=True` runs a tiny fast grid for calibration; set it `False` for the real
-15-model run.
+**Where the code actually lives (updated 2026-07-28 — reorg).** The sparsity training
+is **shared** across the perturbation experiments (jitter, shift, deletion), so it now
+sits at the top of `my_project/exp_sparse_network/`, with each perturbation's eval in
+its own subfolder:
+
+- **Training:** [sn_train_withDelay.py](../../exp_sparse_network/sn_train_withDelay.py)
+  and [sn_train_noDelay.py](../../exp_sparse_network/sn_train_noDelay.py). They write
+  checkpoints → `sn_data/` and per-model logs + summaries → `sn_log/`, tagged apart by
+  `delay` vs `nodelay` in the run tag; the summaries are
+  `sparse_whole_delay_train_summary.json` and `sparse_whole_nodelay_train_summary.json`.
+- **Eval (jitter):** under `exp_sparse_network/jitter/` (`jitter_evalOnly_*` — eval code
+  not finalised yet); it reads checkpoints from `../sn_data` and summaries from
+  `../sn_log`.
+- `QUICK_TEST=True` runs a tiny probe grid (outputs `_probe`-suffixed so a probe can
+  never clobber a real run); `False` runs the real sweep.
+
+(Naming/layout history: the with-delay script began as `jitter_train.py`, became
+`jitter_train_withDelay.py` when the no-delay arm was added, then `jitter_test_*` on
+2026-07-23, then **`sn_train_*` on 2026-07-28** when training moved up out of `jitter/`
+into `exp_sparse_network/` and its outputs moved from `jitter/{data,log}` to
+`sn_{data,log}`; the network classes were renamed `Jitter*SHDNetwork*` → `Sparse*`, and
+the eval-only jitter code was moved out of the training scripts into `jitter/`. Earlier
+log entries below may use the old names/paths.)
 
 **How the method evolved (three attempts):**
 
@@ -95,7 +103,7 @@ Full rationale in the memory note `l1-spike-penalty-collapses-under-nadam`.
 
 The milestone originally fixed the network to SGD-delay (§3) and left the no-delay
 variant to §9's "if it works" list. It is being run **in parallel** instead, via
-[jitter_test_noDelay.py](../../exp_sparse_network/jitter/jitter_test_noDelay.py).
+[sn_train_noDelay.py](../../exp_sparse_network/sn_train_noDelay.py).
 
 **Why now.** Learnable axonal delays are themselves a timing mechanism, so in the
 SGD-delay net the jitter test measures sparsity's effect *on top of* whatever the
@@ -108,7 +116,7 @@ processing the delays were doing.
 **What differs from the with-delay script.** Only the network. `delay1`/`delay2`,
 the adaptive delay clamping schedule (the epoch-250 / 150-update `thea` logic) and
 the `delay_mean` log field are removed outright rather than switched off by a flag,
-so the class is `JitterSHDNetworkNoDelay` and spikes go straight `fc1 → fc2 → fc3`.
+so the class is `SparseSHDNetworkNoDelay` and spikes go straight `fc1 → fc2 → fc3`.
 Everything else is held identical for comparability: same dataset and fixed splits,
 same hinge penalty applied from epoch 0, same `EPOCHS = 1250`, LR, scheduler,
 batch size, early-stop patience, and the same `(target, strength, seed)` grid.
@@ -315,7 +323,7 @@ no-delay arm's 5; str0.3 is the natural 5th (fills the 9.8→4.85 gap) but is un
 4 probe-validated points are preferred over gambling a 5th. `str1e-2` and `str1.0`
 checkpoints already exist from the first full run (same warm-up-0 recipe) and can be
 reused; only `str3`/`str10` are new. The pre-re-tune 1250-ep summary is backed up at
-`log/sparse_whole_delay_train_summary_redensified_1250ep.json`.
+`sn_log/sparse_whole_delay_train_summary_redensified_1250ep.json`.
 
 **Delay re-tune full run (2026-07-27): SUCCESS.** Fresh 12-model run of
 `[1e-2, 1.0, 3.0, 10.0]`, 1250 ep, warm-up 0:
@@ -527,7 +535,7 @@ Then make three plots:
 ## 8. Progress checklist
 
 - [x] Training pipeline built
-  ([jitter_test_withDelay.py](../../exp_sparse_network/jitter/jitter_test_withDelay.py)):
+  ([sn_train_withDelay.py](../../exp_sparse_network/sn_train_withDelay.py)):
   `return_hidden` + sparsity penalty + clean-eval/summary in one script
 - [x] Step 1 pitfall found & fixed: plain L1 collapses under Nadam → switched to
   hinge; also learned best-model tracking must be reset when the penalty engages
@@ -537,7 +545,7 @@ Then make three plots:
 - [x] Step 1 done — strength grid `[1e-3,1e-2,3e-2,1e-1,1.0]` at target=3 spans
   11.6 → 3.3 spikes/neuron (>3× spread), all above chance
 - [x] No-delay arm scripted (2026-07-22,
-  [jitter_test_noDelay.py](../../exp_sparse_network/jitter/jitter_test_noDelay.py)):
+  [sn_train_noDelay.py](../../exp_sparse_network/sn_train_noDelay.py)):
   delays + clamping stripped, everything else held identical to the delay arm
 - [x] Step 1c (delay arm) — DONE. First 15-model run re-densified (bunched, ~2.66×);
   re-tuned to strong grid `[1e-2,1.0,3.0,10.0]` → clean 5.51× monotone spread (2026-07-27)
