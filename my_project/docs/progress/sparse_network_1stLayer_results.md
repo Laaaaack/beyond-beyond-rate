@@ -5,8 +5,21 @@ two arms × all checkpoints, 3 repeats each. **Verdict: H1 is not supported.** I
 8 perturbation × arm combinations the sparsity → temporal-processing trend is
 statistically significant and runs **opposite** to the prediction.
 **Owner:** _(you)_
-**Design & rationale:** [sparse_network.md](sparse_network.md) ·
-**Training/Step-1 history:** [sparse_network_test_progress.md](sparse_network_test_progress.md)
+
+**This is document 3 of 4. Read in order:**
+
+| # | Document | What it is |
+|---|---|---|
+| 1 | [sparse_network.md](sparse_network.md) | the question and the conceptual landscape — **start there** |
+| 2 | [sparse_network_test_progress.md](sparse_network_test_progress.md) | v1 execution log — getting a sparsity gradient to exist at all |
+| 3 | **this file** | v1 results — four perturbations, two arms, and the diagnosis |
+| 4 | [sparse_network_test_progress_v2.md](sparse_network_test_progress_v2.md) | v2 execution log — attempts to make H1's premise actually hold |
+
+**The one-line takeaway:** H1 is not supported *as tested* — but §6 shows the test
+could not have evaluated H1's **mechanism**, because sparsity here never closed the
+perturbation-immune count and identity channels and partly *strengthened* one of them.
+That distinction is what document 4 exists to address, and the general form of the
+argument is in [sparse_network.md](sparse_network.md) §5.
 
 ---
 

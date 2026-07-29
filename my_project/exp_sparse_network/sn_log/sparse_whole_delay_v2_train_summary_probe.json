@@ -1,0 +1,38 @@
+{
+  "sparse_whole_delay_v2_band1-2_str3_seed42_probe": {
+    "band_lo": 1.0,
+    "band_hi": 2.0,
+    "penalty_strength": 3.0,
+    "under_weight": 1.0,
+    "seed": 42,
+    "clean_acc": 0.7962591850367402,
+    "firing_rate": 0.016695082874081495,
+    "spikes_per_neuron": 3.3390165748162994,
+    "spikes_per_active_neuron": 4.961798258199105,
+    "silent_fraction": 0.32705515197060786
+  },
+  "sparse_whole_delay_v2_band3-5_str3_seed42_probe": {
+    "band_lo": 3.0,
+    "band_hi": 5.0,
+    "penalty_strength": 3.0,
+    "under_weight": 1.0,
+    "seed": 42,
+    "clean_acc": 0.8209752839011356,
+    "firing_rate": 0.021734119280227122,
+    "spikes_per_neuron": 4.346823856045424,
+    "spikes_per_active_neuron": 5.199516829804235,
+    "silent_fraction": 0.16399465597862392
+  },
+  "sparse_whole_delay_v2_band8-12_str3_seed42_probe": {
+    "band_lo": 8.0,
+    "band_hi": 12.0,
+    "penalty_strength": 3.0,
+    "under_weight": 1.0,
+    "seed": 42,
+    "clean_acc": 0.8617234468937875,
+    "firing_rate": 0.04881507807281229,
+    "spikes_per_neuron": 9.763015614562459,
+    "spikes_per_active_neuron": 9.919088445978547,
+    "silent_fraction": 0.015734594188376753
+  }
+}

@@ -1,72 +1,108 @@
-"""First milestone v2 (training), WITH-DELAY arm: banded hidden-layer sparsity on SHD.
+"""First milestone v2.2 (training), WITH-DELAY arm: top-k truncated hidden layer on SHD.
 
 Successor to [sn_train_withDelay.py](sn_train_withDelay.py). Same network, data,
-optimiser and schedule; **only the sparsity penalty differs**. v1's one-sided hinge
-produced a sparsity gradient, but the v1 perturbation results
-(``docs/progress/sparse_network_1stLayer_results.md``) showed it could not test H1:
+optimiser and schedule; **only the sparsity mechanism differs**.
 
-- The hinge has **zero gradient at or below the target**, so a neuron can escape the
-  penalty entirely by falling silent on a sample. Sparsity therefore arrived partly
-  as **stimulus selectivity** (silent fraction .25 -> .48), which *strengthens* a
-  population-identity code that every perturbation in the study leaves intact.
-- The regime H1 actually needs — each active neuron firing 0-2 spikes so *count*
-  carries no resolution — was never reached: even the sparsest v1 model fired
-  **4.10 spikes per active neuron** (the headline ``spikes_per_neuron`` of 2.12 was
-  diluted by silent neurons).
+The problem every previous version failed
+------------------------------------------
+H1 says a sparse layer is forced onto a *timing* code because *count* stops carrying
+information. Testing that requires the count and identity channels — the ones every
+rate-preserving perturbation leaves intact — to actually be closed. Three penalty
+designs failed to close them, each in the same way:
 
-So v1 refuted "H1 as tested" while leaving "H1 as intended" untested: the network
-always had a rich, perturbation-immune identity channel to fall back on.
+===========  ==================================  ==========================
+version      mechanism                           how the network escaped
+===========  ==================================  ==========================
+v1           hinge on batch-mean rate            went silent on some samples
+v2           two-sided band [lo, hi]             varied count inside the band
+v2.1         L1 exact-count |count - k|          kept a heavy tail (3.6-9.2%
+                                                 of pairs above k+2)
+===========  ==================================  ==========================
 
-**What v2 changes.** The penalty becomes a **two-sided band applied per (sample,
-neuron)** rather than a one-sided hinge on the batch-mean rate::
+Measured decode of the label from the per-neuron count vector, which is what has to
+fall to chance: v1 .687-.765, v2 .690-.770, v2.1 .659-.720. Barely moved. At
+no-delay k=1 the count channel decoded at **.66 while the network itself scored .55**
+— counts still beat the network, so no count-preserving perturbation could be
+guaranteed to hurt it.
 
-    per_sample_rate = hidden_spikes.sum(dim=-1)              # (B, C, 1, 1)
-    penalty = (relu(per_sample_rate - band_hi)               # too many spikes
-               + under_weight * relu(band_lo - per_sample_rate)).mean()
+**Why tuning cannot fix this.** Clipping v2.1's measured counts to progressively
+tighter sets showed the requirement is effectively binary:
 
-Two consequences, both deliberate:
+======================  ==========  =====  ========
+count representation    at-target   std    decode
+======================  ==========  =====  ========
+as measured (L1)        59.8%       1.50   .661
+clip to {0,1,2}         59.8%       0.63   .605
+clip to {0,1}           78.9%       0.41   .528
+pin to exactly 1        100%        0.00   **.050 = chance**
+======================  ==========  =====  ========
 
-1. **The lower arm closes the escape hatch.** Falling silent now *costs* ``band_lo``,
-   so neurons are pushed to fire on every sample. With ``silent_fraction`` driven
-   toward 0 the population-identity channel carries almost nothing, and with the
-   count pinned inside a narrow band the count channel carries ~1 bit. **Timing
-   becomes the only rich channel left** — H1's premise, true by construction.
-2. **Per-sample, not batch-mean.** v1's ``per_neuron_rate.mean(dim=0)`` averaged over
-   the batch first, so a neuron firing 10 spikes on 1 sample in 128 registered as
-   rate 0.078 and drew *no* penalty at all. Bursty, highly selective neurons were
-   free under v1; here each (sample, neuron) pair is charged on its own.
+Going 60% -> 79% at-target moved the decode only .66 -> .53. Nothing short of ~100%
+collapses it. Since the count channel is worth more to the network (.66) than its own
+accuracy (.55), it will exploit whatever slack a soft penalty leaves.
 
-**The band is the swept axis.** Because both arms of the band bind, the band
-*position* sets the achieved spikes-per-active-neuron directly — unlike v1, where the
-target was inert and the penalty strength had to be swept. v2 therefore sweeps
-``SPARSITY_BANDS`` at a fixed ``PENALTY_STRENGTH``. As always, analyse against the
-**measured** firing statistics, never the band.
+What v2.2 changes
+-----------------
+Stop *penalising* count variation and make it **impossible**:
 
-**Dead-neuron caveat.** The lower arm is a *preventive* force, not a reviving one:
-SLAYER's surrogate gradient vanishes for a neuron whose membrane sits far below
-threshold, so a deeply silent neuron may not be recoverable. This is why the penalty
-runs from epoch 0 with no warm-up — neurons must never be allowed to go deeply silent
-in the first place. Watch ``train_silent`` in the per-epoch log.
+1. **Hard top-k truncation in the forward pass.** After the 1st hidden layer spikes,
+   only each neuron's first ``k`` spikes are passed on (``truncate_to_k_spikes``).
+   The layer's output count is then exactly ``k`` for every neuron that fired at
+   least ``k`` times — by construction, with nothing to calibrate.
+2. **A one-sided floor penalty** ``relu(k - count)`` replaces the two-sided one. Its
+   only job is to stop a neuron firing *fewer* than ``k`` times, which is the sole
+   remaining way the count could vary. This is the *easy* direction: the v2 probe's
+   [8,12] band reached 1.6% silent using nothing but its lower arm.
 
-Outputs are tagged ``_v2_`` throughout and can never collide with v1 artifacts.
+With no neuron under-firing, the count vector is constant, the identity vector is
+constant, and the only thing left varying across samples is **when** the 128 x k
+spikes occur — a pure latency code, which is H1's premise made true rather than
+approximated. ``under_target_fraction`` is the single number that says whether this
+holds; when it is 0, ``count_std`` is 0 and the count decode is chance by construction.
 
-This is a **training-only** script. The perturbations that measure temporal
-processing are applied **only at evaluation**, by the sibling experiments under
-``exp_sparse_network/{jitter,shift,shd,deletion}/`` — never switch one on here. See:
+Sweeping ``k`` sweeps the layer's output firing rate exactly, while the
+perturbation-immune channel capacity stays constant (nil) at every point — removing
+the co-variation between sparsity and immune-channel capacity that made v1's headline
+correlation uninterpretable.
 
-- ``my_project/docs/progress/sparse_network_1stLayer_results.md`` — v1 results, and
-  why v2 exists.
-- ``my_project/docs/progress/sparse_network_test_progress.md`` — this milestone.
+Two consequences worth knowing:
+
+- **No anneal is needed.** The dead zone (SLAYER's surrogate gradient vanishing below
+  threshold) was a hazard of pushing firing *down*; v2.2 only ever pushes it *up*, and
+  truncation masks a neuron's output without weakening its drive. ``ANNEAL_EPOCHS``
+  is kept but defaults to 0.
+- **Raw firing is unconstrained above k** and is logged separately
+  (``raw_spikes_per_neuron``). Only the truncated output reaches ``fc2``, is measured,
+  and is perturbed at eval, so the experiment is well defined regardless; the raw rate
+  is a diagnostic for how hard the neurons are being driven.
+
+What v2.1 got right and v2.2 keeps
+-----------------------------------
+The v2.1 probe was not a wasted run — it established two things this design depends on:
+the constraint can be made to bind (``sp/neuron`` landed at 1.19-3.26 against targets
+1 and 3, versus 4.96 for v2's band), and **k = 1 is learnable** (clean accuracy .552
+no-delay, .772 delay). The regime is feasible; only the pinning mechanism was wrong.
+
+Outputs are tagged ``_v2_2_`` and cannot collide with v1, the v2 band probe, or the
+v2.1 exact-count probe.
+
+This is a **training-only** script. The perturbations that measure temporal processing
+are applied **only at evaluation**, by the sibling experiments under
+``exp_sparse_network/{jitter,shift,shd,deletion}/`` — never switch one on here. Note
+those eval scripts carry their own copy of the network class and **must be given the
+same truncation** before they are run against v2.2 checkpoints. See:
+
+- ``my_project/docs/progress/sparse_network_1stLayer_results.md`` — v1 results.
+- ``my_project/docs/progress/sparse_network_test_progress_v2.md`` — v2 checklist.
 - ``my_project/docs/progress/sparse_network.md`` — full design and rationale.
 
-What this script produces, per ``(band, seed)``:
+What this script produces, per ``(target_count, seed)``:
 
-- a checkpoint ``sn_data/sparse_whole_delay_v2_band{lo}-{hi}_str{s}_seed{seed}.pt``;
-- a training-curve log ``sn_log/..._training_log.json`` including ``train_silent``
-  and ``train_sp_active``, the two diagnostics v1 lacked;
-- a row in ``sn_log/sparse_whole_delay_v2_train_summary.json`` recording clean test
-  accuracy and the achieved sparsity — including ``spikes_per_active_neuron``, the
-  statistic whose absence hid v1's mechanism for the whole of Step 1.
+- a checkpoint ``sn_data/sparse_whole_delay_v2_2_k{k}_str{s}_seed{seed}.pt``;
+- a training-curve log ``sn_log/..._training_log.json`` including ``train_under_k``,
+  ``train_raw_rate`` and ``train_count_std``;
+- a row in ``sn_log/sparse_whole_delay_v2_2_train_summary.json`` recording clean test
+  accuracy and **``under_target_fraction``** — the manipulation check.
 """
 
 import os
@@ -99,26 +135,35 @@ print(f"Using device: {device}")
 # =====================================================================
 # Global Configuration
 # =====================================================================
-# Quick pipeline check / probe. v2's band penalty is UNVALIDATED: forcing every
-# neuron to fire on every sample is a much stronger constraint than v1's hinge, and
-# it may cost real accuracy. Run the probe FIRST (see resolve_run_config) and check
-# three things before committing to the full run:
-#   (1) does it train at all at the tight band [1, 2]?
-#   (2) does silent_fraction actually fall toward 0? (if not, raise PENALTY_STRENGTH
-#       or UNDER_WEIGHT);
-#   (3) does spikes_per_active_neuron land inside the band? (if it sits above
-#       band_hi, the band is not binding -> raise PENALTY_STRENGTH).
+# Quick pipeline check / probe. v2.2's truncation is structural, so the count channel
+# closes by construction -- there is no calibration that can get it wrong. What the
+# probe must establish is whether the network can still do the task under it. Check,
+# in priority order:
+#   (1) under_target_fraction -> 0? The single manipulation check. It counts pairs
+#       firing FEWER than k, the only remaining route to count variation. At 0 the
+#       count vector is constant, count_std is 0, and the count decode is chance. If
+#       it stays high, raise PENALTY_STRENGTH (pushing firing UP has no dead-zone
+#       risk, so this is safe to do aggressively).
+#   (2) clean_acc above chance at k=1? THE REAL RISK. With count and identity carrying
+#       nothing, the task must be solved from spike times alone. v2.1 showed k=1 is
+#       learnable (.552 / .772) when the mean was pinned; truncation is stricter. If
+#       accuracy collapses to chance, H1 is UNTESTABLE in this architecture -- a
+#       legitimate finding, not a bug (see the v2 checklist §5).
+#   (3) raw_spikes_per_neuron -- diagnostic only. Unconstrained above k by design.
+#       Watch it for a pathological blow-up, which would mean the first k spikes are
+#       all crowding into the earliest bins and carrying no timing information.
 # Probe artifacts carry the _probe suffix (RUN_SUFFIX) so they can never clobber a
 # real run.
 QUICK_TEST: bool = True
 
 # Suffix appended to every output name (checkpoints, per-model logs, summary) when
 # running a probe, so a QUICK_TEST probe can never overwrite real-run artifacts that
-# share the same (band, strength, seed). Empty for the real run.
+# share the same (target_count, seed). Empty for the real run.
 RUN_SUFFIX: str = "_probe" if QUICK_TEST else ""
 
-# Marks every v2 artifact so it can never collide with a v1 checkpoint or summary.
-VERSION_TAG: str = "v2"
+# Marks every v2.2 artifact so it can never collide with a v1 checkpoint/summary, the
+# superseded v2 band probe, or the superseded v2.1 exact-count probe.
+VERSION_TAG: str = "v2_2"
 
 # --- Milestone scope (deliberately narrow; see progress doc §3) ---
 DATASET_KEY: str = "whole"
@@ -126,50 +171,39 @@ INPUT_DIM: int = 700          # SHD whole
 USE_DELAY: bool = True        # SGD-delay
 MAT_FILE: str = str(SHD_DATA_DIR / "shd_whole.mat")
 
-# --- Sparsity sweep: sweep the BAND, hold the strength fixed ---
-# This inverts v1's arrangement. Under v1's one-sided hinge the target was inert (the
-# task loss parked firing above any target) so the penalty STRENGTH had to be swept.
-# A two-sided band binds from both directions, so the band position sets the achieved
-# spikes-per-active-neuron directly and becomes the natural swept axis.
+# --- Sparsity sweep: sweep the truncation level k ---
+# Every neuron emits exactly k spikes per sample (truncation), so k IS the layer's
+# output firing rate -- an exactly controlled independent variable rather than an
+# achieved one. At every k the count vector and the identity vector are constant, so
+# the perturbation-immune channel capacity is held at nil across the whole sweep. That
+# uniformity is the point: in v1 and v2 the immune capacity co-varied with sparsity,
+# which is what made the headline correlation impossible to interpret.
 #
-# Each band is (lo, hi) in spikes per neuron per sample. [1, 2] is the regime H1 is
-# actually about: count carries ~1 bit, identity carries ~nothing (silent_fraction
-# should be near 0), so timing is the only rich channel left. The wider/denser bands
-# provide the sparsity gradient the headline plot needs.
-#
-# Always analyse against the *measured* firing statistics, never the band.
-SPARSITY_BANDS: list[tuple[float, float]] = [
-    (1.0, 2.0),
-    (2.0, 3.0),
-    (3.0, 5.0),
-    (5.0, 8.0),
-    (8.0, 12.0),
-]
+# k = 1 is the sharpest test: 128 spikes per sample, all information in their times.
+TARGET_COUNTS: list[float] = [1.0, 2.0, 3.0, 5.0, 8.0]
 SEEDS: list[int] = [42, 43, 44]
 
-# Band penalty coefficient. FIXED in v2 (the band is the swept axis). It only has to
-# be large enough for the band to bind; v1 evidence sets the scale -- at strength 10
-# the v1 target became binding (spikes/active-neuron converged to target + 0.1), at
-# strength 1 it did not (target 3, achieved 8.38). 3.0 is the starting point; the
-# probe's job is to confirm the achieved rate lands inside the band. If it sits above
-# band_hi, raise this; if clean accuracy collapses, lower it.
-PENALTY_STRENGTH: float = 3.0
+# Floor-penalty coefficient, on relu(k - count). Its only job is to stop neurons
+# firing fewer than k times; everything above k is handled by truncation. Pushing
+# firing UP carries no dead-zone risk (truncation masks output without weakening a
+# neuron's drive), so this can be set aggressively. 10 continues v2.1's value; the v2
+# probe reached 1.6% silent in this direction with only strength 3, so there is margin.
+# If under_target_fraction stays high, raise it; if clean accuracy suffers, lower it.
+PENALTY_STRENGTH: float = 10.0
 
-# Weight on the band's LOWER arm (the anti-silencing term) relative to the upper one.
-# 1.0 keeps the band symmetric. Raise it if the probe shows silent_fraction refusing
-# to fall; lower it if forcing every neuron active costs too much accuracy. This is
-# the knob that trades off "kill the identity channel" against "keep the task
-# solvable", and it is the one genuinely new hyper-parameter in v2.
-UNDER_WEIGHT: float = 1.0
+# --- Anneal schedule for k (retained, but OFF by default) ---
+# v2.1 needed this because a tight target pushed firing down into the dead zone, where
+# SLAYER's surrogate gradient vanishes. v2.2 never pushes firing down -- truncation
+# masks a neuron's output without touching its drive, and the floor penalty only
+# pushes up -- so the hazard is gone and no curriculum is required. Kept because
+# annealing the truncation level is a sensible fallback if the k=1 models turn out to
+# train poorly from a cold start. ANNEAL_EPOCHS = 0 disables it.
+ANNEAL_FROM: float = 8.0
+ANNEAL_EPOCHS: int = 0
 
-# Clean warm-up before the penalty engages, in epochs. 0 for BOTH v2 arms.
-# v1 used 0 here but 15 in the no-delay arm, whose collapse risk came from the hinge
-# having no lower arm -- nothing stopped firing overshooting to silence. v2's band
-# supplies that lower arm structurally, so the warm-up's safety role is redundant and
-# both arms can run at 0. That also makes the two arms directly comparable for the
-# first time (v1's warm-up mismatch was a standing caveat). It matters more than in
-# v1 that the penalty runs from epoch 0: the lower arm prevents silence but cannot
-# reliably reverse it once the surrogate gradient has vanished.
+# Clean warm-up before the penalty engages, in epochs. 0 for BOTH v2.2 arms. Note the
+# truncation itself is always on, warm-up or not: it defines the layer, it is not a
+# regulariser. Only the floor penalty is gated by this.
 WARMUP_EPOCHS: int = 0
 
 # --- SLAYER neuron and simulation descriptors ---
@@ -198,31 +232,36 @@ LEARNING_RATE: float = 0.1
 MAX_DELAY: int = 64
 EARLY_STOP_PATIENCE: int = 300
 
+# --- Acceptance threshold, used only to annotate the printed summary table ---
+# Fraction of (sample, neuron) pairs firing FEWER than k spikes. Truncation guarantees
+# no pair exceeds k, so this is the only remaining source of count variation and the
+# complete manipulation check.
+MAX_UNDER_TARGET: float = 0.02
 
-def resolve_run_config() -> tuple[
-    list[tuple[float, float]], float, list[int], int, int
-]:
-    """Return (bands, penalty_strength, seeds, epochs, warmup_epochs) for this run.
 
-    Collapses to a small, fast probe grid when ``QUICK_TEST`` is set so v2's
-    unvalidated band penalty can be checked cheaply before the full sweep.
+def resolve_run_config() -> tuple[list[float], float, list[int], int, int, int]:
+    """Return (target_counts, penalty_strength, seeds, epochs, warmup, anneal_epochs).
+
+    Collapses to a small, fast probe grid when ``QUICK_TEST`` is set so v2.2 can be
+    checked cheaply before the full sweep.
 
     Returns:
-        Tuple of (bands, penalty_strength, seeds, epochs, warmup_epochs).
+        Tuple of (target_counts, penalty_strength, seeds, epochs, warmup_epochs,
+        anneal_epochs).
     """
     if QUICK_TEST:
-        # v2 VALIDATION PROBE. Three bands spanning the sweep, one seed, 400 epochs
-        # (~0.75 h/model on this arm). This is a feasibility check, not a
-        # calibration: reduced-epoch firing UNDER-ESTIMATES the full run (v1 lesson
-        # `sparsity-penalty-redensifies-at-full-epochs`), so never lock a grid from
-        # these numbers. Read off, per model:
-        #   - silent_fraction -> did the lower arm close the identity escape hatch?
-        #   - spikes_per_active_neuron -> is the band binding (inside [lo, hi])?
-        #   - clean_acc -> is the tight [1, 2] band still learnable, or has forcing
-        #     every neuron active broken the task?
-        # The tight band is the risky one; it is first so a failure shows up early.
-        return [(1.0, 2.0), (3.0, 5.0), (8.0, 12.0)], PENALTY_STRENGTH, [42], 400, 0
-    return SPARSITY_BANDS, PENALTY_STRENGTH, SEEDS, EPOCHS, WARMUP_EPOCHS
+        # v2.2 VALIDATION PROBE. Two targets, one seed, 400 epochs (~45 min/model on
+        # this arm, measured from the v2 probe). k=1 is the decisive one and runs
+        # first so a failure surfaces early; k=3 confirms behaviour across the sweep.
+        # Matches the v2.1 probe grid so the two are directly comparable.
+        #
+        # Unlike previous probes this is NOT a calibration of the manipulation --
+        # truncation closes the count channel structurally. It is a feasibility check
+        # on whether the task survives, plus a check that the floor penalty is strong
+        # enough to drive under_target_fraction to 0.
+        return [1.0, 3.0], PENALTY_STRENGTH, [42], 400, 0, ANNEAL_EPOCHS
+    return (TARGET_COUNTS, PENALTY_STRENGTH, SEEDS, EPOCHS, WARMUP_EPOCHS,
+            ANNEAL_EPOCHS)
 
 
 def load_shd_data(mat_path: str, target_T: int = 200) -> tuple[np.ndarray, np.ndarray]:
@@ -317,17 +356,59 @@ def build_dataloaders(
     return train_loader, val_loader, test_loader
 
 
+def truncate_to_k_spikes(
+    hidden_spikes: torch.Tensor,
+    k: float | None,
+) -> torch.Tensor:
+    """Keep only each (sample, neuron)'s first ``k`` spikes; drop the rest.
+
+    This is v2.2's central mechanism, and the reason it succeeds where three penalty
+    designs failed. Rather than making count variation *costly*, it makes count
+    variation *impossible*: after truncation no neuron can emit more than ``k``
+    spikes, so combined with a floor penalty preventing fewer, the count vector is
+    constant across samples and carries no information at all.
+
+    Implementation: the running spike index along time is ``cumsum`` of the binary
+    train, so the n-th spike sits where the cumulative sum equals n. Keeping bins
+    whose cumulative sum is ``<= k`` therefore keeps exactly the first ``k`` spikes.
+    The comparison produces a non-differentiable boolean mask, so gradients flow
+    straight through the surviving spikes and are simply absent for the dropped ones
+    — the network gets no signal to stop producing spikes above ``k``, which is
+    correct, since those spikes never leave the layer.
+
+    Args:
+        hidden_spikes: Binary 1st hidden layer spikes, shape (B, C, 1, 1, T).
+        k: Maximum spikes to keep per (sample, neuron). ``None`` disables truncation,
+            which reproduces the pre-v2.2 behaviour for loading older checkpoints.
+
+    Returns:
+        Tensor of the same shape, dtype and device, with at most ``k`` spikes per
+        (sample, neuron).
+    """
+    if k is None:
+        return hidden_spikes
+
+    B, C, H, W, T = hidden_spikes.shape
+    flat = hidden_spikes.view(B, C, T)
+    spike_index = flat.cumsum(dim=-1)          # n-th spike -> cumulative sum n
+    keep = (spike_index <= k).to(flat.dtype)   # boolean -> constant, no gradient
+    return (flat * keep).view(B, C, H, W, T)
+
+
 class SparseSHDNetwork(nn.Module):
-    """2-hidden-layer SLAYER SNN with learnable delays, for the v2 band experiment.
+    """2-hidden-layer SLAYER SNN with learnable delays, for the v2.2 experiment.
 
-    Structurally identical to v1's class of the same name — only the training-loop
-    penalty differs between versions — so the existing eval scripts load v2
-    checkpoints unchanged.
+    The parameter set is identical to v1's class of the same name, so checkpoints are
+    interchangeable — but the *forward pass* now differs: the 1st hidden layer's
+    output is truncated to each neuron's first ``truncate_k`` spikes before it reaches
+    ``delay1``/``fc2``. That truncation is part of the layer's definition, not a
+    regulariser, so anything evaluating a v2.2 checkpoint **must apply it too**;
+    otherwise it is measuring a different network. ``truncate_k = None`` disables it
+    and reproduces the v1/v2/v2.1 forward pass exactly.
 
-    Training uses the clean ``forward`` (no perturbation). ``forward`` can optionally
-    return the 1st hidden layer's spike tensor so the training loop can apply the
-    band sparsity penalty to it. The eval-only perturbations of that same layer live
-    under ``exp_sparse_network/{jitter,shift,shd,deletion}/``, not here.
+    Training uses the clean ``forward`` (no perturbation). The eval-only perturbations
+    of the truncated layer live under
+    ``exp_sparse_network/{jitter,shift,shd,deletion}/``, not here.
     """
 
     def __init__(
@@ -337,12 +418,14 @@ class SparseSHDNetwork(nn.Module):
         num_classes: int = 20,
         use_delay: bool = True,
         max_delay: int = 64,
+        truncate_k: float | None = None,
     ):
         super().__init__()
         slayer = snn.layer(LIF_PARAMS, SIM_PARAMS)
         self.slayer = slayer
         self.use_delay = use_delay
         self.max_delay = max_delay
+        self.truncate_k = truncate_k
 
         self.fc1 = nn.utils.weight_norm(
             slayer.dense(input_dim, hidden_units), name="weight"
@@ -368,9 +451,17 @@ class SparseSHDNetwork(nn.Module):
             x = x.unsqueeze(2).unsqueeze(3)
         return x.float().to(device)
 
-    def _first_hidden(self, x: torch.Tensor) -> torch.Tensor:
-        """Input -> PSP -> fc1 -> spike -> 1st hidden spikes (strictly binary)."""
+    def _first_hidden_raw(self, x: torch.Tensor) -> torch.Tensor:
+        """Input -> PSP -> fc1 -> spike, BEFORE truncation (diagnostic use)."""
         return self.slayer.spike(self.fc1(self.slayer.psp(x)))
+
+    def _first_hidden(self, x: torch.Tensor) -> torch.Tensor:
+        """The 1st hidden layer's actual output: raw spikes truncated to ``k``.
+
+        This is the tensor that reaches ``fc2``, that the sparsity metrics measure,
+        and that the eval scripts perturb.
+        """
+        return truncate_to_k_spikes(self._first_hidden_raw(x), self.truncate_k)
 
     def _second_hidden_and_output(self, hidden1: torch.Tensor) -> torch.Tensor:
         """hidden1 -> (delay1) -> fc2 -> spike -> (delay2) -> fc3 -> spike."""
@@ -392,17 +483,19 @@ class SparseSHDNetwork(nn.Module):
 
         Args:
             x: Input spike trains.
-            return_hidden: If True, also return the 1st hidden layer spikes so the
-                caller can apply the sparsity penalty.
+            return_hidden: If True, also return the truncated 1st hidden layer spikes
+                and the raw (pre-truncation) ones, so the caller can apply the floor
+                penalty and log how hard the neurons are being driven.
 
         Returns:
-            The output spike tensor, or ``(output, hidden1)`` if ``return_hidden``
-            is True.
+            The output spike tensor, or ``(output, hidden1, hidden1_raw)`` if
+            ``return_hidden`` is True.
         """
         x = self._prepare_input(x)
-        hidden1 = self._first_hidden(x)
+        hidden1_raw = self._first_hidden_raw(x)
+        hidden1 = truncate_to_k_spikes(hidden1_raw, self.truncate_k)
         out = self._second_hidden_and_output(hidden1)
-        return (out, hidden1) if return_hidden else out
+        return (out, hidden1, hidden1_raw) if return_hidden else out
 
     def clamp_delays(self, max1: int = 64, max2: int = 64) -> None:
         """Clamp delay parameters to [0, max]."""
@@ -421,7 +514,7 @@ class SparseSHDNetwork(nn.Module):
 
 
 def hidden_mean_rate(hidden_spikes: torch.Tensor) -> torch.Tensor:
-    """Mean spikes per hidden neuron per sample (raw firing, for logging).
+    """Mean spikes per hidden neuron per sample (for logging).
 
     Args:
         hidden_spikes: 1st hidden layer spikes, shape (B, C, 1, 1, T).
@@ -432,79 +525,98 @@ def hidden_mean_rate(hidden_spikes: torch.Tensor) -> torch.Tensor:
     return hidden_spikes.sum(dim=-1).mean()
 
 
-def hidden_activity_stats(hidden_spikes: torch.Tensor) -> tuple[float, float]:
-    """Return (silent_fraction, spikes_per_active_neuron) for one batch.
+def hidden_activity_stats(
+    hidden_spikes: torch.Tensor,
+    target_count: float,
+) -> tuple[float, float, float]:
+    """Return (under_target_fraction, silent_fraction, count_std) for one batch.
 
-    These are the two diagnostics v1 lacked. ``spikes_per_neuron`` alone is diluted
-    by silent neurons and hid the fact that v1's sparsest models still fired 3-4
-    spikes per *active* neuron — far from the 0-2 regime H1 assumes. Watching both
-    per epoch is how v2's band is confirmed to be doing what it claims.
+    ``under_target_fraction`` is v2.2's manipulation check, and supersedes the
+    count_std proxy v2.1 used. Truncation guarantees no (sample, neuron) pair exceeds
+    ``target_count``, so pairs firing *fewer* than it are the only remaining source of
+    count variation. When this reaches 0 the count vector is constant across samples,
+    ``count_std`` is 0, every neuron is active, and the label cannot be decoded from
+    counts or from neuron identity at all.
 
     Args:
-        hidden_spikes: 1st hidden layer spikes, shape (B, C, 1, 1, T).
+        hidden_spikes: TRUNCATED 1st hidden layer spikes, shape (B, C, 1, 1, T).
+        target_count: The truncation level ``k`` these spikes were produced under.
 
     Returns:
-        Tuple of (silent_fraction, spikes_per_active_neuron). The latter is 0.0 if
-        the whole batch is silent.
+        Tuple of (under_target_fraction, silent_fraction, count_std).
     """
     counts = hidden_spikes.sum(dim=-1).detach()
-    active = counts > 0
-    n_active = int(active.sum().item())
-    silent_fraction = 1.0 - (n_active / max(1, counts.numel()))
-    sp_active = counts[active].mean().item() if n_active > 0 else 0.0
-    return silent_fraction, sp_active
+    n = max(1, counts.numel())
+    under_target = (counts < target_count).sum().item() / n
+    silent_fraction = (counts == 0).sum().item() / n
+    count_std = counts.std().item() if counts.numel() > 1 else 0.0
+    return under_target, silent_fraction, count_std
 
 
-def hidden_rate_band(
+def annealed_target(
+    target_count: float,
+    epoch: int,
+    anneal_from: float = ANNEAL_FROM,
+    anneal_epochs: int = ANNEAL_EPOCHS,
+) -> float:
+    """Return the truncation level in force at ``epoch``, ramping linearly.
+
+    ``k`` starts at ``anneal_from`` and reaches ``target_count`` at ``anneal_epochs``,
+    holding there afterwards. Disabled by default in v2.2 (``ANNEAL_EPOCHS = 0``): the
+    dead-zone hazard it existed to avoid was a consequence of pushing firing down,
+    which v2.2 never does. Retained as a fallback in case cold-starting the k=1 models
+    trains poorly.
+
+    Args:
+        target_count: Final truncation level.
+        epoch: Current epoch index (0-based).
+        anneal_from: Level in force at epoch 0.
+        anneal_epochs: Epochs over which to ramp. 0 disables annealing.
+
+    Returns:
+        The truncation level to use this epoch.
+    """
+    if anneal_epochs <= 0 or epoch >= anneal_epochs:
+        return float(target_count)
+    fraction = epoch / anneal_epochs
+    return float(anneal_from + fraction * (target_count - anneal_from))
+
+
+def hidden_min_count_penalty(
     hidden_spikes: torch.Tensor,
-    band_lo: float,
-    band_hi: float,
-    under_weight: float = UNDER_WEIGHT,
+    target_count: float,
 ) -> torch.Tensor:
-    """Two-sided band sparsity penalty on per-(sample, neuron) spike count.
+    """One-sided floor penalty: charge each (sample, neuron) for firing under ``k``.
 
-    For every (sample, neuron) pair, charge the amount by which its spike count
-    falls *outside* the band ``[band_lo, band_hi]``::
+    ::
 
-        per_sample_rate = hidden_spikes.sum(dim=-1)              # (B, C, 1, 1)
-        penalty = (relu(per_sample_rate - band_hi)
-                   + under_weight * relu(band_lo - per_sample_rate)).mean()
+        per_sample_rate = hidden_spikes.sum(dim=-1)          # (B, C, 1, 1)
+        penalty = relu(target_count - per_sample_rate).mean()
 
-    This differs from v1's ``hidden_rate_hinge`` in two ways, both essential:
+    Truncation already caps the count at ``k``, so this penalty's sole job is to stop
+    neurons falling *below* it — the one remaining way the count could vary across
+    samples. Together they pin the count exactly, with no calibration.
 
-    **The lower arm closes the identity escape hatch.** v1's hinge had zero gradient
-    at and below its target, so a neuron could dodge the penalty completely by going
-    silent — and did, arriving at sparsity partly through stimulus selectivity that
-    strengthened a perturbation-immune population-identity code. Here silence costs
-    ``under_weight * band_lo``, so neurons are pushed to fire on every sample. Drive
-    ``silent_fraction`` toward 0 and the identity channel carries almost nothing;
-    pin the count inside a narrow band and the count channel carries ~1 bit; what
-    remains for the network to use is *when* the spikes occur.
+    Unlike every previous version's penalty, this one pushes firing **up** only. That
+    matters: the dead zone that wrecked v1 (26 epochs of total silence) and left v2
+    with 33-40% silent neurons is a hazard of pushing firing *down* past threshold,
+    where SLAYER's surrogate gradient vanishes and nothing can revive the neuron.
+    Pushing up is the safe direction, and the v2 probe confirmed it empirically: the
+    [8,12] band reached 1.6% silent using only its lower arm at strength 3.
 
-    **Charging per sample, not per batch-mean.** v1 averaged each neuron's count over
-    the batch *before* the ReLU, so a neuron firing 10 spikes on 1 sample in 128
-    registered as rate 0.078 and drew no penalty at all — bursty, highly selective
-    neurons were free. Each (sample, neuron) pair is now charged on its own.
-
-    SLAYER's spike function is surrogate-gradient differentiable, so the penalty
-    propagates back to ``fc1``. Note the lower arm is *preventive*, not reviving: a
-    neuron whose membrane has fallen far below threshold has no surrogate gradient
-    left to push on, which is why v2 runs with no warm-up.
+    Computing this on the raw (pre-truncation) count or the truncated count gives
+    identical values *and* identical gradients, since truncation only bites when the
+    count already exceeds ``k``, where the penalty and its gradient are both zero.
 
     Args:
         hidden_spikes: 1st hidden layer spikes, shape (B, C, 1, 1, T).
-        band_lo: Lower edge of the target band, in spikes per neuron per sample.
-        band_hi: Upper edge of the target band. Must be >= ``band_lo``.
-        under_weight: Weight on the lower (anti-silencing) arm relative to the upper.
+        target_count: The floor each neuron must reach (the swept axis).
 
     Returns:
-        Scalar penalty tensor (mean over (sample, neuron) pairs of the out-of-band
-        excess).
+        Scalar penalty tensor (mean shortfall below ``target_count``).
     """
     per_sample_rate = hidden_spikes.sum(dim=-1)
-    over = torch.relu(per_sample_rate - band_hi)
-    under = torch.relu(band_lo - per_sample_rate)
-    return (over + under_weight * under).mean()
+    return torch.relu(target_count - per_sample_rate).mean()
 
 
 def set_seed(seed: int) -> None:
@@ -559,12 +671,13 @@ def build_loss_and_optimizer(
 def train_model(
     train_loader: DataLoader,
     val_loader: DataLoader,
-    band: tuple[float, float],
+    target_count: float,
     seed: int,
     epochs: int,
     penalty_strength: float = PENALTY_STRENGTH,
-    under_weight: float = UNDER_WEIGHT,
     warmup_epochs: int = WARMUP_EPOCHS,
+    anneal_from: float = ANNEAL_FROM,
+    anneal_epochs: int = ANNEAL_EPOCHS,
     input_dim: int = INPUT_DIM,
     hidden_units: int = HIDDEN_UNITS,
     num_classes: int = NUM_CLASSES,
@@ -573,23 +686,27 @@ def train_model(
     lr: float = LEARNING_RATE,
     patience: int = EARLY_STOP_PATIENCE,
 ) -> tuple[SparseSHDNetwork, dict]:
-    """Train one clean model with the two-sided band hidden-sparsity penalty.
+    """Train one clean model with a top-k truncated hidden layer and a floor penalty.
 
-    The forward pass is clean (no perturbation). For the first ``warmup_epochs``
-    the penalty is off; after that the total loss is the NumSpikes task loss plus
-    ``penalty_strength`` times the band penalty. Best-model selection and early
-    stopping use the *task* validation loss and are reset when the penalty engages,
-    so the saved checkpoint is the most accurate *banded* model.
+    The forward pass is clean (no perturbation) and always truncated — truncation
+    defines the layer rather than regularising it, so ``warmup_epochs`` gates only the
+    floor penalty. After the warm-up the total loss is the NumSpikes task loss plus
+    ``penalty_strength`` times the shortfall below ``target_count``.
+
+    Best-model selection and early stopping use the *task* validation loss and are
+    reset once any anneal completes, so the saved checkpoint comes from the fully
+    constrained regime.
 
     Args:
         train_loader: Training DataLoader.
         val_loader: Validation DataLoader.
-        band: ``(lo, hi)`` target band in spikes per neuron per sample.
+        target_count: Truncation level and floor (the swept axis).
         seed: Random seed (controls init and shuffle order).
         epochs: Maximum training epochs.
-        penalty_strength: Band penalty coefficient.
-        under_weight: Weight on the band's anti-silencing lower arm.
-        warmup_epochs: Clean epochs before the penalty engages (0 in v2).
+        penalty_strength: Floor-penalty coefficient.
+        warmup_epochs: Clean epochs before the floor penalty engages (0 in v2.2).
+        anneal_from: Truncation level in force at epoch 0.
+        anneal_epochs: Epochs over which the level ramps. 0 disables annealing.
         input_dim: Number of input neurons.
         hidden_units: Hidden layer size.
         num_classes: Number of output classes.
@@ -602,10 +719,10 @@ def train_model(
         Tuple of (trained network, training log dict).
     """
     set_seed(seed)
-    band_lo, band_hi = band
 
     net = SparseSHDNetwork(
-        input_dim, hidden_units, num_classes, use_delay, max_delay
+        input_dim, hidden_units, num_classes, use_delay, max_delay,
+        truncate_k=target_count,
     ).to(device)
     loss_fn, optimizer, scheduler = build_loss_and_optimizer(net, lr=lr)
     loss_fn = loss_fn.to(device)
@@ -613,6 +730,10 @@ def train_model(
     best_val_loss = float("inf")
     best_model_state = None
     early_stop_counter = 0
+
+    # Epoch from which the checkpoint may be selected: the first epoch at which the
+    # penalty is engaged AND the truncation level has finished annealing.
+    selection_start = max(warmup_epochs, anneal_epochs)
 
     # Adaptive delay clamping state
     update1 = 0
@@ -624,34 +745,43 @@ def train_model(
         "epoch": [],
         "train_loss": [],        # total (task + penalty)
         "train_task_loss": [],
-        "train_rate": [],        # mean spikes / neuron / sample (raw firing)
+        "train_rate": [],        # spikes / neuron / sample AFTER truncation
+        "train_raw_rate": [],    # spikes / neuron / sample BEFORE truncation
+        "train_under_k": [],     # manipulation check: 0 => count carries nothing
         "train_silent": [],      # fraction of (sample, neuron) pairs with no spikes
-        "train_sp_active": [],   # mean spikes among ACTIVE (sample, neuron) pairs
+        "train_count_std": [],   # 0 whenever train_under_k is 0
+        "train_target_k": [],    # the truncation level in force this epoch
         "val_loss": [],          # task only
         "val_acc": [],
         "delay_mean": [],
     }
 
-    desc = f"Train band=[{band_lo:g},{band_hi:g}] seed={seed}"
+    desc = f"Train k={target_count:g} seed={seed}"
     total_steps = epochs * len(train_loader)
     with tqdm(total=total_steps, desc=desc) as pbar:
         for epoch in range(epochs):
-            # Reset best-model tracking when the penalty engages, so the saved
-            # checkpoint is the best *banded* model, not the warm-up one.
-            if epoch == warmup_epochs and warmup_epochs > 0:
+            # Reset best-model tracking once the truncation level is final, so the
+            # saved checkpoint is the best *fully constrained* model.
+            if epoch == selection_start and selection_start > 0:
                 best_val_loss = float("inf")
                 best_model_state = None
                 early_stop_counter = 0
 
             penalty_on = epoch >= warmup_epochs
+            target_k = annealed_target(
+                target_count, epoch, anneal_from, anneal_epochs
+            )
+            net.truncate_k = target_k
 
-            # --- Train (clean forward + band sparsity penalty once warmed up) ---
+            # --- Train (clean truncated forward + floor penalty) ---
             net.train()
             batch_total_losses = []
             batch_task_losses = []
             batch_rates = []
+            batch_raw_rates = []
+            batch_under_k = []
             batch_silent = []
-            batch_sp_active = []
+            batch_count_std = []
 
             for x_batch, y_batch in train_loader:
                 x_batch = x_batch.unsqueeze(2).unsqueeze(3).float().to(device)
@@ -662,14 +792,13 @@ def train_model(
                 )
                 target.scatter_(1, y_batch[:, None, None, None, None], 1.0)
 
-                outputs, hidden1 = net(x_batch, return_hidden=True)
+                outputs, hidden1, hidden1_raw = net(x_batch, return_hidden=True)
                 task_loss = loss_fn.numSpikes(outputs, target)
                 rate = hidden_mean_rate(hidden1)
-                silent, sp_active = hidden_activity_stats(hidden1)
+                raw_rate = hidden_mean_rate(hidden1_raw)
+                under_k, silent, count_std = hidden_activity_stats(hidden1, target_k)
                 if penalty_on:
-                    penalty = hidden_rate_band(
-                        hidden1, band_lo, band_hi, under_weight
-                    )
+                    penalty = hidden_min_count_penalty(hidden1_raw, target_k)
                     loss = task_loss + penalty_strength * penalty
                 else:
                     loss = task_loss
@@ -681,8 +810,10 @@ def train_model(
                 batch_total_losses.append(loss.item())
                 batch_task_losses.append(task_loss.item())
                 batch_rates.append(rate.item())
+                batch_raw_rates.append(raw_rate.item())
+                batch_under_k.append(under_k)
                 batch_silent.append(silent)
-                batch_sp_active.append(sp_active)
+                batch_count_std.append(count_std)
                 pbar.update(1)
 
             # --- Adaptive delay clamping (SGD-delay only) ---
@@ -742,8 +873,10 @@ def train_model(
             train_loss = float(np.mean(batch_total_losses))
             train_task_loss = float(np.mean(batch_task_losses))
             train_rate = float(np.mean(batch_rates))
+            train_raw_rate = float(np.mean(batch_raw_rates))
+            train_under_k = float(np.mean(batch_under_k))
             train_silent = float(np.mean(batch_silent))
-            train_sp_active = float(np.mean(batch_sp_active))
+            train_count_std = float(np.mean(batch_count_std))
 
             delays = net.get_delays()
             avg_delay = (
@@ -758,24 +891,28 @@ def train_model(
             log["train_loss"].append(train_loss)
             log["train_task_loss"].append(train_task_loss)
             log["train_rate"].append(train_rate)
+            log["train_raw_rate"].append(train_raw_rate)
+            log["train_under_k"].append(train_under_k)
             log["train_silent"].append(train_silent)
-            log["train_sp_active"].append(train_sp_active)
+            log["train_count_std"].append(train_count_std)
+            log["train_target_k"].append(float(target_k))
             log["val_loss"].append(float(val_loss))
             log["val_acc"].append(float(val_acc))
             log["delay_mean"].append(float(avg_delay))
 
             pbar.set_postfix(
                 epoch=epoch + 1,
-                pen="on" if penalty_on else "off",
+                k=f"{target_k:.2f}",
                 task=f"{train_task_loss:.3f}",
-                rate=f"{train_rate:.2f}",
-                act=f"{train_sp_active:.2f}",
-                sil=f"{train_silent:.0%}",
+                raw=f"{train_raw_rate:.2f}",
+                under=f"{train_under_k:.1%}",
                 acc=f"{val_acc:.2%}",
             )
             scheduler.step()
 
-            # Early stopping on task val loss
+            # Early stopping on task val loss (only once the level is final)
+            if epoch < selection_start:
+                continue
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 best_model_state = {
@@ -788,6 +925,7 @@ def train_model(
                     print(f"\nEarly stopping at epoch {epoch + 1}")
                     break
 
+    net.truncate_k = target_count
     if best_model_state is not None:
         net.load_state_dict(best_model_state)
 
@@ -798,67 +936,92 @@ def train_model(
 def evaluate_clean_and_activity(
     net: SparseSHDNetwork,
     test_loader: DataLoader,
+    target_count: float,
 ) -> dict:
-    """Measure clean test accuracy and 1st hidden layer sparsity in one pass.
+    """Measure clean test accuracy and 1st hidden layer activity in one pass.
 
-    Both are computed on the clean forward pass (no perturbation). Alongside v1's
-    metrics this reports ``spikes_per_active_neuron`` — the statistic whose absence
-    hid v1's mechanism, and the one that says whether the band actually bound.
+    All sparsity statistics are computed on the **truncated** layer output — the
+    tensor that actually reaches ``fc2`` and that the eval scripts perturb — with the
+    raw pre-truncation rate reported alongside as a diagnostic.
+
+    ``under_target_fraction`` is the manipulation check: truncation caps every count
+    at ``target_count``, so pairs below it are the only remaining count variation.
+    At 0, ``count_std`` is 0 and neither counts nor neuron identity carry any label
+    information.
 
     Args:
         net: Trained network.
         test_loader: Test DataLoader.
+        target_count: The truncation level the model was trained at.
 
     Returns:
         Dict with keys ``clean_acc``, ``firing_rate``, ``spikes_per_neuron``,
-        ``spikes_per_active_neuron``, ``silent_fraction``.
+        ``raw_spikes_per_neuron``, ``spikes_per_active_neuron``, ``silent_fraction``,
+        ``under_target_fraction``, ``count_std``, ``count_at_target``.
     """
     net.eval()
     correct = 0
     total = 0
     total_spikes = 0.0
+    total_raw_spikes = 0.0
+    total_sq = 0.0
     total_slots = 0
     total_neuron_samples = 0
     silent_neuron_samples = 0.0
+    under_target_samples = 0.0
+    at_target_samples = 0.0
 
     for x_batch, y_batch in test_loader:
         x_batch = x_batch.unsqueeze(2).unsqueeze(3).float().to(device)
         y_batch = y_batch.to(device)
 
-        outputs, hidden1 = net(x_batch, return_hidden=True)
+        outputs, hidden1, hidden1_raw = net(x_batch, return_hidden=True)
 
         pred = snn.predict.getClass(outputs)
         correct += (pred.cpu() == y_batch.cpu()).sum().item()
         total += y_batch.size(0)
 
         B, C, _, _, T = hidden1.shape
-        per_neuron_counts = hidden1.sum(dim=-1).view(B, C)  # (sample, neuron)
-        total_spikes += per_neuron_counts.sum().item()
+        counts = hidden1.sum(dim=-1).view(B, C)  # (sample, neuron), truncated
+        total_spikes += counts.sum().item()
+        total_raw_spikes += hidden1_raw.sum().item()
+        total_sq += (counts ** 2).sum().item()
         total_slots += B * C * T
         total_neuron_samples += B * C
-        silent_neuron_samples += (per_neuron_counts == 0).sum().item()
+        silent_neuron_samples += (counts == 0).sum().item()
+        under_target_samples += (counts < target_count).sum().item()
+        at_target_samples += (counts == target_count).sum().item()
 
     active_neuron_samples = total_neuron_samples - silent_neuron_samples
+    n = max(1, total_neuron_samples)
+    mean_count = total_spikes / n
+    variance = max(0.0, total_sq / n - mean_count ** 2)
+
     return {
         "clean_acc": correct / max(1, total),
         "firing_rate": total_spikes / max(1, total_slots),
-        "spikes_per_neuron": total_spikes / max(1, total_neuron_samples),
+        "spikes_per_neuron": mean_count,
+        "raw_spikes_per_neuron": total_raw_spikes / n,
         "spikes_per_active_neuron": total_spikes / max(1.0, active_neuron_samples),
-        "silent_fraction": silent_neuron_samples / max(1, total_neuron_samples),
+        "silent_fraction": silent_neuron_samples / n,
+        "under_target_fraction": under_target_samples / n,
+        "count_std": variance ** 0.5,
+        "count_at_target": at_target_samples / n,
     }
 
 
 def run_milestone() -> None:
-    """Train the (band, seed) grid and record sparsity + clean accuracy."""
-    bands, penalty_strength, seeds, epochs, warmup_epochs = resolve_run_config()
+    """Train the (target_count, seed) grid and record sparsity + clean accuracy."""
+    (target_counts, penalty_strength, seeds, epochs, warmup_epochs,
+     anneal_epochs) = resolve_run_config()
 
-    n_models = len(bands) * len(seeds)
+    n_models = len(target_counts) * len(seeds)
     print(f"{'#' * 70}")
-    print("# Sparse-network milestone v2 (training): SHD whole, SGD-delay")
+    print("# Sparse-network milestone v2.2 (training): SHD whole, SGD-delay")
     print(f"# QUICK_TEST={QUICK_TEST} | epochs={epochs} | warmup={warmup_epochs}")
-    print(f"# penalty=two-sided band | strength: {penalty_strength} | "
-          f"under_weight: {UNDER_WEIGHT}")
-    print(f"# bands: {bands}")
+    print("# mechanism=hard top-k truncation + floor penalty relu(k-count)")
+    print(f"# strength: {penalty_strength} | anneal_epochs: {anneal_epochs}")
+    print(f"# target counts: {target_counts}")
     print(f"# seeds: {seeds}  ->  {n_models} models")
     print(f"{'#' * 70}")
 
@@ -874,12 +1037,11 @@ def run_milestone() -> None:
 
     summary: dict[str, dict] = {}
 
-    for band in bands:
-        band_lo, band_hi = band
+    for target_count in target_counts:
         for seed in seeds:
             run_tag = (
                 f"sparse_{DATASET_KEY}_delay_{VERSION_TAG}_"
-                f"band{band_lo:g}-{band_hi:g}_str{penalty_strength:g}_"
+                f"k{target_count:g}_str{penalty_strength:g}_"
                 f"seed{seed}{RUN_SUFFIX}"
             )
             print(f"\n{'=' * 60}")
@@ -889,33 +1051,36 @@ def run_milestone() -> None:
             net, training_log = train_model(
                 train_loader=train_loader,
                 val_loader=val_loader,
-                band=band,
+                target_count=target_count,
                 seed=seed,
                 epochs=epochs,
                 penalty_strength=penalty_strength,
-                under_weight=UNDER_WEIGHT,
                 warmup_epochs=warmup_epochs,
+                anneal_from=ANNEAL_FROM,
+                anneal_epochs=anneal_epochs,
             )
 
             ckpt_path = DATA_DIR / f"{run_tag}.pt"
             torch.save(net.state_dict(), ckpt_path)
             print(f"Model saved to {ckpt_path}")
 
-            metrics = evaluate_clean_and_activity(net, test_loader)
-            in_band = band_lo <= metrics["spikes_per_active_neuron"] <= band_hi
+            metrics = evaluate_clean_and_activity(net, test_loader, target_count)
+            closed = metrics["under_target_fraction"] < MAX_UNDER_TARGET
             print(
                 f"  clean_acc={metrics['clean_acc']:.4f} | "
-                f"spikes/neuron={metrics['spikes_per_neuron']:.2f} | "
-                f"spikes/ACTIVE={metrics['spikes_per_active_neuron']:.2f} "
-                f"({'in band' if in_band else 'OUT OF BAND'}) | "
-                f"silent={metrics['silent_fraction']:.2%}"
+                f"under_k={metrics['under_target_fraction']:.2%} | "
+                f"count_std={metrics['count_std']:.3f} | "
+                f"silent={metrics['silent_fraction']:.2%} | "
+                f"raw_rate={metrics['raw_spikes_per_neuron']:.2f} | "
+                f"{'CHANNEL CLOSED' if closed else 'STILL LEAKING'}"
             )
 
             summary[run_tag] = {
-                "band_lo": float(band_lo),
-                "band_hi": float(band_hi),
+                "target_count": float(target_count),
                 "penalty_strength": float(penalty_strength),
-                "under_weight": float(UNDER_WEIGHT),
+                "anneal_from": float(ANNEAL_FROM),
+                "anneal_epochs": int(anneal_epochs),
+                "truncate_k": float(target_count),
                 "seed": int(seed),
                 **{k: float(v) for k, v in metrics.items()},
             }
@@ -939,19 +1104,19 @@ def run_milestone() -> None:
         json.dump(summary, fp, indent=2)
     print(f"\nSummary saved to {summary_path}")
 
-    # Final table. The v2 acceptance criteria are: spikes/ACTIVE inside the band,
-    # silent_fraction near 0 (the identity channel is closed), and clean_acc well
-    # above chance. Read this table against all three, not against clean_acc alone.
+    # Final table. v2.2's acceptance criteria, in priority order:
+    #   under_k   -> 0        counts and identity carry nothing (THE manipulation)
+    #   clean_acc >> chance   the task is still solvable from spike times alone
+    #   raw_rate              diagnostic; watch for a pathological blow-up
     print(
-        f"\n{'run_tag':<62} {'clean_acc':>9} {'sp/neuron':>10} "
-        f"{'sp/ACTIVE':>10} {'silent':>8}"
+        f"\n{'run_tag':<58} {'clean_acc':>9} {'k':>4} {'under_k':>9} "
+        f"{'count_std':>10} {'silent':>8} {'raw_rate':>9}"
     )
     for run_tag, row in summary.items():
         print(
-            f"{run_tag:<62} {row['clean_acc']:>9.4f} "
-            f"{row['spikes_per_neuron']:>10.2f} "
-            f"{row['spikes_per_active_neuron']:>10.2f} "
-            f"{row['silent_fraction']:>8.2%}"
+            f"{run_tag:<58} {row['clean_acc']:>9.4f} {row['target_count']:>4g} "
+            f"{row['under_target_fraction']:>9.2%} {row['count_std']:>10.3f} "
+            f"{row['silent_fraction']:>8.2%} {row['raw_spikes_per_neuron']:>9.2f}"
         )
 
 

@@ -1,0 +1,36 @@
+{
+  "sparse_whole_nodelay_v2_2_k1_str10_seed42_probe": {
+    "target_count": 1.0,
+    "penalty_strength": 10.0,
+    "anneal_from": 8.0,
+    "anneal_epochs": 0,
+    "truncate_k": 1.0,
+    "seed": 42,
+    "clean_acc": 0.23714094856379425,
+    "firing_rate": 0.004160612892451569,
+    "spikes_per_neuron": 0.832122578490314,
+    "raw_spikes_per_neuron": 12.536286113894455,
+    "spikes_per_active_neuron": 1.0,
+    "silent_fraction": 0.16787742150968604,
+    "under_target_fraction": 0.16787742150968604,
+    "count_std": 0.37375739839760386,
+    "count_at_target": 0.832122578490314
+  },
+  "sparse_whole_nodelay_v2_2_k3_str10_seed42_probe": {
+    "target_count": 3.0,
+    "penalty_strength": 10.0,
+    "anneal_from": 8.0,
+    "anneal_epochs": 0,
+    "truncate_k": 3.0,
+    "seed": 42,
+    "clean_acc": 0.2792251169004676,
+    "firing_rate": 0.013800256763527054,
+    "spikes_per_neuron": 2.760051352705411,
+    "raw_spikes_per_neuron": 21.93703552939212,
+    "spikes_per_active_neuron": 2.908835904628331,
+    "silent_fraction": 0.05114917334669339,
+    "under_target_fraction": 0.10857652805611222,
+    "count_std": 0.7398755835452517,
+    "count_at_target": 0.8914234719438878
+  }
+}

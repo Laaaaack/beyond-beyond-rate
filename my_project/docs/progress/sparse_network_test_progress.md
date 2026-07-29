@@ -1,18 +1,37 @@
-# First Milestone — Does sparsity increase temporal processing?
+# First Milestone v1 — Execution log: inducing a sparsity gradient
 
-**Status:** in progress — **Step 1 (inducing sparsity) COMPLETE for both arms**
-(2026-07-27). no-delay: 6.5× monotone firing spread (1.3–7.9 sp/neuron, 49–59% acc);
-delay (re-tuned): 5.5× monotone spread (2.1–11.7 sp/neuron, 78–89% acc). Both above
-chance, no collapse. Next: **Step 3** — the eval-only 1st-layer jitter sweep — then
-extend to shift/deletion. Steps 2–4 not started. See the Progress log below.
+**Status: COMPLETE (2026-07-28).** All four steps ran. Both arms reached a clean
+monotone sparsity gradient — no-delay 6.5× (1.3–7.9 spikes/neuron, 49–59% accuracy),
+delay 5.5× (2.1–11.7, 78–89%) — and all four perturbation sweeps were evaluated
+against them. **The results and their diagnosis are in
+[sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md).**
 **Owner:** _(you)_
-**Full design & rationale:** [sparse_network.md](sparse_network.md) — read that first if
-anything below is unclear; this file is the execution checklist for the *first,
-smallest* experiment only.
+
+**This is document 2 of 4. Read in order:**
+
+| # | Document | What it is |
+|---|---|---|
+| 1 | [sparse_network.md](sparse_network.md) | the question and the conceptual landscape — **start there** |
+| 2 | **this file** | v1 execution log — getting a sparsity gradient to exist at all |
+| 3 | [sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md) | v1 results — four perturbations, two arms, and the diagnosis |
+| 4 | [sparse_network_test_progress_v2.md](sparse_network_test_progress_v2.md) | v2 execution log — attempts to make H1's premise actually hold |
+
+**What this document is.** Almost all of v1's effort went into a problem the original
+plan did not anticipate: *getting a usable range of sparsity to exist at all*. The
+progress log below is the record of that — five mechanism attempts, seven calibration
+probes, and one full run that had to be redone. It is kept in full because the failure
+modes recur, and because §5's original plan is preserved for contrast with what
+actually worked.
+
+> **Reading note.** v1 succeeded at what this document is about (producing a sparsity
+> gradient) and produced a clear headline result — but document 3 shows that result
+> could not test H1's *mechanism*, because sparsity alone does not close the
+> count/identity channels. That discovery is what document 4 exists to address. The
+> concepts are explained in document 1 §5–6.
 
 ---
 
-## Progress log — current state (updated 2026-07-18)
+## Progress log — the record of getting sparsity to work
 
 We are still on **Step 1 (induce sparsity)**; the eval/analysis Steps 2–4 are
 unchanged and not started. What follows is the record of getting the sparsity
@@ -236,7 +255,8 @@ as the rejected alternative.*
 > Expect **lower clean accuracy** than the delay arm across the board (already visible:
 > ~48–56% vs ~79–84% at 400 ep) — the no-delay net is the weaker model on SHD. That is
 > not a failure of the sparsity mechanism. It is also exactly why `temporal_score` is
-> chance-corrected and baseline-normalised (§4): the two arms must be compared on the
+> chance-corrected and baseline-normalised (see
+> [sparse_network.md](sparse_network.md) §3): the two arms must be compared on the
 > normalised score, never on raw `acc(sigma)` drops.
 
 ### Full-run results (2026-07-26): no-delay ready, delay needs a re-tune
@@ -357,32 +377,32 @@ how much the strong end re-densifies. Proceeding without it.
 
 ---
 
-## 1. What this milestone proves (in one paragraph)
+## 1. What v1 set out to do
 
-We want to test one supervisor's prediction: **the sparser a hidden layer's
-spiking activity, the more the network depends on precise spike *timing*
-(temporal processing) rather than on firing *rate*.** We test it cheaply on a
-single setting first. We train a handful of SHD networks that differ only in how
-sparse their 1st hidden layer is (controlled by a regularisation penalty), and
-then measure how much each one's accuracy collapses when we scramble the timing
-of that layer's spikes at test time. If the prediction holds, the *sparser*
-networks should collapse *more*. This milestone is done when we have one scatter
-plot that either shows that trend or clearly doesn't.
+Test the supervisor's prediction cheaply on a single setting: train a handful of SHD
+networks differing only in how sparse their 1st hidden layer is, then measure how much
+each one's accuracy collapses when that layer's spike timing is scrambled at test
+time. If the prediction holds, the *sparser* networks should collapse *more*. Done
+when one scatter plot either shows that trend or clearly doesn't.
 
 ## 2. Key idea in three lines
 
-- **Sparsity** = how few spikes the 1st hidden layer fires. We set it with a
-  **hinge** penalty toward a target firing rate during training (a plain L1
-  penalty collapses the layer under Nadam — see the Progress log).
-- **Temporal processing** = how much test accuracy drops when we jitter (randomly
-  shift in time) that layer's spikes at evaluation only. Big drop = the network
-  was relying on timing.
-- We already have code for the jitter test. We only add the sparsity penalty.
+- **Sparsity** = how few spikes the 1st hidden layer fires, set by a regularisation
+  penalty during training. (The plan's plain L1 collapses the layer under Nadam — see
+  the Progress log; a **hinge** toward a target rate replaced it.)
+- **Temporal processing** = how much test accuracy drops when that layer's spikes are
+  perturbed at evaluation only. Big drop = the network was relying on timing.
+- The perturbation code already existed; only the sparsity penalty was new.
 
 > ⚠️ **Protocol rule (do not break):** sparsity is applied **during training**;
-> jitter is applied **only at evaluation**. Never train with jitter on — that is
-> a different experiment (perturbation-aware) and it erases the effect. See
-> [sparse_network.md](sparse_network.md) §"Why the FIXED-WEIGHT protocol".
+> the perturbation is applied **only at evaluation**. Never train with the
+> perturbation on — that is a different experiment (perturbation-aware) and it
+> erases the effect. See [sparse_network.md](sparse_network.md) §2.
+
+> **What this framing missed**, discovered only in document 3: "sparse" and
+> "count-uninformative" are not the same thing, so a big drop under a *rate-preserving*
+> perturbation was never guaranteed to be available for the network to show. See
+> [sparse_network.md](sparse_network.md) §5.
 
 ## 3. Scope of THIS milestone (deliberately narrow)
 
@@ -398,125 +418,62 @@ plot that either shows that trend or clearly doesn't.
 Everything else (128–128 hidden units, 20 classes, `NumSpikes` loss, LR,
 epochs, `SIGMA_VALUES`) is copied unchanged from the existing jitter scripts.
 
-## 4. Files you will create
+## 4. Where the code ended up
 
-Make a new folder `my_project/exp_fixed_weight_perturbation/code/sparse_network/`
-containing four scripts, each adapted from an existing one:
+The four-script layout originally planned here (`sparse_train.py`,
+`sparse_eval_jitter.py`, `measure_sparsity.py`, `analyse.py` under
+`exp_fixed_weight_perturbation/code/sparse_network/`) was **not** what got built. Two
+things changed it: the sparsity-trained checkpoints turned out to be shared across
+*four* perturbation experiments rather than one, and `measure_sparsity.py` proved
+unnecessary because the training script already emits those metrics in its summary.
 
-| New script | Copied from | Purpose |
-|---|---|---|
-| `sparse_train.py` | `.../perturbation/jitter/jitter_train.py` | clean training **+ sparsity penalty**; saves 15 checkpoints |
-| `sparse_eval_jitter.py` | `.../perturbation/jitter/jitter_2ndLayer_evalOnly.py` | loads each checkpoint, sweeps **1st-layer** jitter at eval only |
-| `measure_sparsity.py` | _(new, small)_ | reports each checkpoint's hidden firing rate + clean accuracy |
-| `analyse.py` | _(new, small)_ | computes the temporal score and makes the plots |
+See the Progress log above (*"Where the code actually lives"*) for the layout that
+exists: shared training at the top of `exp_sparse_network/`, one subfolder per
+perturbation, checkpoints in `sn_data/` and summaries in `sn_log/`.
 
-> The eval template is the *2nd*-layer file, but this milestone perturbs the
-> *1st* layer. The 1st-layer jitter logic already exists as
-> `forward_with_hidden_perturbation(x, sigma)` inside
-> `.../perturbation/jitter/jitter_train.py` — reuse that method rather than the
-> 2nd-layer forward.
+## 5. The original plan, and how it changed
 
-## 5. Step-by-step
+The plan was four steps: **(1)** add an L1 spike penalty and sweep its coefficient
+`lam` over `[0, 3e-4, 1e-3, 3e-3, 1e-2]` × 3 seeds; **(2)** measure achieved sparsity
+and clean accuracy per checkpoint; **(3)** run the eval-only jitter sweep over
+`sigma ∈ {0,1,3,5,10,17,25}`; **(4)** collapse each curve to a chance-corrected
+`temporal_score = 1 − (acc(σmax) − .05)/(acc(0) − .05)` and produce three plots
+(headline, curve families, guard).
 
-### Step 0 — copy the scripts
-Copy the two existing jitter scripts into the new folder under the new names
-above. Confirm they run unchanged first (train 1 quick model, eval it), so you
-know the baseline pipeline works before you modify anything.
+Steps 2–4 survived essentially unchanged. **Step 1 did not**, and the Progress log
+above is the record of why. In brief:
 
-### Step 1 — add the sparsity penalty to `sparse_train.py`
+| Plan | What actually happened |
+|---|---|
+| Plain L1, sweep `lam` | Collapses the layer within one epoch at *every* `lam` under Nadam. Replaced by a **hinge** `relu(rate − target)`. |
+| Sweep the target rate | The target is inert — the task loss parks firing above any target. The **penalty strength** became the swept axis instead. |
+| One arm (SGD-delay) | A **second no-delay arm** was added in parallel, to remove learnable delays as a confounding timing mechanism. |
+| One calibration | The delay grid did **not** transfer to the no-delay arm; each needed its own, and the delay arm then had to be re-tuned after its first full run re-densified. |
+| One perturbation (jitter) | Extended to **four** — jitter, shift, relocation, and deletion as a rate control. |
 
-**1a. Let the network hand back its hidden spikes.** Change the clean `forward`:
+Two of these became durable lessons and are carried in
+[sparse_network.md](sparse_network.md) §7: analyse against *measured* sparsity, never
+the knob; and reduced-epoch calibration systematically under-estimates full-run
+firing.
 
-```python
-def forward(self, x, return_hidden=False):
-    x = self._prepare_input(x)
-    hidden1 = self._first_hidden(x)                 # binary spikes (differentiable)
-    out = self._second_hidden_and_output(hidden1)
-    return (out, hidden1) if return_hidden else out
-```
+## 6. Outcome
 
-**1b. Add the penalty in the training loop** (replace the plain loss line):
+All four steps completed. **The results, the four-perturbation analysis, and the
+diagnosis are in
+[sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md).**
 
-```python
-outputs, hidden1 = net(x_batch, return_hidden=True)
-task_loss = loss_fn.numSpikes(outputs, target)
+In one line: the pipeline worked and the sparsity gradient was clean, but the headline
+correlation came out **positive in all eight perturbation × arm combinations** —
+sparser networks were *more* perturbation-robust, the opposite of H1 — and the
+diagnosis showed this could not be read as a test of H1's mechanism, because sparsity
+here arrived partly through stimulus selectivity, which *strengthens* the
+perturbation-immune identity channel rather than closing it. That is what
+[sparse_network_test_progress_v2.md](sparse_network_test_progress_v2.md) exists to fix.
 
-# L1 sparsity penalty = mean spikes per hidden neuron per sample.
-rate_reg = hidden1.sum(dim=-1).mean()
-loss = task_loss + lam * rate_reg               # lam = 0 recovers normal training
-```
+## 7. Watch out for (v1's own lessons)
 
-**1c. Make `lam` a swept hyper-parameter**, exactly like `sigma` is swept in the
-original script. Train one fresh model per `(lam, seed)` and save each as
-`sparse_whole_delay_lam{lam}_seed{seed}.pt`.
-
-Starting grid (these are *guesses* — calibrate in Step 1d):
-```python
-LAM_VALUES  = [0.0, 3e-4, 1e-3, 3e-3, 1e-2]
-SEEDS       = [42, 43, 44]
-```
-
-**1d. Calibrate `lam` before committing to 15 runs.** Do this quickly:
-1. Train `lam = 0` → record its hidden firing rate (the **dense anchor**) and
-   clean accuracy.
-2. Train the largest `lam` → if accuracy is already at chance (~5%), it is too
-   strong; lower the top of the grid. If firing rate barely moved from the
-   anchor, it is too weak; raise it.
-3. Aim for a grid where the sparsest model still scores **clearly above chance**
-   (say ≥ 40%) while firing much less than the dense anchor. Then run all 15.
-
-> 💡 To validate the whole pipeline fast, temporarily set `EPOCHS = 400`. Only
-> switch back to the full `EPOCHS = 1250` for the real 15-model run.
-
-### Step 2 — measure sparsity + clean accuracy (`measure_sparsity.py`)
-For every checkpoint, on the **test set**, record:
-```python
-# hidden1: (B, C, 1, 1, T) collected over the test set with sigma = 0
-firing_rate     = hidden1.sum() / hidden1.numel()      # fraction of active bins  ← x-axis
-spikes_per_neuron = hidden1.sum(dim=-1).mean()         # intuitive alt
-silent_fraction = (hidden1.sum(dim=-1) == 0).float().mean()
-clean_acc       = acc at sigma = 0
-```
-Save one row per checkpoint to a CSV/JSON: `lam, seed, firing_rate, silent_fraction, clean_acc`.
-
-### Step 3 — jitter sweep per checkpoint (`sparse_eval_jitter.py`)
-For every checkpoint, evaluate accuracy across the existing grid
-`SIGMA_VALUES = [0, 1, 3, 5, 10, 17, 25]`, perturbing the **1st** hidden layer
-(via `forward_with_hidden_perturbation`), `NUM_REPEATS = 3` for error bars, all
-inside `torch.no_grad()`. Save `acc(sigma)` per checkpoint.
-
-### Step 4 — score temporal processing + plot (`analyse.py`)
-Turn each `acc(sigma)` curve into one number, **baseline-normalised and
-chance-corrected** so that low-accuracy models are treated fairly:
-```python
-chance = 1 / 20                                   # = 0.05
-retention = (acc[sigma_max] - chance) / (acc[0] - chance)   # sigma_max = 25
-temporal_score = 1 - retention        # 0 = pure rate code, 1 = fully timing-dependent
-```
-Then make three plots:
-1. **Headline:** `temporal_score` (y) vs `firing_rate` (x), one dot per
-   (lam, seed). **H1 predicts a downward trend** (sparser = left = higher).
-   Report Spearman correlation.
-2. **Curves:** the raw `acc(sigma)` families, coloured by firing rate — should
-   fan from flat (dense) to steep (sparse).
-3. **Guard:** `clean_acc` vs `firing_rate` — proves the trend isn't just
-   "sparser networks are worse."
-
-## 6. How you know the milestone succeeded
-
-- **Pipeline works:** 15 checkpoints trained; sparsity CSV and jitter curves
-  produced without error.
-- **Sparsity really varied:** the sparsest model's `firing_rate` is well below
-  the `lam = 0` anchor (aim for a >2× spread), and all analysed models are above
-  chance.
-- **Result obtained (either direction is a valid finding):**
-  - Headline plot shows a clear negative `firing_rate → temporal_score` trend
-    (negative Spearman ρ) ⇒ supports H1, proceed to scale up.
-  - Flat or positive trend ⇒ H1 not supported here; record it and check the
-    diagnostics in [sparse_network.md](sparse_network.md) §"Pitfalls and confounds"
-    before concluding.
-
-## 7. Watch out for
+Superseded and generalised by [sparse_network.md](sparse_network.md) §7; kept here as
+the mechanism-specific form they were first learned in.
 
 1. **A plain L1 spike penalty collapses the layer under Nadam** — never use it;
    use the hinge `relu(rate − target)`. Any nonzero `lam` silenced the layer in
@@ -529,8 +486,9 @@ Then make three plots:
 4. **Plot/analyse against measured `firing_rate`, never the target or strength** —
    the map from penalty settings to achieved sparsity is nonlinear and
    seed-dependent.
-5. **Do not enable jitter during training** — training must be clean; jitter is
-   eval-only.
+5. **Do not enable the perturbation during training** — training must be clean.
+6. **Calibrate at the epoch count you will actually run.** A grid locked at 400
+   epochs re-densified over 1250 and cost a full 15-model run.
 
 ## 8. Progress checklist
 
@@ -571,17 +529,29 @@ Then make three plots:
   above chance. **Grid LOCKED**; `PENALTY_STRENGTHS` updated
 - [x] Step 1b (no-delay arm) — full run complete (2026-07-26): clean 6.5× monotone
   spread (7.05 → 1.34 sp/neuron), all above chance, no collapse. **Ready for Step 3**
-- [ ] Step 2 — sparsity + clean accuracy table, per arm (largely produced inline by
-  the training script's summary; may not need a separate `measure_sparsity.py`)
-- [ ] Step 3 — jitter sweep (eval-only, **1st** layer) run for all checkpoints, per arm
-- [ ] Step 4 — temporal scores + 3 plots produced, per arm
-- [ ] Milestone verdict recorded (supports / does not support H1), plus the
-  delay-vs-no-delay comparison of temporal scores
+- [x] Step 2 — sparsity + clean accuracy table, per arm. Produced inline by the
+  training script's summary; the planned separate `measure_sparsity.py` was not needed
+- [x] Step 3 — eval-only 1st-layer sweeps run for all checkpoints, both arms.
+  **Extended from jitter alone to four perturbations**: jitter, shift, relocation, and
+  deletion as a rate/general-robustness control (2026-07-28)
+- [x] Step 4 — temporal scores computed, Spearman ρ per perturbation × arm, plus the
+  deletion control, partial correlations and the equal-damage comparison
+- [x] **Milestone verdict recorded** — see
+  [sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md).
+  H1 not supported; the trend is significantly *opposite* in all 8 combinations
+- [x] Diagnosis recorded: the result cannot test H1's mechanism, because the
+  count/identity channels were never closed. **→ v2**
 
-## 9. If it works — immediate next steps
+## 9. What came next
 
-Scale along one axis at a time (see [sparse_network.md](sparse_network.md)
-§"Optional extensions"). The no-delay network was originally first on this list but
-has been pulled forward and is now running as a parallel arm (Progress log,
-2026-07-22), so what remains is: the 2nd-layer site, then the `part`/`norm` SHD
-variants, and finally the synthetic ISI task as the cleanest confirmation venue.
+The v1 verdict was a valid finding about the *intervention* but not a test of H1's
+*mechanism* — sparsity by regularisation does not close the perturbation-immune
+channels, and can strengthen one of them. Closing them by construction is the subject
+of [sparse_network_test_progress_v2.md](sparse_network_test_progress_v2.md).
+
+The scaling axes originally listed here (2nd-layer site, `part`/`norm` SHD variants,
+the synthetic ISI task) are **deferred until the mechanism question is settled** —
+scaling an experiment that cannot test the hypothesis would multiply the problem
+rather than the evidence. Of them, the synthetic ISI task has since become the most
+important, because it removes the difficulty rather than fighting it (see
+[sparse_network.md](sparse_network.md) §9).

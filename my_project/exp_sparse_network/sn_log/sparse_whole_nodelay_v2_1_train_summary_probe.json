@@ -1,0 +1,30 @@
+{
+  "sparse_whole_nodelay_v2_1_k1_str10_seed42_probe": {
+    "target_count": 1.0,
+    "penalty_strength": 10.0,
+    "anneal_from": 8.0,
+    "anneal_epochs": 150,
+    "seed": 42,
+    "clean_acc": 0.552438209752839,
+    "firing_rate": 0.005939352663660654,
+    "spikes_per_neuron": 1.1878705327321308,
+    "spikes_per_active_neuron": 1.505420081086265,
+    "silent_fraction": 0.2109375,
+    "count_std": 1.500010174293623,
+    "count_at_target": 0.5983894873079493
+  },
+  "sparse_whole_nodelay_v2_1_k3_str10_seed42_probe": {
+    "target_count": 3.0,
+    "penalty_strength": 10.0,
+    "anneal_from": 8.0,
+    "anneal_epochs": 150,
+    "seed": 42,
+    "clean_acc": 0.5036740146960588,
+    "firing_rate": 0.015665288911155643,
+    "spikes_per_neuron": 3.1330577822311287,
+    "spikes_per_active_neuron": 3.2103098847624394,
+    "silent_fraction": 0.02406375250501002,
+    "count_std": 1.7363053825380932,
+    "count_at_target": 0.3983592184368738
+  }
+}
