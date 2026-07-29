@@ -43,6 +43,16 @@ sparsity is nonlinear and seed-dependent.
 
 Architecture: Input(700) -> 128 hidden -> 128 hidden -> 20 output (SRMALPHA), no delays.
 Sweep (eval only): sigma in {0, 1, 3, 5, 10, 17, 25} time steps (ms).
+
+v3 note — this sweep needs no support-window correction, unlike relocation and
+jitter. A shift is a *rigid translation* of one neuron's whole spike train, so it
+preserves the population's instantaneous spike density exactly and never dilutes it
+into the zero-padded tail; the rate insult that the other two probes acquire from
+the padding simply does not arise here. Clipping targets to the measured support
+``[0, 88)`` would instead pile spikes up at the support edge and merge them, which
+*would* destroy per-neuron count — so the full-window clip below is the correct
+choice for this perturbation, not an oversight. See
+``v3_analysis/temporal_support.py`` and document 5 §2a.
 """
 
 import json

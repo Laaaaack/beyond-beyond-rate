@@ -7,7 +7,7 @@ against them. **The results and their diagnosis are in
 [sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md).**
 **Owner:** _(you)_
 
-**This is document 2 of 4. Read in order:**
+**This is document 2 of 5. Read in order:**
 
 | # | Document | What it is |
 |---|---|---|
@@ -15,6 +15,7 @@ against them. **The results and their diagnosis are in
 | 2 | **this file** | v1 execution log — getting a sparsity gradient to exist at all |
 | 3 | [sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md) | v1 results — four perturbations, two arms, and the diagnosis |
 | 4 | [sparse_network_test_progress_v2.md](sparse_network_test_progress_v2.md) | v2 execution log — attempts to make H1's premise actually hold |
+| 5 | [sparse_network_test_progress_v3.md](sparse_network_test_progress_v3.md) | v3 design — why "sparsity" is two variables, and the experiment that separates them |
 
 **What this document is.** Almost all of v1's effort went into a problem the original
 plan did not anticipate: *getting a usable range of sparsity to exist at all*. The

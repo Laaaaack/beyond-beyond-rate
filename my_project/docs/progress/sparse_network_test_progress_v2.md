@@ -8,7 +8,7 @@ but at a large accuracy cost and with a residual leak. **The with-delay v2.2 pro
 has not been run.** No full sweep has been run in any version.
 **Owner:** _(you)_
 
-**This is document 4 of 4. Read in order:**
+**This is document 4 of 5. Read in order:**
 
 | # | Document | What it is |
 |---|---|---|
@@ -16,6 +16,20 @@ has not been run.** No full sweep has been run in any version.
 | 2 | [sparse_network_test_progress.md](sparse_network_test_progress.md) | v1 execution log — getting a sparsity gradient to exist at all |
 | 3 | [sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md) | v1 results — four perturbations, two arms, and the diagnosis |
 | 4 | **this file** | v2 execution log — attempts to make H1's premise actually hold |
+| 5 | [sparse_network_test_progress_v3.md](sparse_network_test_progress_v3.md) | v3 design — why "sparsity" is two variables, and the experiment that separates them |
+
+> ⚠️ **SUPERSEDED (2026-07-29) — do not run §5's remaining steps.** v3 retires the
+> channel-closing programme. The short version: closing the immune channel makes the
+> covariate zero, but *measuring* it costs ~40 min for all 27 checkpoints and it turns
+> out to barely move across v1's whole gradient (count decode .70–.78), so it can be
+> controlled rather than eliminated. Meanwhile v2.2's price — accuracy .552 → .237, raw
+> firing inflated from ~6.3 to 12.5–21.9 — means it is no longer testing
+> "sparser-activity networks" at all. The real blocking flaw was elsewhere: spikes per
+> *active* neuron and *silent fraction* are confounded at ρ = −0.943 in v1's no-delay
+> arm. See document 5 §6 for the full argument, and §2 for the measurements behind it.
+> **Everything below stands as the record of what was learned; only the plan is
+> retired.** The v2.2 checkpoints stay useful as an extreme point on the
+> spikes-per-active-neuron axis.
 
 **Where this picks up.** v1 (documents 2–3) produced a clean sparsity gradient and a
 clear headline result — but the diagnosis showed it could not test H1's *mechanism*,

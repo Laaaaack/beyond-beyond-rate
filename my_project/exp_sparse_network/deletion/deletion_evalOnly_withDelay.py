@@ -53,6 +53,12 @@ is far higher (78-89% vs the no-delay arm's 49-59%).
 Architecture: Input(700) -> 128 hidden -> 128 hidden -> 20 output (SRMALPHA), with
 learnable delays after each hidden layer.
 Sweep (eval only): p_d in {0.0, 0.2, 0.4, 0.6, 0.8}.
+
+v3 note — this sweep needs no support-window correction, unlike relocation and
+jitter. Deletion removes spikes and never chooses a destination bin, so there is no
+window to confine and the temporal support is irrelevant to it. Its role in v3 is
+unchanged: it is the general-robustness control the timing probes are read against.
+See ``v3_analysis/temporal_support.py`` and document 5 §2a.
 """
 
 import json

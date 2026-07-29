@@ -1,0 +1,68 @@
+
+Loading nodelay ...
+  table -> D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\phase0_headline_nodelay.csv
+
+Loading delay ...
+  table -> D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\phase0_headline_delay.csv
+
+=== nodelay (n=15) ===
+-- the confound: the two sparsity axes against each other --
+  rho(a, s)                                      rho=-0.943 p=1.42e-07  n=15
+  rho(spikes_per_neuron, a)                      rho=+0.993 p=2.17e-13  n=15
+  rho(spikes_per_neuron, s)                      rho=-0.964 p=7.07e-09  n=15
+-- availability: does the layer HOLD more timing information? --
+  rho(timing_fraction, a)                        rho=-0.211 p=0.451     n=15
+  rho(timing_fraction, s)                        rho=+0.229 p=0.413     n=15
+  rho(timing_fraction, spikes_per_neuron)        rho=-0.196 p=0.483     n=15
+-- usage: does the readout DEPEND on hidden timing? --
+  rho(usage, a)                                  rho=+0.939 p=2.09e-07  n=15
+  rho(usage, s)                                  rho=-0.925 p=7.99e-07  n=15
+  rho(usage, spikes_per_neuron)                  rho=+0.939 p=2.09e-07  n=15
+  rho(usage_full_window, spikes_per_neuron)      rho=+0.950 p=6.09e-08  n=15
+  rho(deletion control, spikes_per_neuron)       rho=+0.936 p=3.01e-07  n=15
+-- the immune channels, as measured covariates --
+  rho(decode_count, spikes_per_neuron)           rho=+0.913 p=1.99e-06  n=15
+  rho(decode_identity, spikes_per_neuron)        rho=-0.721 p=0.0024    n=15
+-- partials (diagnostic only while a and s are collinear) --
+  partial rho(timing_fraction, log a | s)        rho=+0.015 p=0.96      n=15
+  partial rho(usage, log a | s)                  rho=+0.530 p=0.0511    n=15
+  partial rho(usage, s | log a)                  rho=-0.345 p=0.228     n=15
+  partial rho(usage, log a | s, deletion)        rho=+0.238 p=0.434     n=15
+  partial rho(usage, s | log a, deletion)        rho=-0.381 p=0.199     n=15
+
+-- window correction audit (nodelay) --
+  relocation  acc shift +0.010..+0.115 | rho(spikes/neuron, score) +0.950 -> +0.939
+  jitter      acc shift -0.000..+0.026 | rho(spikes/neuron, score) +0.950 -> +0.921
+
+=== delay (n=12) ===
+-- the confound: the two sparsity axes against each other --
+  rho(a, s)                                      rho=-0.455 p=0.138     n=12
+  rho(spikes_per_neuron, a)                      rho=+0.944 p=3.93e-06  n=12
+  rho(spikes_per_neuron, s)                      rho=-0.650 p=0.022     n=12
+-- availability: does the layer HOLD more timing information? --
+  rho(timing_fraction, a)                        rho=-0.035 p=0.914     n=12
+  rho(timing_fraction, s)                        rho=+0.448 p=0.145     n=12
+  rho(timing_fraction, spikes_per_neuron)        rho=-0.161 p=0.618     n=12
+-- usage: does the readout DEPEND on hidden timing? --
+  rho(usage, a)                                  rho=+0.881 p=0.000153  n=12
+  rho(usage, s)                                  rho=-0.476 p=0.118     n=12
+  rho(usage, spikes_per_neuron)                  rho=+0.853 p=0.000418  n=12
+  rho(usage_full_window, spikes_per_neuron)      rho=+0.671 p=0.0168    n=12
+  rho(deletion control, spikes_per_neuron)       rho=+0.713 p=0.0092    n=12
+-- the immune channels, as measured covariates --
+  rho(decode_count, spikes_per_neuron)           rho=+0.775 p=0.00304   n=12
+  rho(decode_identity, spikes_per_neuron)        rho=-0.846 p=0.000521  n=12
+-- partials (diagnostic only while a and s are collinear) --
+  partial rho(timing_fraction, log a | s)        rho=+0.212 p=0.532     n=12
+  partial rho(usage, log a | s)                  rho=+0.849 p=0.000956  n=12
+  partial rho(usage, s | log a)                  rho=-0.178 p=0.6       n=12
+  partial rho(usage, log a | s, deletion)        rho=+0.716 p=0.0199    n=12
+  partial rho(usage, s | log a, deletion)        rho=-0.187 p=0.606     n=12
+
+-- window correction audit (delay) --
+  relocation  acc shift -0.002..+0.157 | rho(spikes/neuron, score) +0.671 -> +0.853
+  jitter      acc shift -0.009..+0.008 | rho(spikes/neuron, score) +0.832 -> +0.811
+
+Statistics -> D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\phase0_headline.json
+
+Figure -> D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\fig\phase0_headline.png

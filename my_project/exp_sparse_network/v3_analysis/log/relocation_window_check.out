@@ -1,0 +1,40 @@
+Using device: cuda
+  sparse_whole_nodelay_tgt3_str0.01_seed42     clean=0.594 f1_full=0.246 f1_support=0.297
+  sparse_whole_nodelay_tgt3_str0.01_seed43     clean=0.560 f1_full=0.222 f1_support=0.317
+  sparse_whole_nodelay_tgt3_str0.01_seed44     clean=0.559 f1_full=0.205 f1_support=0.264
+  sparse_whole_nodelay_tgt3_str0.5_seed42      clean=0.555 f1_full=0.273 f1_support=0.333
+  sparse_whole_nodelay_tgt3_str0.5_seed43      clean=0.578 f1_full=0.211 f1_support=0.331
+  sparse_whole_nodelay_tgt3_str0.5_seed44      clean=0.577 f1_full=0.245 f1_support=0.325
+  sparse_whole_nodelay_tgt3_str1_seed42        clean=0.548 f1_full=0.318 f1_support=0.363
+  sparse_whole_nodelay_tgt3_str1_seed43        clean=0.566 f1_full=0.280 f1_support=0.336
+  sparse_whole_nodelay_tgt3_str1_seed44        clean=0.528 f1_full=0.245 f1_support=0.338
+  sparse_whole_nodelay_tgt3_str3_seed42        clean=0.544 f1_full=0.395 f1_support=0.445
+  sparse_whole_nodelay_tgt3_str3_seed43        clean=0.531 f1_full=0.377 f1_support=0.398
+  sparse_whole_nodelay_tgt3_str3_seed44        clean=0.520 f1_full=0.384 f1_support=0.410
+  sparse_whole_nodelay_tgt3_str10_seed42       clean=0.498 f1_full=0.372 f1_support=0.423
+  sparse_whole_nodelay_tgt3_str10_seed43       clean=0.516 f1_full=0.371 f1_support=0.413
+  sparse_whole_nodelay_tgt3_str10_seed44       clean=0.487 f1_full=0.379 f1_support=0.413
+
+=== nodelay (n=15) ¡ª Spearman rho(spikes/neuron, temporal_score) ===
+  relocate over [0,200)  (v1 as run)         rho=+0.918 p=1.418e-06
+  relocate over [0,88)  (support)            rho=+0.921 p=1.071e-06
+Written to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\relocation_window_check_nodelay.json
+
+  sparse_whole_delay_tgt3_str0.01_seed42       clean=0.883 f1_full=0.305 f1_support=0.330
+  sparse_whole_delay_tgt3_str0.01_seed43       clean=0.864 f1_full=0.239 f1_support=0.232
+  sparse_whole_delay_tgt3_str0.01_seed44       clean=0.859 f1_full=0.236 f1_support=0.273
+  sparse_whole_delay_tgt3_str1_seed42          clean=0.864 f1_full=0.265 f1_support=0.367
+  sparse_whole_delay_tgt3_str1_seed43          clean=0.841 f1_full=0.253 f1_support=0.403
+  sparse_whole_delay_tgt3_str1_seed44          clean=0.838 f1_full=0.239 f1_support=0.367
+  sparse_whole_delay_tgt3_str3_seed42          clean=0.825 f1_full=0.260 f1_support=0.407
+  sparse_whole_delay_tgt3_str3_seed43          clean=0.800 f1_full=0.282 f1_support=0.372
+  sparse_whole_delay_tgt3_str3_seed44          clean=0.853 f1_full=0.276 f1_support=0.389
+  sparse_whole_delay_tgt3_str10_seed42         clean=0.819 f1_full=0.321 f1_support=0.417
+  sparse_whole_delay_tgt3_str10_seed43         clean=0.780 f1_full=0.313 f1_support=0.393
+  sparse_whole_delay_tgt3_str10_seed44         clean=0.818 f1_full=0.318 f1_support=0.415
+
+=== delay (n=12) ¡ª Spearman rho(spikes/neuron, temporal_score) ===
+  relocate over [0,200)  (v1 as run)         rho=+0.769 p=0.003446
+  relocate over [0,88)  (support)            rho=+0.881 p=0.0001527
+Written to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\relocation_window_check_delay.json
+

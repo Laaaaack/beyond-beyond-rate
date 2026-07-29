@@ -6,7 +6,7 @@ two arms × all checkpoints, 3 repeats each. **Verdict: H1 is not supported.** I
 statistically significant and runs **opposite** to the prediction.
 **Owner:** _(you)_
 
-**This is document 3 of 4. Read in order:**
+**This is document 3 of 5. Read in order:**
 
 | # | Document | What it is |
 |---|---|---|
@@ -14,6 +14,18 @@ statistically significant and runs **opposite** to the prediction.
 | 2 | [sparse_network_test_progress.md](sparse_network_test_progress.md) | v1 execution log — getting a sparsity gradient to exist at all |
 | 3 | **this file** | v1 results — four perturbations, two arms, and the diagnosis |
 | 4 | [sparse_network_test_progress_v2.md](sparse_network_test_progress_v2.md) | v2 execution log — attempts to make H1's premise actually hold |
+| 5 | [sparse_network_test_progress_v3.md](sparse_network_test_progress_v3.md) | v3 design — why "sparsity" is two variables, and the experiment that separates them |
+
+> **v3 addenda to these results (document 5 §2).** The headline **survives** two new
+> checks and gains one caveat. (a) The relocation grid let spikes land anywhere in the
+> 200-bin window although hidden activity ends at bin 86; restricting relocation to the
+> real support raises `acc(f=1)` by .05–.14 but *strengthens* the correlation
+> (+0.918 → +0.932 no-delay, +0.769 → +0.867 delay). (b) §6's mechanism is confirmed
+> independently, but `spikes_per_active_neuron` and `silent_fraction` are confounded at
+> ρ = −0.943 here, so this arm cannot attribute the effect to either. (c) A
+> capacity-matched decoder finds the *timing information available* in layer 1 is flat
+> (.24–.27) across the whole gradient — so the trend below is about what the readout
+> **uses**, not about what layer 1 **holds**.
 
 **The one-line takeaway:** H1 is not supported *as tested* — but §6 shows the test
 could not have evaluated H1's **mechanism**, because sparsity here never closed the

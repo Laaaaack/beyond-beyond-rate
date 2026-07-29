@@ -27,10 +27,14 @@ modified, no gradients are taken, and the delays are used exactly as trained (th
 adaptive clamping schedule is a training-time device and has no role here).
 
 Per-spike jitter: each 1st-hidden spike is independently shifted by an offset drawn
-from ``N(0, sigma)``, clipped to ``[0, T-1]`` and placed at the nearest free bin.
-Per-neuron spike count is preserved, so the perturbation destroys spike *timing*,
-not *rate* — a network that leans on timing loses accuracy; a pure rate coder does
-not.
+from ``N(0, sigma)``, clipped to the layer's measured temporal support
+``[0, SUPPORT_BINS)`` and placed at the nearest free bin. Per-neuron spike count is
+preserved, so the perturbation destroys spike *timing*, not *rate* — a network that
+leans on timing loses accuracy; a pure rate coder does not.
+
+v3 correction: the clip is to the layer's measured support rather than to ``T - 1``.
+The zero-padded tail holds no hidden spikes, so jittering into it thins the
+population's spike density and mixes a rate insult into a timing-only probe.
 
 What this script does, for every checkpoint listed in the training summary (the
 authoritative live-checkpoint list — read rather than globbed, so we evaluate
@@ -146,6 +150,27 @@ BATCH_SIZE: int = 128
 SEED: int = 42                # base seed for the jitter repeats
 MAX_DELAY: int = 64           # recorded for parity with training; unused at eval
 
+# --- Jitter destination window (v3 correction) ---
+# shd_whole.mat holds 100 time bins and load_shd_data zero-pads them to the
+# simulator's 200, so the 1st hidden layer's spikes never occupy a bin beyond 87
+# (measured over all 27 checkpoints by v3_analysis/temporal_support.py). Clipping
+# jitter targets to T - 1 = 199 therefore lets the largest sigmas push spikes into
+# a region where no hidden spike ever naturally occurs, which thins the
+# population's instantaneous spike density — a *rate* insult riding on a probe
+# that is supposed to hold rate fixed and destroy only timing.
+#
+# Clipping to the support instead concentrates the overflow at the support edge.
+# That is the lesser distortion: the collision retry below preserves each neuron's
+# spike count exactly either way, so the edge pile-up costs alignment, not rate.
+#
+# Set to None to reproduce v1's full-window behaviour exactly; the two runs write
+# to different files (see WINDOW_SUFFIX), so neither can overwrite the other.
+SUPPORT_BINS: int | None = 88
+
+# Appended to the results filename so the corrected sweep sits alongside v1's
+# full-window results rather than replacing them.
+WINDOW_SUFFIX: str = "" if SUPPORT_BINS is None else "_v3window"
+
 # --- Jitter sweep: sigma in time steps (ms). 0 = clean baseline. ---
 # Copied unchanged from the existing jitter scripts so this milestone's curves are
 # comparable to the earlier fixed-weight perturbation results.
@@ -255,8 +280,9 @@ def jitter_hidden_batch(
     """Vectorised GPU-side per-spike Gaussian jitter (eval-only helper).
 
     For each spike, draw an iid Gaussian offset ``~ N(0, sigma)``, shift the spike
-    by ``round(offset)`` and clip to ``[0, T - 1]``. Two spikes landing in the same
-    bin are resolved by a random-priority tiebreaker; the loser is retried with a
+    by ``round(offset)`` and clip to ``[0, SUPPORT_BINS)``, the layer's measured
+    temporal support. Two spikes landing in the same bin are resolved by a
+    random-priority tiebreaker; the loser is retried with a
     fresh offset for up to ``max_attempts`` outer iterations, and any spike still
     unplaced falls back to its original bin. Per-neuron spike count is therefore
     preserved and only timing is destroyed.
@@ -287,7 +313,8 @@ def jitter_hidden_batch(
             break
 
         offsets = torch.randn_like(x) * sigma
-        target = (t_idx + offsets).round().long().clamp(0, T - 1)
+        upper_bin = (T if SUPPORT_BINS is None else SUPPORT_BINS) - 1
+        target = (t_idx + offsets).round().long().clamp(0, upper_bin)
 
         priority = torch.where(unplaced, torch.rand_like(x), inf_tensor)
         min_priority = inf_tensor.clone()
@@ -555,7 +582,8 @@ def run_jitter_sweep(test_loader: DataLoader) -> dict:
         }
 
     results_path = (
-        LOG_DIR / f"sparse_{DATASET_KEY}_{DELAY_TAG}_jitter_eval{RUN_SUFFIX}.json"
+        LOG_DIR
+        / f"sparse_{DATASET_KEY}_{DELAY_TAG}_jitter_eval{RUN_SUFFIX}{WINDOW_SUFFIX}.json"
     )
     with open(results_path, "w") as fp:
         json.dump(results, fp, indent=2)

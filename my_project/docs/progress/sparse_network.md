@@ -22,9 +22,19 @@ actually happened when we tried.
 | 2 | [sparse_network_test_progress.md](sparse_network_test_progress.md) | v1 execution log — getting a sparsity gradient to exist at all |
 | 3 | [sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md) | v1 results — four perturbations, two arms, and the diagnosis |
 | 4 | [sparse_network_test_progress_v2.md](sparse_network_test_progress_v2.md) | v2 execution log — attempts to make H1's premise actually hold |
+| 5 | [sparse_network_test_progress_v3.md](sparse_network_test_progress_v3.md) | v3 design — why "sparsity" is two variables, and the experiment that separates them |
 
 Much of §5–§7 below was learned the hard way in documents 2–4. It is written here
 as conceptual guidance so the next person does not rediscover it.
+
+> **Corrections from v3 (document 5), which supersede parts of this file:** §5's
+> "sparsity" is not one independent variable but two — spikes per *active* neuron and
+> the *silent fraction* — which push in opposite directions and are confounded at
+> ρ = −0.94 in v1's no-delay arm. §6a's demand that the immune channels be *closed*
+> is stronger than the question needs; they can be *measured and controlled* instead,
+> which v2 spent ~8 h discovering the hard way. §9's claim that a synthetic task needs
+> no manipulation holds for the *input* only — a network can still re-encode input
+> timing as hidden spike counts. See document 5 §2–§3.
 
 ---
 

@@ -1,0 +1,616 @@
+{
+  "per_arm_statistics": {
+    "nodelay": {
+      "rho(a, s)": {
+        "rho": -0.9428571428571427,
+        "p": 1.4247676947645732e-07,
+        "n": 15
+      },
+      "rho(spikes_per_neuron, a)": {
+        "rho": 0.9928571428571428,
+        "p": 2.1681214863293047e-13,
+        "n": 15
+      },
+      "rho(spikes_per_neuron, s)": {
+        "rho": -0.9642857142857141,
+        "p": 7.07230300920426e-09,
+        "n": 15
+      },
+      "rho(timing_fraction, a)": {
+        "rho": -0.21071428571428572,
+        "p": 0.450957865215285,
+        "n": 15
+      },
+      "rho(timing_fraction, s)": {
+        "rho": 0.2285714285714285,
+        "p": 0.41256617049636035,
+        "n": 15
+      },
+      "rho(timing_fraction, spikes_per_neuron)": {
+        "rho": -0.1964285714285714,
+        "p": 0.48289875627163353,
+        "n": 15
+      },
+      "rho(usage, a)": {
+        "rho": 0.9392857142857142,
+        "p": 2.0945801936685512e-07,
+        "n": 15
+      },
+      "rho(usage, s)": {
+        "rho": -0.9249999999999998,
+        "p": 7.987462113818492e-07,
+        "n": 15
+      },
+      "rho(usage, spikes_per_neuron)": {
+        "rho": 0.9392857142857142,
+        "p": 2.0945801936685512e-07,
+        "n": 15
+      },
+      "rho(usage_full_window, spikes_per_neuron)": {
+        "rho": 0.95,
+        "p": 6.086257958053976e-08,
+        "n": 15
+      },
+      "rho(deletion control, spikes_per_neuron)": {
+        "rho": 0.9357142857142854,
+        "p": 3.010645621400808e-07,
+        "n": 15
+      },
+      "rho(decode_count, spikes_per_neuron)": {
+        "rho": 0.9133158249282669,
+        "p": 1.9889564516867223e-06,
+        "n": 15
+      },
+      "rho(decode_identity, spikes_per_neuron)": {
+        "rho": -0.7214285714285712,
+        "p": 0.002398868072673343,
+        "n": 15
+      },
+      "partials": {
+        "partial rho(timing_fraction, log a | s)": {
+          "rho": 0.01478503329572388,
+          "p": 0.9599910307379633,
+          "n": 15
+        },
+        "partial rho(usage, log a | s)": {
+          "rho": 0.5303375884552652,
+          "p": 0.05106928470643029,
+          "n": 15
+        },
+        "partial rho(usage, s | log a)": {
+          "rho": -0.3445033703048238,
+          "p": 0.22774171259875364,
+          "n": 15
+        },
+        "partial rho(usage, log a | s, deletion)": {
+          "rho": 0.23786756909181656,
+          "p": 0.43388539993018416,
+          "n": 15
+        },
+        "partial rho(usage, s | log a, deletion)": {
+          "rho": -0.3806502321356828,
+          "p": 0.19944406519472407,
+          "n": 15
+        }
+      },
+      "window_correction_audit": {
+        "relocation": {
+          "endpoint": "1.0",
+          "accuracy_shift_min": 0.010465375194834148,
+          "accuracy_shift_max": 0.11489645958583841,
+          "rho_full_window": 0.95,
+          "p_full_window": 6.086257958053976e-08,
+          "rho_support_window": 0.9392857142857142,
+          "p_support_window": 2.0945801936685512e-07
+        },
+        "jitter": {
+          "endpoint": "25",
+          "accuracy_shift_min": -0.00044533511467381715,
+          "accuracy_shift_max": 0.025606769093743043,
+          "rho_full_window": 0.95,
+          "p_full_window": 6.086257958053976e-08,
+          "rho_support_window": 0.9214285714285713,
+          "p_support_window": 1.0713172981620735e-06
+        }
+      }
+    },
+    "delay": {
+      "rho(a, s)": {
+        "rho": -0.4545454545454546,
+        "p": 0.13765791634772948,
+        "n": 12
+      },
+      "rho(spikes_per_neuron, a)": {
+        "rho": 0.9440559440559443,
+        "p": 3.927261080965946e-06,
+        "n": 12
+      },
+      "rho(spikes_per_neuron, s)": {
+        "rho": -0.6503496503496504,
+        "p": 0.022034190932365316,
+        "n": 12
+      },
+      "rho(timing_fraction, a)": {
+        "rho": -0.034965034965034975,
+        "p": 0.9140933424107599,
+        "n": 12
+      },
+      "rho(timing_fraction, s)": {
+        "rho": 0.44755244755244755,
+        "p": 0.1445863013033476,
+        "n": 12
+      },
+      "rho(timing_fraction, spikes_per_neuron)": {
+        "rho": -0.16083916083916086,
+        "p": 0.6175234895401425,
+        "n": 12
+      },
+      "rho(usage, a)": {
+        "rho": 0.8811188811188813,
+        "p": 0.0001526740646766986,
+        "n": 12
+      },
+      "rho(usage, s)": {
+        "rho": -0.4755244755244756,
+        "p": 0.11817595701303207,
+        "n": 12
+      },
+      "rho(usage, spikes_per_neuron)": {
+        "rho": 0.8531468531468532,
+        "p": 0.0004181179404149967,
+        "n": 12
+      },
+      "rho(usage_full_window, spikes_per_neuron)": {
+        "rho": 0.6713286713286714,
+        "p": 0.01683145618689342,
+        "n": 12
+      },
+      "rho(deletion control, spikes_per_neuron)": {
+        "rho": 0.7132867132867133,
+        "p": 0.009201779777634766,
+        "n": 12
+      },
+      "rho(decode_count, spikes_per_neuron)": {
+        "rho": 0.7754433699338666,
+        "p": 0.0030410933690381754,
+        "n": 12
+      },
+      "rho(decode_identity, spikes_per_neuron)": {
+        "rho": -0.8461538461538463,
+        "p": 0.0005211337004810046,
+        "n": 12
+      },
+      "partials": {
+        "partial rho(timing_fraction, log a | s)": {
+          "rho": 0.21150056848778856,
+          "p": 0.5324321752714674,
+          "n": 12
+        },
+        "partial rho(usage, log a | s)": {
+          "rho": 0.8486413885879206,
+          "p": 0.0009562511819252301,
+          "n": 12
+        },
+        "partial rho(usage, s | log a)": {
+          "rho": -0.17809256547561964,
+          "p": 0.6003452113265961,
+          "n": 12
+        },
+        "partial rho(usage, log a | s, deletion)": {
+          "rho": 0.7159930231872107,
+          "p": 0.019864523805396873,
+          "n": 12
+        },
+        "partial rho(usage, s | log a, deletion)": {
+          "rho": -0.18650692659932921,
+          "p": 0.6059140107738799,
+          "n": 12
+        }
+      },
+      "window_correction_audit": {
+        "relocation": {
+          "endpoint": "1.0",
+          "accuracy_shift_min": -0.002004008016032066,
+          "accuracy_shift_max": 0.15742596303718553,
+          "rho_full_window": 0.6713286713286714,
+          "p_full_window": 0.01683145618689342,
+          "rho_support_window": 0.8531468531468532,
+          "p_support_window": 0.0004181179404149967
+        },
+        "jitter": {
+          "endpoint": "25",
+          "accuracy_shift_min": -0.009129369850812752,
+          "accuracy_shift_max": 0.008238699621465173,
+          "rho_full_window": 0.8321678321678322,
+          "p_full_window": 0.0007854416778536132,
+          "rho_support_window": 0.8111888111888113,
+          "p_support_window": 0.0013633152527271928
+        }
+      }
+    }
+  },
+  "per_arm_rows": {
+    "nodelay": [
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str0.01_seed42",
+        "spikes_per_neuron": 6.504858493804932,
+        "a_spikes_per_active": 9.742949106939044,
+        "s_silent_fraction": 0.33235220440881763,
+        "decode_count": 0.7621910487641951,
+        "decode_identity": 0.458249832999332,
+        "decode_full": 0.8557114228456913,
+        "timing_information": 0.18904475617902472,
+        "availability_timing_fraction": 0.2346308502259255,
+        "usage_relocation_corrected": 0.5531331245266022,
+        "usage_relocation_full_window": 0.6436160412700362,
+        "control_deletion": 0.7349178079387501
+      },
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str0.01_seed43",
+        "spikes_per_neuron": 7.84937047958374,
+        "a_spikes_per_active": 11.486936265653847,
+        "s_silent_fraction": 0.3166697979291917,
+        "decode_count": 0.7735470941883767,
+        "decode_identity": 0.45958583834335337,
+        "decode_full": 0.8684034736138945,
+        "timing_information": 0.19706078824315298,
+        "availability_timing_fraction": 0.24078684242745788,
+        "usage_relocation_corrected": 0.4935683242700212,
+        "usage_relocation_full_window": 0.6377077464019743,
+        "control_deletion": 0.7425364170433947
+      },
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str0.01_seed44",
+        "spikes_per_neuron": 6.796128749847412,
+        "a_spikes_per_active": 10.499959737879456,
+        "s_silent_fraction": 0.35274716098864395,
+        "decode_count": 0.7641950567802271,
+        "decode_identity": 0.45223780895123583,
+        "decode_full": 0.8610554442217769,
+        "timing_information": 0.19238476953907824,
+        "availability_timing_fraction": 0.23720298150969824,
+        "usage_relocation_corrected": 0.5685669924992893,
+        "usage_relocation_full_window": 0.6765947210741542,
+        "control_deletion": 0.7247042358240942
+      },
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str0.5_seed42",
+        "spikes_per_neuron": 4.308538913726807,
+        "a_spikes_per_active": 6.888083236629281,
+        "s_silent_fraction": 0.3744937792251169,
+        "decode_count": 0.7541750167000668,
+        "decode_identity": 0.45557782231128924,
+        "decode_full": 0.8530394121576487,
+        "timing_information": 0.16165664662658652,
+        "availability_timing_fraction": 0.20130599342844072,
+        "usage_relocation_corrected": 0.42716392250214885,
+        "usage_relocation_full_window": 0.574401022724768,
+        "control_deletion": 0.6828451145054993
+      },
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str0.5_seed43",
+        "spikes_per_neuron": 4.713666915893555,
+        "a_spikes_per_active": 8.009914685406958,
+        "s_silent_fraction": 0.41152095858383436,
+        "decode_count": 0.7608550434201736,
+        "decode_identity": 0.5083500334001336,
+        "decode_full": 0.8490313961255845,
+        "timing_information": 0.18036072144288584,
+        "availability_timing_fraction": 0.22572419847009165,
+        "usage_relocation_corrected": 0.45166319071393946,
+        "usage_relocation_full_window": 0.6690682340053509,
+        "control_deletion": 0.7428005645789884
+      },
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str0.5_seed44",
+        "spikes_per_neuron": 3.9921092987060547,
+        "a_spikes_per_active": 6.233108563776111,
+        "s_silent_fraction": 0.3595315631262525,
+        "decode_count": 0.7628590514362057,
+        "decode_identity": 0.4589178356713427,
+        "decode_full": 0.8570474281897128,
+        "timing_information": 0.18102872411489646,
+        "availability_timing_fraction": 0.22430989529445847,
+        "usage_relocation_corrected": 0.4857547149887008,
+        "usage_relocation_full_window": 0.6310587340809732,
+        "control_deletion": 0.6897716952839554
+      },
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str1_seed42",
+        "spikes_per_neuron": 2.9087445735931396,
+        "a_spikes_per_active": 5.385192129524179,
+        "s_silent_fraction": 0.4598624331997328,
+        "decode_count": 0.760187040748163,
+        "decode_identity": 0.44288577154308617,
+        "decode_full": 0.8443553774215097,
+        "timing_information": 0.16766867067468272,
+        "availability_timing_fraction": 0.21107513770340164,
+        "usage_relocation_corrected": 0.35518575678275077,
+        "usage_relocation_full_window": 0.451363260193697,
+        "control_deletion": 0.6432709297904227
+      },
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str1_seed43",
+        "spikes_per_neuron": 3.3646771907806396,
+        "a_spikes_per_active": 6.455070481168445,
+        "s_silent_fraction": 0.4787543837675351,
+        "decode_count": 0.7374749498997996,
+        "decode_identity": 0.46292585170340683,
+        "decode_full": 0.8557114228456913,
+        "timing_information": 0.18704074816299265,
+        "availability_timing_fraction": 0.2321435973966754,
+        "usage_relocation_corrected": 0.44924443294746597,
+        "usage_relocation_full_window": 0.5604776994546119,
+        "control_deletion": 0.7156869085343507
+      },
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str1_seed44",
+        "spikes_per_neuron": 3.1650331020355225,
+        "a_spikes_per_active": 5.952446684329925,
+        "s_silent_fraction": 0.4682803106212425,
+        "decode_count": 0.7541750167000668,
+        "decode_identity": 0.4849699398797595,
+        "decode_full": 0.8416833667334669,
+        "timing_information": 0.17167668670674674,
+        "availability_timing_fraction": 0.21685018773994844,
+        "usage_relocation_corrected": 0.3868652264093779,
+        "usage_relocation_full_window": 0.5737724020601739,
+        "control_deletion": 0.7047472558204573
+      },
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str3_seed42",
+        "spikes_per_neuron": 2.040560245513916,
+        "a_spikes_per_active": 4.236596801503863,
+        "s_silent_fraction": 0.5183491983967936,
+        "decode_count": 0.72812291249165,
+        "decode_identity": 0.5110220440881763,
+        "decode_full": 0.8350033400133601,
+        "timing_information": 0.18303273213092852,
+        "availability_timing_fraction": 0.23316172403522956,
+        "usage_relocation_corrected": 0.20356234096692105,
+        "usage_relocation_full_window": 0.30624422977324417,
+        "control_deletion": 0.5845661915377512
+      },
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str3_seed43",
+        "spikes_per_neuron": 1.7202426195144653,
+        "a_spikes_per_active": 3.6029425693083663,
+        "s_silent_fraction": 0.5225450901803608,
+        "decode_count": 0.7334669338677354,
+        "decode_identity": 0.501002004008016,
+        "decode_full": 0.8416833667334669,
+        "timing_information": 0.188376753507014,
+        "availability_timing_fraction": 0.23794456397924313,
+        "usage_relocation_corrected": 0.2902173158369783,
+        "usage_relocation_full_window": 0.31197204286144087,
+        "control_deletion": 0.5841375639334397
+      },
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str3_seed44",
+        "spikes_per_neuron": 1.8232976198196411,
+        "a_spikes_per_active": 3.839305890387371,
+        "s_silent_fraction": 0.5250970691382766,
+        "decode_count": 0.7227788911155645,
+        "decode_identity": 0.5156980627922512,
+        "decode_full": 0.832999331997328,
+        "timing_information": 0.17768871075484305,
+        "availability_timing_fraction": 0.2269334129590923,
+        "usage_relocation_corrected": 0.2256512361041979,
+        "usage_relocation_full_window": 0.284908388442485,
+        "control_deletion": 0.5560691175424874
+      },
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str10_seed42",
+        "spikes_per_neuron": 1.4226943254470825,
+        "a_spikes_per_active": 3.1220480985005175,
+        "s_silent_fraction": 0.544307364729459,
+        "decode_count": 0.7047428189712759,
+        "decode_identity": 0.5297261189044756,
+        "decode_full": 0.8216432865731463,
+        "timing_information": 0.18704074816299265,
+        "availability_timing_fraction": 0.24239276284465222,
+        "usage_relocation_corrected": 0.18475750577367211,
+        "usage_relocation_full_window": 0.28756611785740893,
+        "control_deletion": 0.5180163401127418
+      },
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str10_seed43",
+        "spikes_per_neuron": 1.3794046640396118,
+        "a_spikes_per_active": 3.22793224689334,
+        "s_silent_fraction": 0.5726661656646627,
+        "decode_count": 0.7254509018036072,
+        "decode_identity": 0.541750167000668,
+        "decode_full": 0.8316633266533067,
+        "timing_information": 0.18102872411489657,
+        "availability_timing_fraction": 0.23159424005469398,
+        "usage_relocation_corrected": 0.20703339788185238,
+        "usage_relocation_full_window": 0.28401348346840705,
+        "control_deletion": 0.5307322670874273
+      },
+      {
+        "run_tag": "sparse_whole_nodelay_tgt3_str10_seed44",
+        "spikes_per_neuron": 1.207451343536377,
+        "a_spikes_per_active": 3.058185138365824,
+        "s_silent_fraction": 0.6051738894455578,
+        "decode_count": 0.7107548430193721,
+        "decode_identity": 0.5130260521042084,
+        "decode_full": 0.8156312625250501,
+        "timing_information": 0.1850367401469606,
+        "availability_timing_fraction": 0.2416786633512193,
+        "usage_relocation_corrected": 0.16459018064154485,
+        "usage_relocation_full_window": 0.24459221891003602,
+        "control_deletion": 0.5034523172564905
+      }
+    ],
+    "delay": [
+      {
+        "run_tag": "sparse_whole_delay_tgt3_str0.01_seed42",
+        "spikes_per_neuron": 11.660419464111328,
+        "a_spikes_per_active": 15.469829441291386,
+        "s_silent_fraction": 0.24624770374081495,
+        "decode_count": 0.7788911155644622,
+        "decode_identity": 0.3393453573814295,
+        "decode_full": 0.8724114896459586,
+        "timing_information": 0.19305277221108885,
+        "availability_timing_fraction": 0.23473987735044471,
+        "usage_relocation_corrected": 0.6676555880741424,
+        "usage_relocation_full_window": 0.684493979606837,
+        "control_deletion": 0.7796442555693648
+      },
+      {
+        "run_tag": "sparse_whole_delay_tgt3_str0.01_seed43",
+        "spikes_per_neuron": 8.301785469055176,
+        "a_spikes_per_active": 13.548486734222028,
+        "s_silent_fraction": 0.38725367401469607,
+        "decode_count": 0.7755511022044088,
+        "decode_identity": 0.31730126920507684,
+        "decode_full": 0.8690714762859052,
+        "timing_information": 0.20774883099532404,
+        "availability_timing_fraction": 0.2536394405252213,
+        "usage_relocation_corrected": 0.7697464734775411,
+        "usage_relocation_full_window": 0.7672837225847939,
+        "control_deletion": 0.7853438957982732
+      },
+      {
+        "run_tag": "sparse_whole_delay_tgt3_str0.01_seed44",
+        "spikes_per_neuron": 9.407596588134766,
+        "a_spikes_per_active": 13.874298858836358,
+        "s_silent_fraction": 0.32194075651302606,
+        "decode_count": 0.7775551102204409,
+        "decode_identity": 0.321309285237141,
+        "decode_full": 0.8563794255177021,
+        "timing_information": 0.1763527054108216,
+        "availability_timing_fraction": 0.21869693078739175,
+        "usage_relocation_corrected": 0.724655630323797,
+        "usage_relocation_full_window": 0.7761218676464517,
+        "control_deletion": 0.7356644511414772
+      },
+      {
+        "run_tag": "sparse_whole_delay_tgt3_str1_seed42",
+        "spikes_per_neuron": 4.797240257263184,
+        "a_spikes_per_active": 8.377409289744019,
+        "s_silent_fraction": 0.42735992818971275,
+        "decode_count": 0.7849031396125584,
+        "decode_identity": 0.39412157648630597,
+        "decode_full": 0.8537074148296593,
+        "timing_information": 0.15096860387441546,
+        "availability_timing_fraction": 0.18784025267007437,
+        "usage_relocation_corrected": 0.6064334440662209,
+        "usage_relocation_full_window": 0.7423204691793462,
+        "control_deletion": 0.7480621744658162
+      },
+      {
+        "run_tag": "sparse_whole_delay_tgt3_str1_seed43",
+        "spikes_per_neuron": 4.975043773651123,
+        "a_spikes_per_active": 9.405906086096175,
+        "s_silent_fraction": 0.47107235303941214,
+        "decode_count": 0.7722110888443554,
+        "decode_identity": 0.3246492985971944,
+        "decode_full": 0.863059452237809,
+        "timing_information": 0.1977287909151637,
+        "availability_timing_fraction": 0.24319106108532232,
+        "usage_relocation_corrected": 0.5539838702867035,
+        "usage_relocation_full_window": 0.7454010612394263,
+        "control_deletion": 0.7693282101085166
+      },
+      {
+        "run_tag": "sparse_whole_delay_tgt3_str1_seed44",
+        "spikes_per_neuron": 4.792313575744629,
+        "a_spikes_per_active": 8.606867976323274,
+        "s_silent_fraction": 0.4431988977955912,
+        "decode_count": 0.7849031396125584,
+        "decode_identity": 0.3894455577822311,
+        "decode_full": 0.8804275217100869,
+        "timing_information": 0.2191048764195057,
+        "availability_timing_fraction": 0.2638458753971766,
+        "usage_relocation_corrected": 0.5939306562636927,
+        "usage_relocation_full_window": 0.7720250462904069,
+        "control_deletion": 0.7858768321813736
+      },
+      {
+        "run_tag": "sparse_whole_delay_tgt3_str3_seed42",
+        "spikes_per_neuron": 3.005124807357788,
+        "a_spikes_per_active": 6.145333024766493,
+        "s_silent_fraction": 0.5109907314629258,
+        "decode_count": 0.7461589846359385,
+        "decode_identity": 0.41082164328657317,
+        "decode_full": 0.8570474281897128,
+        "timing_information": 0.20574482297929197,
+        "availability_timing_fraction": 0.2549352315523735,
+        "usage_relocation_corrected": 0.5355629300808803,
+        "usage_relocation_full_window": 0.738697582209197,
+        "control_deletion": 0.7510523064546251
+      },
+      {
+        "run_tag": "sparse_whole_delay_tgt3_str3_seed43",
+        "spikes_per_neuron": 2.7822415828704834,
+        "a_spikes_per_active": 6.195923052662714,
+        "s_silent_fraction": 0.5509560788243153,
+        "decode_count": 0.7702070808283233,
+        "decode_identity": 0.3834335337341349,
+        "decode_full": 0.8643954575818303,
+        "timing_information": 0.20240480961923846,
+        "availability_timing_fraction": 0.24853381454291923,
+        "usage_relocation_corrected": 0.5750865154688172,
+        "usage_relocation_full_window": 0.6891532623386654,
+        "control_deletion": 0.7242050230955457
+      },
+      {
+        "run_tag": "sparse_whole_delay_tgt3_str3_seed44",
+        "spikes_per_neuron": 3.2114906311035156,
+        "a_spikes_per_active": 5.519386766608946,
+        "s_silent_fraction": 0.4181435788243153,
+        "decode_count": 0.7702070808283233,
+        "decode_identity": 0.42217768871075484,
+        "decode_full": 0.8677354709418837,
+        "timing_information": 0.20708082832331332,
+        "availability_timing_fraction": 0.2532369399174938,
+        "usage_relocation_corrected": 0.571753386294001,
+        "usage_relocation_full_window": 0.7198214310471516,
+        "control_deletion": 0.7367355709908636
+      },
+      {
+        "run_tag": "sparse_whole_delay_tgt3_str10_seed42",
+        "spikes_per_neuron": 2.11515212059021,
+        "a_spikes_per_active": 4.102071685465155,
+        "s_silent_fraction": 0.48436978122912494,
+        "decode_count": 0.7408149632598531,
+        "decode_identity": 0.5023380093520374,
+        "decode_full": 0.8650634602538411,
+        "timing_information": 0.20240480961923857,
+        "availability_timing_fraction": 0.24833012334549043,
+        "usage_relocation_corrected": 0.5223761745500876,
+        "usage_relocation_full_window": 0.6564450042710912,
+        "control_deletion": 0.6561554387641344
+      },
+      {
+        "run_tag": "sparse_whole_delay_tgt3_str10_seed43",
+        "spikes_per_neuron": 2.211824655532837,
+        "a_spikes_per_active": 4.518877407740567,
+        "s_silent_fraction": 0.5105366983967936,
+        "decode_count": 0.7595190380761523,
+        "decode_identity": 0.48830995323981297,
+        "decode_full": 0.863059452237809,
+        "timing_information": 0.20106880427521712,
+        "availability_timing_fraction": 0.24729901819825004,
+        "usage_relocation_corrected": 0.5252636237391078,
+        "usage_relocation_full_window": 0.6485678096720535,
+        "control_deletion": 0.7093042774954601
+      },
+      {
+        "run_tag": "sparse_whole_delay_tgt3_str10_seed44",
+        "spikes_per_neuron": 2.484302043914795,
+        "a_spikes_per_active": 3.8162550341257466,
+        "s_silent_fraction": 0.34902095858383436,
+        "decode_count": 0.7274549098196392,
+        "decode_identity": 0.5344021376085505,
+        "decode_full": 0.843687374749499,
+        "timing_information": 0.16967267869071467,
+        "availability_timing_fraction": 0.21377772166813946,
+        "usage_relocation_corrected": 0.5173238273268703,
+        "usage_relocation_full_window": 0.6402063498963904,
+        "control_deletion": 0.6413656189772348
+      }
+    ]
+  }
+}

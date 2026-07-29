@@ -32,6 +32,12 @@ untouched. Per-neuron spike count is preserved exactly, so ``f`` interpolates
 between the clean layer (0) and one retaining only each neuron's spike *count* (1)
 — destroying spike *timing* while holding *rate* fixed.
 
+v3 correction: destinations are drawn from the layer's *measured* temporal support,
+``[0, SUPPORT_BINS)``, not from the whole 200-bin simulation window. See the
+``SUPPORT_BINS`` comment below — the uncorrected version scattered most relocated
+spikes into the zero-padded tail, which thinned the population's spike density and
+so mixed a rate insult into a timing-only probe.
+
 What this script does, for every checkpoint listed in the training summary (the
 authoritative live-checkpoint list — read rather than globbed, so we evaluate
 exactly the models the milestone locked and reuse their recorded metadata):
@@ -145,6 +151,23 @@ NUM_CLASSES: int = 20
 BATCH_SIZE: int = 128
 SEED: int = 42                # base seed for the relocation repeats
 MAX_DELAY: int = 64           # recorded for parity with training; unused at eval
+
+# --- Destination window for relocated spikes (v3 correction) ---
+# shd_whole.mat holds 100 time bins and load_shd_data zero-pads them to the
+# simulator's 200, so the 1st hidden layer's spikes never occupy a bin beyond 87
+# (measured over all 27 checkpoints by v3_analysis/temporal_support.py). Drawing
+# destinations from the full 200 therefore sends ~57% of relocated spikes into a
+# region where no hidden spike ever naturally occurs, thinning the population's
+# instantaneous spike density by roughly 5x — a *rate* insult riding on a probe
+# that is supposed to hold rate fixed and destroy only timing.
+#
+# Set to None to reproduce v1's full-window behaviour exactly; the two runs write
+# to different files (see WINDOW_SUFFIX), so neither can overwrite the other.
+SUPPORT_BINS: int | None = 88
+
+# Appended to the results filename so the corrected sweep sits alongside v1's
+# full-window results rather than replacing them.
+WINDOW_SUFFIX: str = "" if SUPPORT_BINS is None else "_v3window"
 
 # --- Relocation sweep: fraction of each neuron's spikes moved. 0 = clean. ---
 # The grid the earlier Beyond Rate realistic-SHD runs used, so this milestone's
@@ -265,6 +288,12 @@ def perturb_hidden_batch(
     spike *count* (1), which makes it the most direct test of "is this network
     reading timing or rate?" available at a fixed firing rate.
 
+    Destinations are confined to ``[0, SUPPORT_BINS)``, the layer's measured
+    temporal support, so that relocation cannot dilute the population's spike
+    density by scattering spikes into the zero-padded tail. Per-neuron spike count
+    is preserved exactly either way; the support always has room, since a neuron's
+    spikes all originate inside it.
+
     Args:
         hidden_spikes: SLAYER-format tensor of shape (B, C, 1, 1, T).
         f: Fraction of spikes to relocate (0 = untouched, 1 = fully random).
@@ -295,6 +324,8 @@ def perturb_hidden_batch(
 
     # --- 2. Place the same number of spikes in currently-unoccupied bins ---
     available = ~keep_mask      # everything except positions we are keeping
+    if SUPPORT_BINS is not None:
+        available[:, :, SUPPORT_BINS:] = False    # stay inside the measured support
     key2 = torch.rand_like(x)
     key2 = torch.where(available, key2, torch.full_like(key2, 2.0))
     rank2 = key2.argsort(dim=-1).argsort(dim=-1)
@@ -549,7 +580,8 @@ def run_perturbation_sweep(test_loader: DataLoader) -> dict:
         }
 
     results_path = (
-        LOG_DIR / f"sparse_{DATASET_KEY}_{DELAY_TAG}_shd_eval{RUN_SUFFIX}.json"
+        LOG_DIR
+        / f"sparse_{DATASET_KEY}_{DELAY_TAG}_shd_eval{RUN_SUFFIX}{WINDOW_SUFFIX}.json"
     )
     with open(results_path, "w") as fp:
         json.dump(results, fp, indent=2)
