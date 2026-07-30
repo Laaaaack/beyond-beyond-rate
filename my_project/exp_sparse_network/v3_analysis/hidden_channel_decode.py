@@ -68,6 +68,19 @@ QUICK_TEST: bool = False
 QUICK_TAG_SUBSTRINGS: tuple[str, ...] = ("str0.01_seed42", "str1_seed42",
                                          "str10_seed42")
 
+# Which training generation to decode, and which arms of it.
+#
+# ``""`` targets v1's 27-checkpoint sparsity gradient — the Phase 0 measurement.
+# ``"v3_"`` targets the Phase 1 factorial. The tag is spliced into both the training
+# summary that is read and the results file that is written, so the two generations can
+# never overwrite each other's output.
+#
+# v3 checkpoints need no special handling here: the factorial changed the *penalty*,
+# not the architecture, so the parameter set and the forward pass are v1's exactly.
+# (This is unlike v2.2, whose truncation had to be reapplied at eval.)
+VERSION_TAG: str = "v3_"
+ARMS: tuple[tuple[str, bool], ...] = (("delay", True),)
+
 # --- Architecture and simulation, identical to training ---
 SIM_PARAMS = {"Ts": 1, "tSample": 200}
 LIF_PARAMS = {
@@ -307,9 +320,9 @@ def main() -> None:
     train_inputs, train_labels = load_split(features, labels, TRAIN_RANGE)
     test_inputs, test_labels = load_split(features, labels, TEST_RANGE)
 
-    for arm, delays in [("nodelay", False), ("delay", True)]:
+    for arm, delays in ARMS:
         summary_path = (TRAIN_LOG_DIR
-                        / f"sparse_whole_{arm}_train_summary.json")
+                        / f"sparse_whole_{arm}_{VERSION_TAG}train_summary.json")
         with open(summary_path) as handle:
             run_tags = list(json.load(handle))
         if QUICK_TEST:
@@ -335,7 +348,7 @@ def main() -> None:
                   f"{row['timing_information']:>+7.3f} "
                   f"{row['timing_fraction']:>6.2f}", flush=True)
 
-        out_path = LOG_DIR / f"hidden_channel_decode_{arm}.json"
+        out_path = LOG_DIR / f"hidden_channel_decode_{VERSION_TAG}{arm}.json"
         with open(out_path, "w") as handle:
             json.dump(results, handle, indent=2)
         print(f"Written to {out_path}")

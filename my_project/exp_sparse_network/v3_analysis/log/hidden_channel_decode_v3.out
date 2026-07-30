@@ -1,0 +1,20 @@
+Using device: cuda | QUICK_TEST=False
+=== delay: 16 checkpoints ===
+run_tag                                       sp/neu  sp/act  silent   COUNT   IDENT    FULL    SHUF  TIMING   frac
+sparse_whole_delay_v3_k1_floor0_seed42          1.10    3.25  66.27%   0.697   0.558   0.803   0.631  +0.172   0.23
+sparse_whole_delay_v3_k1_floor0_seed43          1.38    3.79  63.73%   0.698   0.584   0.822   0.652  +0.170   0.22
+sparse_whole_delay_v3_k1_floor1_seed42          1.88    2.43  22.57%   0.701   0.476   0.814   0.629  +0.185   0.24
+sparse_whole_delay_v3_k1_floor1_seed43          4.25    5.29  19.56%   0.779   0.537   0.862   0.675  +0.186   0.23
+sparse_whole_delay_v3_k2_floor0_seed42          1.62    3.21  49.37%   0.736   0.596   0.848   0.659  +0.190   0.24
+sparse_whole_delay_v3_k2_floor0_seed43          1.48    3.51  57.96%   0.759   0.559   0.840   0.671  +0.169   0.21
+sparse_whole_delay_v3_k2_floor1_seed42          2.32    2.78  16.41%   0.715   0.470   0.832   0.664  +0.168   0.22
+sparse_whole_delay_v3_k2_floor1_seed43          2.28    2.68  15.10%   0.713   0.494   0.835   0.647  +0.188   0.24
+sparse_whole_delay_v3_k4_floor0_seed42          1.91    3.67  47.96%   0.741   0.581   0.843   0.671  +0.172   0.22
+sparse_whole_delay_v3_k4_floor0_seed43          1.89    3.95  52.16%   0.733   0.583   0.844   0.665  +0.179   0.23
+sparse_whole_delay_v3_k4_floor1_seed42          2.96    3.30  10.18%   0.708   0.466   0.841   0.649  +0.192   0.24
+sparse_whole_delay_v3_k4_floor1_seed43          3.11    3.43   9.32%   0.719   0.446   0.837   0.677  +0.160   0.20
+sparse_whole_delay_v3_k8_floor0_seed42          3.24    4.97  34.75%   0.735   0.516   0.850   0.666  +0.184   0.23
+sparse_whole_delay_v3_k8_floor0_seed43          3.06    5.08  39.79%   0.755   0.510   0.862   0.686  +0.176   0.22
+sparse_whole_delay_v3_k8_floor1_seed42          4.55    4.80   5.24%   0.728   0.388   0.851   0.648  +0.203   0.25
+sparse_whole_delay_v3_k8_floor1_seed43          4.32    4.61   6.20%   0.736   0.423   0.842   0.677  +0.165   0.21
+Written to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\hidden_channel_decode_v3_delay.json

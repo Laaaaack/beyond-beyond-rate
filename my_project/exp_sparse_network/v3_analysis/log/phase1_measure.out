@@ -1,0 +1,21 @@
+Using device: cuda
+relocation f=1 over [0,88) | deletion p_d=0.8 | 3 repeats
+=== delay: 16 checkpoints ===
+run_tag                                      clean   reloc     del   usage  control
+sparse_whole_delay_v3_k1_floor0_seed42       0.746   0.406   0.291   0.489    0.654
+sparse_whole_delay_v3_k1_floor0_seed43       0.793   0.395   0.271   0.535    0.702
+sparse_whole_delay_v3_k1_floor1_seed42       0.786   0.389   0.335   0.540    0.613
+sparse_whole_delay_v3_k1_floor1_seed43       0.707   0.405   0.323   0.459    0.585
+sparse_whole_delay_v3_k2_floor0_seed42       0.786   0.386   0.289   0.544    0.676
+sparse_whole_delay_v3_k2_floor0_seed43       0.800   0.398   0.285   0.535    0.686
+sparse_whole_delay_v3_k2_floor1_seed42       0.780   0.434   0.269   0.474    0.700
+sparse_whole_delay_v3_k2_floor1_seed43       0.803   0.409   0.306   0.523    0.660
+sparse_whole_delay_v3_k4_floor0_seed42       0.799   0.404   0.256   0.527    0.725
+sparse_whole_delay_v3_k4_floor0_seed43       0.806   0.403   0.291   0.533    0.681
+sparse_whole_delay_v3_k4_floor1_seed42       0.814   0.377   0.306   0.572    0.665
+sparse_whole_delay_v3_k4_floor1_seed43       0.834   0.399   0.294   0.555    0.688
+sparse_whole_delay_v3_k8_floor0_seed42       0.835   0.351   0.288   0.617    0.696
+sparse_whole_delay_v3_k8_floor0_seed43       0.822   0.393   0.253   0.556    0.737
+sparse_whole_delay_v3_k8_floor1_seed42       0.831   0.300   0.270   0.680    0.719
+sparse_whole_delay_v3_k8_floor1_seed43       0.859   0.371   0.341   0.603    0.640
+Written to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\phase1_measure_delay.json
