@@ -169,7 +169,7 @@ print(f"Using device: {device}")
 #
 # Leave this True until the three inherited constants have been checked against
 # LAYER 2 in this arm. None of them was calibrated here.
-QUICK_TEST: bool = True
+QUICK_TEST: bool = False
 
 # Suffix appended to every output name (checkpoints, per-model logs, summary) when
 # running a probe, so a QUICK_TEST probe can never overwrite real-run artifacts that
@@ -212,7 +212,7 @@ CEILING_K: list[float] = [1.0, 2.0, 4.0, 8.0]
 # than a correlation.
 FLOOR_STRENGTH: list[float] = [0.0, 1.0]
 
-SEEDS: list[int] = [42, 43]
+SEEDS: list[int] = [42, 43, 44]
 
 # Coefficient on the ceiling term. Fixed across the whole grid so that `k` is the only
 # thing varying along the row axis.
