@@ -1,7 +1,7 @@
 # First Milestone v3 — separating the two things "sparsity" does (design + Phase 0)
 
-**Status (2026-07-29): PHASE 0 COMPLETE. Phase 1 implemented and calibrated; the
-16-model grid is ready and has NOT been launched.**
+**Status (2026-07-29): PHASE 0 COMPLETE. Delay-arm grid RUNNING (remote, ~37 h).
+No-delay arm calibrated and ready (~29 h), not launched.**
 §2 was five spot checks on 3 checkpoints per arm, made to decide what v3 should be.
 §4's Phase 0 has now run all of them properly over all 27 checkpoints, plus the
 correctness fix to the perturbation window. **The dissociation §2c predicted holds at
@@ -13,8 +13,10 @@ findings about the *dependent* variable that a factorial cannot fix. Both traini
 scripts are written and three settings are now calibrated on measured runs rather than
 assumed: `WARMUP_EPOCHS = 20` (0 is unsurvivable), `FLOOR_STRENGTH = 1` (separates `s`
 by ~50 points at matched `k`, at no accuracy cost), and `CEILING_STRENGTH = 10` (3 left
-the H1 axis moving only 1.4×). The one open weakness is that the row axis stays soft
-even at 10. See §4. **Owner:** _(you)_
+the H1 axis moving only 1.4×). **Both arms are calibrated**, and the no-delay 8-cell map
+pre-verifies the design acceptance check at **ρ(`a`, `s`) = −0.238** against v1's
+−0.943. The one open weakness is that the row axis stays soft in both arms. See §4.
+**Owner:** _(you)_
 
 **This is document 5 of 5. Read in order:**
 
@@ -575,9 +577,130 @@ expect β_a to carry wider error bars than β_s. Pushing further (strength 30) w
 tried; the 3 → 10 step already cost .05–.13 of accuracy, and v2's whole history is that
 buying constraint tightness with accuracy destroys the thing being measured.
 
-**Status: the grid is ready to launch and has not been launched.** ~37 h for 16 models
-at 1250 epochs. That is the next decision, and it is a large enough commitment to be
-worth taking deliberately rather than as a continuation of the probe.
+**Status: the delay-arm grid is running** (remote, from 2026-07-29). ~37 h for 16
+models at 1250 epochs.
+
+#### No-delay arm calibration
+
+Run locally while the delay grid runs remotely. **None of the three settings can simply
+be inherited**: they were calibrated on the delay arm, and this arm differs on every
+axis that matters — natural firing 7.85 vs 11.66, v1 clean accuracy .49–.59 vs .78–.88
+(so far less headroom to spend on constraint), and it is the arm whose v1 models sat
+completely silent for their first 26 epochs.
+
+**Warm-up: 20 confirmed, and 50 buys nothing.** This needed re-checking because
+`WARMUP_EPOCHS = 20` was validated at `CEILING_STRENGTH = 3` *on the delay arm* — two
+changes at once against a setting measured under neither, guarding an absorbing failure.
+At `k = 1`, floor off, strength 10, 120 epochs:
+
+| warm-up | `s` | `a` | sp/neuron | clean acc | verdict |
+|---|---|---|---|---|---|
+| 20 | 82.1% | 2.96 | 0.53 | .438 | survived |
+| 50 | 80.3% | 3.51 | 0.69 | .425 | survived |
+
+Same endpoint either way, so **`WARMUP_EPOCHS = 20` stays**, which also keeps the two
+arms comparable. Worth noting the landing is much sharper here than on the delay arm:
+silence goes 45% → 61% → 79% within five epochs of the penalty engaging, then holds.
+
+The engaged state is also more extreme than the delay arm's at identical settings —
+`s` ≈ 82% against 72%, `spikes/neuron` 0.53 against 1.12, clean accuracy .438 against
+.685. That is the expected direction (this arm starts with less to give), but it puts
+the floor-off column close to an empty layer, and it is the number to watch in the
+corner probe.
+
+**Corner probe (no-delay, `F = 1`, `CEILING_STRENGTH = 10`, seed 42, 400 ep, ~2.3 h).**
+
+| `k` | floor | clean acc | `a` | `s` | sp/neuron | over-`k` |
+|---|---|---|---|---|---|---|
+| 1 | 0 | .473 | 2.69 | **80.90%** | 0.51 | 9.4% |
+| 1 | **1** | .500 | 1.91 | **21.55%** | 1.50 | 34.2% |
+| 8 | 0 | .501 | 3.57 | **57.31%** | 1.52 | 2.8% |
+| 8 | **1** | .536 | 3.81 | **6.72%** | 3.55 | 5.2% |
+
+**All three settings transfer, and the manipulation is *cleaner* here than on the
+delay arm** — the opposite of what the accuracy headroom argument would have predicted:
+
+| | no-delay | delay |
+|---|---|---|
+| floor separation at matched `k` | **+59.4 / +50.6** | +51.7 / +41.6 |
+| ceiling leak (over-`k`) | **2.8 – 34.2%** | 16.9 – 67.1% |
+| firing vs this arm's natural | 0.51–3.55 vs 7.85 | 2.30–6.68 vs 11.66 |
+| accuracy vs this arm's v1 range | .473–.536 vs .49–.59 | .818–.864 vs .78–.88 |
+| cost of going strength 3 → 10 | — | .818 → .685 at `k=1` |
+
+The ceiling binds much harder here (2.8% leak at `k=8` against the delay arm's 16.9%),
+and strength 10 costs this arm essentially nothing relative to v1 — where on the delay
+arm the same step cost .13 of accuracy. So the concern that drove the arm decision —
+this arm having less to spend on constraint — did **not** materialise as a
+manipulation problem. It remains a problem for the *dependent* variable, which is what
+the arm decision actually rested on, and that is unchanged.
+
+Two caveats, both honest limits rather than blockers:
+
+- **Criterion 1 is violated more here.** `s` drifts 80.90 → 57.31 (**23.6 points**)
+  across `k` in the floor-off column, against the delay arm's 16.8. Mechanically
+  sensible — a looser ceiling means less pressure to go silent — and small against the
+  ~55-point column separation, but it does couple the two axes within a column.
+- **The row axis is narrow at 400 epochs**: `a` spans 2.69 → 3.57 (1.33×) floor-off and
+  1.91 → 3.81 (1.99×) floor-on, against v1's 3.8× observational span in this arm. It
+  should *widen* by 1250 epochs rather than narrow, because the weakly-constrained
+  cells re-densify while the strongly-constrained ones hold — at `k = 8` the ceiling has
+  already stopped charging (2.8% over-`k`), so nothing pins those cells, whereas `k = 1`
+  is still actively charging at 34%. This is the one place where the "400 epochs
+  calibrates nothing" rule works in the design's favour.
+
+**Interior of the row axis measured too (`k` = 2, 4, both columns, ~2.3 h).** The corner
+probe tested only the ends, and the 29 h grid rests on the interior, so the four
+remaining cells were run at seed 42 to complete the 8-cell map:
+
+| `k` | floor | clean acc | `a` | `s` | sp/neuron | over-`k` |
+|---|---|---|---|---|---|---|
+| 1 | 0 | .473 | 2.69 | 80.90% | 0.51 | 9.4% |
+| 1 | 1 | .500 | 1.91 | 21.55% | 1.50 | 34.2% |
+| 2 | 0 | .447 | 2.46 | 77.33% | 0.56 | 7.0% |
+| 2 | 1 | .510 | 2.11 | 13.77% | 1.82 | 19.2% |
+| 4 | 0 | .464 | 3.02 | 67.46% | 0.98 | 6.4% |
+| 4 | 1 | .518 | 2.74 | 9.28% | 2.49 | 10.8% |
+| 8 | 0 | .501 | 3.57 | 57.31% | 1.52 | 2.8% |
+| 8 | 1 | .536 | 3.81 | 6.72% | 3.55 | 5.2% |
+
+**ρ(`a`, `s`) = −0.238 (p = .57) across all 8 cells — the design acceptance check
+passes, and it is now a measurement rather than an extrapolation from two corners.**
+Against v1's **−0.943** in this same arm, that is v3's central claim demonstrated: the
+factorial breaks the confound that made v1 uninterpretable. Caveat: one seed, 400
+epochs, so it is a strong indication and not the final check — the script recomputes it
+across the real 16 models.
+
+Three further things the interior settles:
+
+1. **`s` is cleanly monotone in `k` in both columns** (80.90 → 57.31 and 21.55 → 6.72),
+   and the floor separation holds at **+59.4, +63.6, +58.2, +50.6** points at `k` = 1,
+   2, 4, 8. The column knob works at every row level, which is what criterion 2 asks.
+2. **`a` is monotone in `k` only in the floor-ON column** (1.91 → 2.11 → 2.74 → 3.81).
+   Floor-off is non-monotone (2.69 → **2.46** → 3.02 → 3.57). This confirms by
+   measurement what was argued for the delay arm: with silence free, ceiling pressure is
+   absorbed by `s`, so `a` in the floor-off column is only loosely coupled to `k`. The
+   practical consequence is that **the coverage is L-shaped** — the floor-on column
+   supplies the `a` variance, the floor-off column supplies the `s` variance — rather
+   than a fully crossed square. The regression is still identified, but β_a rests
+   mainly on eight models rather than sixteen.
+3. **Accuracy is stable across the whole map**, .447–.536 against chance .05 and v1's
+   .49–.59. No cell is unlearnable, so §5's "clean accuracy at chance in the floor-on
+   column" row is not in play here.
+
+**Optional design improvement, not applied.** The top of the row axis is capped by the
+ceiling ceasing to bind: at `k = 8` only 2.8% of pairs exceed it, yet `a` sits at 3.57
+against this arm's *unconstrained* ~11.9. Adding a **no-ceiling row** (or `k = 16`)
+would anchor the top of the `a` axis near the natural rate and widen the span from ~2×
+toward v1's 3.8×, for 2–4 extra models. Not applied, because the delay arm is already
+running the 4-level grid and changing the row levels mid-flight would cost the
+cross-arm comparison. Worth considering if β_a comes back underpowered.
+
+**Status: the no-delay arm is calibrated and ready.** All three constants validated
+*in this arm* — `WARMUP_EPOCHS = 20`, `FLOOR_STRENGTH = 1`, `CEILING_STRENGTH = 10` —
+and no change was needed to any of them. Set `QUICK_TEST = False` in
+[sn_train_noDelay_v3.py](../../exp_sparse_network/sn_train_noDelay_v3.py) for the 16-model
+grid (~29 h).
 
 **Design acceptance check — this one is on the *design*, not the network.** Across the
 16 trained models, compute ρ(`a`, `s`). **If |ρ| > 0.5 the factorial has failed to
@@ -758,9 +881,16 @@ Inherits everything in document 1 §7 and document 4 §7. New to v3:
 - [x] Phase 1 — row axis calibrated: **`CEILING_STRENGTH = 10`** roughly doubles the
       `a` span, holds the floor separation at ~49 points, no collapse, accuracy
       .685–.771. Row axis remains *soft* (41% of pairs still above `k` at `k=1`)
-- [ ] Phase 1 — **full 16-model grid at 1250 epochs (~37 h) — READY, NOT LAUNCHED.**
-      Set `QUICK_TEST = False` in
-      [sn_train_withDelay_v3.py](../../exp_sparse_network/sn_train_withDelay_v3.py)
+- [x] Phase 1 — **delay-arm 16-model grid at 1250 epochs (~37 h) LAUNCHED** on a
+      remote server, 2026-07-29
+- [x] Phase 1 — **no-delay arm calibrated** (locally, while the delay grid runs): all
+      three constants validated unchanged in this arm; manipulation is *cleaner* here
+      (floor separation +50…+64 points at every `k`, ceiling leak 2.8–34%, accuracy
+      .447–.536 against v1's .49–.59)
+- [x] Phase 1 — design acceptance check **pre-verified on the no-delay 8-cell map**:
+      **ρ(`a`, `s`) = −0.238** against v1's −0.943 (1 seed, 400 ep — indicative, and
+      recomputed on the real 16 models by the script)
+- [ ] Phase 1 — no-delay 16-model grid at 1250 epochs (~29 h) — READY, NOT LAUNCHED
 - [ ] Phase 1 — design acceptance check: |ρ(`a`, `s`)| < 0.5
 - [ ] Phase 1 — regressions, controlled floor-on vs floor-off contrast at matched `a`
 - [ ] v3 verdict recorded against §5

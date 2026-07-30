@@ -1,0 +1,53 @@
+Using device: cuda
+######################################################################
+# Sparse-network milestone v3 (training): SHD whole, no-delay
+# QUICK_TEST=True | epochs=400 | warmup=20
+# mechanism = per-pair ceiling relu(count-k) + potential floor relu(margin - max_t u)
+# ceiling k: [1.0, 8.0]  (strength 10)
+# floor strengths: [0.0, 1.0]  (margin 11, theta 10)
+# seeds: [42]  ->  4 models
+######################################################################
+Padded time dimension from 100 to 200
+Loaded D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\shd\shd_data\shd_whole.mat: X=(9984, 700, 200), Y=(9984,), classes=20
+Train: 5990 | Val: 1498 | Test: 1497
+============================================================
+  Training sparse_whole_nodelay_v3_k1_floor0_seed42_probe
+============================================================
+Model saved to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\sn_data\sparse_whole_nodelay_v3_k1_floor0_seed42_probe.pt
+  clean_acc=0.4729 | a=2.69 | s=80.90% | sp/neuron=0.51 | over_k=9.39%
+  Training log saved to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\sn_log\sparse_whole_nodelay_v3_k1_floor0_seed42_probe_training_log.json
+============================================================
+  Training sparse_whole_nodelay_v3_k1_floor1_seed42_probe
+============================================================
+Model saved to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\sn_data\sparse_whole_nodelay_v3_k1_floor1_seed42_probe.pt
+  clean_acc=0.5003 | a=1.91 | s=21.55% | sp/neuron=1.50 | over_k=34.15%
+  Training log saved to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\sn_log\sparse_whole_nodelay_v3_k1_floor1_seed42_probe_training_log.json
+============================================================
+  Training sparse_whole_nodelay_v3_k8_floor0_seed42_probe
+============================================================
+Model saved to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\sn_data\sparse_whole_nodelay_v3_k8_floor0_seed42_probe.pt
+  clean_acc=0.5010 | a=3.57 | s=57.31% | sp/neuron=1.52 | over_k=2.83%
+  Training log saved to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\sn_log\sparse_whole_nodelay_v3_k8_floor0_seed42_probe_training_log.json
+============================================================
+  Training sparse_whole_nodelay_v3_k8_floor1_seed42_probe
+============================================================
+Model saved to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\sn_data\sparse_whole_nodelay_v3_k8_floor1_seed42_probe.pt
+  clean_acc=0.5364 | a=3.81 | s=6.72% | sp/neuron=3.55 | over_k=5.19%
+  Training log saved to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\sn_log\sparse_whole_nodelay_v3_k8_floor1_seed42_probe_training_log.json
+Summary saved to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\sn_log\sparse_whole_nodelay_v3_train_summary_probe.json
+run_tag                                                    clean_acc       a        s   sp/neu   over_k   sub_th
+sparse_whole_nodelay_v3_k1_floor0_seed42_probe                0.4729    2.69   80.90%     0.51    9.39%   82.78%
+sparse_whole_nodelay_v3_k1_floor1_seed42_probe                0.5003    1.91   21.55%     1.50   34.15%   36.17%
+sparse_whole_nodelay_v3_k8_floor0_seed42_probe                0.5010    3.57   57.31%     1.52    2.83%   59.43%
+sparse_whole_nodelay_v3_k8_floor1_seed42_probe                0.5364    3.81    6.72%     3.55    5.19%   12.08%
+  ! = spikes_per_neuron above the natural 7.85 ¡ª v2.2's failure mode.
+    k  floor=0 silent  floor=on silent  separation
+    1         80.90%          21.55%    +59.35%  OK
+    8         57.31%           6.72%    +50.59%  OK
+  Target separation >= 20% at matched k. If too small, raise FLOOR_STRENGTH.
+======================================================================
+DESIGN ACCEPTANCE CHECK (n=4)
+  rho(a, s) = -0.400  (p = 0.6), threshold |rho| <= 0.5
+  PASS ¡ª the factorial broke the confound
+  For reference, v1's observational values were -0.943 (no-delay) and -0.455 (delay).
+======================================================================

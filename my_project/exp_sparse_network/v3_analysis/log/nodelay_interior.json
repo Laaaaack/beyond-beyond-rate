@@ -1,0 +1,78 @@
+{
+  "k1_floor0": {
+    "clean_acc": 0.4729,
+    "spikes_per_active_neuron": 2.69,
+    "silent_fraction": 0.809,
+    "spikes_per_neuron": 0.51,
+    "over_k_fraction": 0.0939
+  },
+  "k1_floor1": {
+    "clean_acc": 0.5003,
+    "spikes_per_active_neuron": 1.91,
+    "silent_fraction": 0.2155,
+    "spikes_per_neuron": 1.5,
+    "over_k_fraction": 0.3415
+  },
+  "k8_floor0": {
+    "clean_acc": 0.501,
+    "spikes_per_active_neuron": 3.57,
+    "silent_fraction": 0.5731,
+    "spikes_per_neuron": 1.52,
+    "over_k_fraction": 0.0283
+  },
+  "k8_floor1": {
+    "clean_acc": 0.5364,
+    "spikes_per_active_neuron": 3.81,
+    "silent_fraction": 0.0672,
+    "spikes_per_neuron": 3.55,
+    "over_k_fraction": 0.0519
+  },
+  "k2_floor0": {
+    "clean_acc": 0.4468937875751503,
+    "firing_rate": 0.002786797553440214,
+    "spikes_per_neuron": 0.5573595106880428,
+    "spikes_per_active_neuron": 2.4590499873362344,
+    "silent_fraction": 0.7733435621242485,
+    "over_k_fraction": 0.06976452905811623,
+    "sub_threshold_fraction": 0.7935506429525718,
+    "count_std": 1.502849459001156,
+    "peak_potential_silent_median": 0.05499861016869545,
+    "peak_potential_active_median": 20.916624069213867
+  },
+  "k2_floor1": {
+    "clean_acc": 0.509686038744155,
+    "firing_rate": 0.00908749791249165,
+    "spikes_per_neuron": 1.81749958249833,
+    "spikes_per_active_neuron": 2.1078555389448073,
+    "silent_fraction": 0.137749457247829,
+    "over_k_fraction": 0.19168545424181696,
+    "sub_threshold_fraction": 0.28195453406813625,
+    "count_std": 1.7181864099961575,
+    "peak_potential_silent_median": 6.985774040222168,
+    "peak_potential_active_median": 13.36788558959961
+  },
+  "k4_floor0": {
+    "clean_acc": 0.4635938543754175,
+    "firing_rate": 0.004906427438209753,
+    "spikes_per_neuron": 0.9812854876419506,
+    "spikes_per_active_neuron": 3.0154275450638273,
+    "silent_fraction": 0.6745783233132933,
+    "over_k_fraction": 0.06361159819639278,
+    "sub_threshold_fraction": 0.6979584168336673,
+    "count_std": 2.143747717443738,
+    "peak_potential_silent_median": 0.10746166110038757,
+    "peak_potential_active_median": 23.99256134033203
+  },
+  "k4_floor1": {
+    "clean_acc": 0.518370073480294,
+    "firing_rate": 0.012442645708082832,
+    "spikes_per_neuron": 2.4885291416165667,
+    "spikes_per_active_neuron": 2.743025115337268,
+    "silent_fraction": 0.09277930861723446,
+    "over_k_fraction": 0.10772064963259853,
+    "sub_threshold_fraction": 0.18083562959251837,
+    "count_std": 1.9846222058204097,
+    "peak_potential_silent_median": 6.905367851257324,
+    "peak_potential_active_median": 15.143782615661621
+  }
+}

@@ -166,7 +166,7 @@ print(f"Using device: {device}")
 # one seed -- 4 models, ~3 h on this arm. Its only job is to validate the
 # manipulation; see "Reading the probe" in the module docstring. Probe artifacts carry
 # RUN_SUFFIX so they can never clobber a real run.
-QUICK_TEST: bool = True
+QUICK_TEST: bool = False
 
 # Suffix appended to every output name (checkpoints, per-model logs, summary) when
 # running a probe, so a QUICK_TEST probe can never overwrite real-run artifacts that
