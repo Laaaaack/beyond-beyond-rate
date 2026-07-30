@@ -1,0 +1,407 @@
+{
+  "sparse_whole_nodelay_tgt3_str0.01_seed42": {
+    "layer1": {
+      "spikes_per_neuron": 6.504858493804932,
+      "spikes_per_active_neuron": 9.742949106939044,
+      "silent_fraction": 0.33235220440881763,
+      "peak_potential_silent_median": 2.0451858043670654,
+      "peak_potential_active_median": 49.17119598388672,
+      "support_last_bin": 86,
+      "support_p50": 20,
+      "support_p90": 38,
+      "support_p99": 53
+    },
+    "layer2": {
+      "spikes_per_neuron": 5.142889976501465,
+      "spikes_per_active_neuron": 11.535427146956005,
+      "silent_fraction": 0.5541656229124916,
+      "peak_potential_silent_median": 0.0,
+      "peak_potential_active_median": 122.67578125,
+      "support_last_bin": 88,
+      "support_p50": 22,
+      "support_p90": 45,
+      "support_p99": 62
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  },
+  "sparse_whole_nodelay_tgt3_str0.01_seed43": {
+    "layer1": {
+      "spikes_per_neuron": 7.84937047958374,
+      "spikes_per_active_neuron": 11.486936265653847,
+      "silent_fraction": 0.3166697979291917,
+      "peak_potential_silent_median": 0.2068885862827301,
+      "peak_potential_active_median": 57.00933837890625,
+      "support_last_bin": 86,
+      "support_p50": 20,
+      "support_p90": 38,
+      "support_p99": 52
+    },
+    "layer2": {
+      "spikes_per_neuron": 5.531427383422852,
+      "spikes_per_active_neuron": 12.46425031165569,
+      "silent_fraction": 0.5562165998663995,
+      "peak_potential_silent_median": 0.0014613009989261627,
+      "peak_potential_active_median": 127.04032135009766,
+      "support_last_bin": 88,
+      "support_p50": 22,
+      "support_p90": 45,
+      "support_p99": 61
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  },
+  "sparse_whole_nodelay_tgt3_str0.01_seed44": {
+    "layer1": {
+      "spikes_per_neuron": 6.796128749847412,
+      "spikes_per_active_neuron": 10.499959737879456,
+      "silent_fraction": 0.35274716098864395,
+      "peak_potential_silent_median": 0.18693506717681885,
+      "peak_potential_active_median": 52.924476623535156,
+      "support_last_bin": 87,
+      "support_p50": 20,
+      "support_p90": 37,
+      "support_p99": 52
+    },
+    "layer2": {
+      "spikes_per_neuron": 4.828015327453613,
+      "spikes_per_active_neuron": 12.425790912068871,
+      "silent_fraction": 0.6114520708082832,
+      "peak_potential_silent_median": 0.008471310138702393,
+      "peak_potential_active_median": 138.96566772460938,
+      "support_last_bin": 89,
+      "support_p50": 22,
+      "support_p90": 44,
+      "support_p99": 61
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  },
+  "sparse_whole_nodelay_tgt3_str0.5_seed42": {
+    "layer1": {
+      "spikes_per_neuron": 4.308538913726807,
+      "spikes_per_active_neuron": 6.888083236629281,
+      "silent_fraction": 0.3744937792251169,
+      "peak_potential_silent_median": 0.5641704797744751,
+      "peak_potential_active_median": 34.946746826171875,
+      "support_last_bin": 85,
+      "support_p50": 19,
+      "support_p90": 38,
+      "support_p99": 53
+    },
+    "layer2": {
+      "spikes_per_neuron": 5.316680431365967,
+      "spikes_per_active_neuron": 12.134608272724925,
+      "silent_fraction": 0.5618580911823647,
+      "peak_potential_silent_median": 0.0003303810954093933,
+      "peak_potential_active_median": 127.0830078125,
+      "support_last_bin": 87,
+      "support_p50": 23,
+      "support_p90": 46,
+      "support_p99": 62
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  },
+  "sparse_whole_nodelay_tgt3_str0.5_seed43": {
+    "layer1": {
+      "spikes_per_neuron": 4.713666915893555,
+      "spikes_per_active_neuron": 8.009914685406958,
+      "silent_fraction": 0.41152095858383436,
+      "peak_potential_silent_median": 0.4570215344429016,
+      "peak_potential_active_median": 38.94612121582031,
+      "support_last_bin": 87,
+      "support_p50": 20,
+      "support_p90": 38,
+      "support_p99": 53
+    },
+    "layer2": {
+      "spikes_per_neuron": 5.057077884674072,
+      "spikes_per_active_neuron": 11.126105540562001,
+      "silent_fraction": 0.5454763694054776,
+      "peak_potential_silent_median": 0.059236615896224976,
+      "peak_potential_active_median": 109.342041015625,
+      "support_last_bin": 89,
+      "support_p50": 22,
+      "support_p90": 45,
+      "support_p99": 62
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  },
+  "sparse_whole_nodelay_tgt3_str0.5_seed44": {
+    "layer1": {
+      "spikes_per_neuron": 3.9921092987060547,
+      "spikes_per_active_neuron": 6.233108563776111,
+      "silent_fraction": 0.3595315631262525,
+      "peak_potential_silent_median": 2.081042766571045,
+      "peak_potential_active_median": 32.643272399902344,
+      "support_last_bin": 85,
+      "support_p50": 19,
+      "support_p90": 37,
+      "support_p99": 52
+    },
+    "layer2": {
+      "spikes_per_neuron": 4.826762676239014,
+      "spikes_per_active_neuron": 10.567094624052725,
+      "silent_fraction": 0.5432270791583166,
+      "peak_potential_silent_median": 0.11714586615562439,
+      "peak_potential_active_median": 100.18986511230469,
+      "support_last_bin": 87,
+      "support_p50": 22,
+      "support_p90": 45,
+      "support_p99": 61
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  },
+  "sparse_whole_nodelay_tgt3_str1_seed42": {
+    "layer1": {
+      "spikes_per_neuron": 2.9087445735931396,
+      "spikes_per_active_neuron": 5.385192129524179,
+      "silent_fraction": 0.4598624331997328,
+      "peak_potential_silent_median": 0.3844543695449829,
+      "peak_potential_active_median": 34.541038513183594,
+      "support_last_bin": 85,
+      "support_p50": 19,
+      "support_p90": 38,
+      "support_p99": 54
+    },
+    "layer2": {
+      "spikes_per_neuron": 4.653661727905273,
+      "spikes_per_active_neuron": 10.331429894848824,
+      "silent_fraction": 0.549562667000668,
+      "peak_potential_silent_median": 0.1257089078426361,
+      "peak_potential_active_median": 101.223388671875,
+      "support_last_bin": 88,
+      "support_p50": 22,
+      "support_p90": 45,
+      "support_p99": 62
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  },
+  "sparse_whole_nodelay_tgt3_str1_seed43": {
+    "layer1": {
+      "spikes_per_neuron": 3.3646771907806396,
+      "spikes_per_active_neuron": 6.455070481168445,
+      "silent_fraction": 0.4787543837675351,
+      "peak_potential_silent_median": 0.6050218343734741,
+      "peak_potential_active_median": 32.709571838378906,
+      "support_last_bin": 85,
+      "support_p50": 19,
+      "support_p90": 38,
+      "support_p99": 53
+    },
+    "layer2": {
+      "spikes_per_neuron": 4.93704080581665,
+      "spikes_per_active_neuron": 10.340554959746445,
+      "silent_fraction": 0.5225555277221109,
+      "peak_potential_silent_median": 0.13815772533416748,
+      "peak_potential_active_median": 90.62991333007812,
+      "support_last_bin": 87,
+      "support_p50": 22,
+      "support_p90": 45,
+      "support_p99": 62
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  },
+  "sparse_whole_nodelay_tgt3_str1_seed44": {
+    "layer1": {
+      "spikes_per_neuron": 3.1650331020355225,
+      "spikes_per_active_neuron": 5.952446684329925,
+      "silent_fraction": 0.4682803106212425,
+      "peak_potential_silent_median": 0.4090413451194763,
+      "peak_potential_active_median": 33.15028381347656,
+      "support_last_bin": 87,
+      "support_p50": 19,
+      "support_p90": 38,
+      "support_p99": 54
+    },
+    "layer2": {
+      "spikes_per_neuron": 4.683126449584961,
+      "spikes_per_active_neuron": 10.454986633776514,
+      "silent_fraction": 0.5520676770207081,
+      "peak_potential_silent_median": 0.10802221298217773,
+      "peak_potential_active_median": 92.40473937988281,
+      "support_last_bin": 89,
+      "support_p50": 22,
+      "support_p90": 45,
+      "support_p99": 61
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  },
+  "sparse_whole_nodelay_tgt3_str3_seed42": {
+    "layer1": {
+      "spikes_per_neuron": 2.040560245513916,
+      "spikes_per_active_neuron": 4.236596801503863,
+      "silent_fraction": 0.5183491983967936,
+      "peak_potential_silent_median": 0.27790096402168274,
+      "peak_potential_active_median": 27.860279083251953,
+      "support_last_bin": 83,
+      "support_p50": 18,
+      "support_p90": 38,
+      "support_p99": 55
+    },
+    "layer2": {
+      "spikes_per_neuron": 4.051791191101074,
+      "spikes_per_active_neuron": 8.903430245914878,
+      "silent_fraction": 0.5449179609218436,
+      "peak_potential_silent_median": 0.20697961747646332,
+      "peak_potential_active_median": 77.95050811767578,
+      "support_last_bin": 85,
+      "support_p50": 23,
+      "support_p90": 46,
+      "support_p99": 62
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  },
+  "sparse_whole_nodelay_tgt3_str3_seed43": {
+    "layer1": {
+      "spikes_per_neuron": 1.7202426195144653,
+      "spikes_per_active_neuron": 3.6029425693083663,
+      "silent_fraction": 0.5225450901803608,
+      "peak_potential_silent_median": 0.5913429856300354,
+      "peak_potential_active_median": 25.058544158935547,
+      "support_last_bin": 82,
+      "support_p50": 18,
+      "support_p90": 38,
+      "support_p99": 55
+    },
+    "layer2": {
+      "spikes_per_neuron": 4.583568096160889,
+      "spikes_per_active_neuron": 9.234898105398925,
+      "silent_fraction": 0.5036687959251837,
+      "peak_potential_silent_median": 0.22125244140625,
+      "peak_potential_active_median": 76.53411102294922,
+      "support_last_bin": 84,
+      "support_p50": 22,
+      "support_p90": 45,
+      "support_p99": 61
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  },
+  "sparse_whole_nodelay_tgt3_str3_seed44": {
+    "layer1": {
+      "spikes_per_neuron": 1.8232976198196411,
+      "spikes_per_active_neuron": 3.839305890387371,
+      "silent_fraction": 0.5250970691382766,
+      "peak_potential_silent_median": 1.2446635961532593,
+      "peak_potential_active_median": 26.395524978637695,
+      "support_last_bin": 84,
+      "support_p50": 18,
+      "support_p90": 38,
+      "support_p99": 55
+    },
+    "layer2": {
+      "spikes_per_neuron": 4.615078926086426,
+      "spikes_per_active_neuron": 8.94095426512761,
+      "silent_fraction": 0.48382702905811625,
+      "peak_potential_silent_median": 0.16136330366134644,
+      "peak_potential_active_median": 67.21360778808594,
+      "support_last_bin": 86,
+      "support_p50": 22,
+      "support_p90": 45,
+      "support_p99": 61
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  },
+  "sparse_whole_nodelay_tgt3_str10_seed42": {
+    "layer1": {
+      "spikes_per_neuron": 1.4226943254470825,
+      "spikes_per_active_neuron": 3.1220480985005175,
+      "silent_fraction": 0.544307364729459,
+      "peak_potential_silent_median": 0.6817117929458618,
+      "peak_potential_active_median": 23.02106475830078,
+      "support_last_bin": 84,
+      "support_p50": 17,
+      "support_p90": 39,
+      "support_p99": 57
+    },
+    "layer2": {
+      "spikes_per_neuron": 4.239259719848633,
+      "spikes_per_active_neuron": 8.4047428372618,
+      "silent_fraction": 0.4956110136940548,
+      "peak_potential_silent_median": 0.32989513874053955,
+      "peak_potential_active_median": 66.69183349609375,
+      "support_last_bin": 86,
+      "support_p50": 22,
+      "support_p90": 46,
+      "support_p99": 62
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  },
+  "sparse_whole_nodelay_tgt3_str10_seed43": {
+    "layer1": {
+      "spikes_per_neuron": 1.3794046640396118,
+      "spikes_per_active_neuron": 3.22793224689334,
+      "silent_fraction": 0.5726661656646627,
+      "peak_potential_silent_median": 0.3244486451148987,
+      "peak_potential_active_median": 24.848278045654297,
+      "support_last_bin": 85,
+      "support_p50": 17,
+      "support_p90": 38,
+      "support_p99": 56
+    },
+    "layer2": {
+      "spikes_per_neuron": 4.149674415588379,
+      "spikes_per_active_neuron": 7.814606370624198,
+      "silent_fraction": 0.46898484468937873,
+      "peak_potential_silent_median": 0.33220845460891724,
+      "peak_potential_active_median": 61.115379333496094,
+      "support_last_bin": 87,
+      "support_p50": 22,
+      "support_p90": 45,
+      "support_p99": 62
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  },
+  "sparse_whole_nodelay_tgt3_str10_seed44": {
+    "layer1": {
+      "spikes_per_neuron": 1.207451343536377,
+      "spikes_per_active_neuron": 3.058185138365824,
+      "silent_fraction": 0.6051738894455578,
+      "peak_potential_silent_median": 0.7087031602859497,
+      "peak_potential_active_median": 22.461891174316406,
+      "support_last_bin": 83,
+      "support_p50": 17,
+      "support_p90": 39,
+      "support_p99": 56
+    },
+    "layer2": {
+      "spikes_per_neuron": 3.5244498252868652,
+      "spikes_per_active_neuron": 7.493381167513654,
+      "silent_fraction": 0.5296582748830996,
+      "peak_potential_silent_median": 0.3622378706932068,
+      "peak_potential_active_median": 59.00019073486328,
+      "support_last_bin": 84,
+      "support_p50": 22,
+      "support_p90": 45,
+      "support_p99": 62
+    },
+    "n_samples": 1497,
+    "samples_with_silent_layer1": 0,
+    "fraction_samples_unreachable": 0.0
+  }
+}
