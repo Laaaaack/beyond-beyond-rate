@@ -86,8 +86,29 @@ SEED: int         = 42
 MAX_DELAY: int    = 64
 
 # --- Hidden-perturbation sweep ---
-F_VALUES: list   = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+# The low-f points matter: the no-delay arm's accuracy knee sits near f = 0.05-0.2,
+# so the original 0.2-spaced grid rendered a steep-but-smooth decline as a cliff.
+# The original six values are kept as a subset so old curves stay comparable.
+F_VALUES: list[float] = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 NUM_REPEATS: int = 3
+
+# Destinations for relocated spikes are confined to [0, SUPPORT_BINS).
+#
+# SSC holds 100 time bins and load_split_from_h5 zero-pads them to tSample=200, so
+# the hidden layer never fires in the upper half of the window. Relocating across
+# all 200 bins therefore drops drive from the live region and injects it into a
+# region the next layer has never been driven in, which is a *rate* insult riding
+# on a probe whose whole purpose is to destroy timing at fixed rate.
+#
+#   "auto" - measure the clean layer's own support, per batch (recommended)
+#   int    - pin the window explicitly
+#   None   - reproduce the uncorrected full-window behaviour
+#
+# "auto" rather than a constant is essential at this layer: delay1 is applied
+# upstream of the probe, so measured over these checkpoints the 2nd hidden layer
+# runs to bin 148 in the delay arm but stops at 80 in the no-delay arm. Pinning a
+# single constant would re-create the very dead zone this setting exists to remove.
+SUPPORT_BINS: int | str | None = "auto"
 
 # --- Checkpoint naming ---
 # Checkpoints in data/ are stored as "<model_prefix><CHECKPOINT_SUFFIX>".
@@ -170,66 +191,90 @@ def load_test_data(h5_path: str, target_T: int = 200) -> tuple:
 # Hidden-Layer Spike Perturbation
 # =====================================================================
 
-def partial_randomize_spike_train(
-    spike_train: np.ndarray,
-    f: float = 0.0,
-    max_attempts: int = 50,
-) -> np.ndarray:
-    """Randomly relocate a fraction of the spikes in a spike train.
-
-    Each spike is independently moved to a uniformly random timestep with
-    probability f, preserving the per-neuron spike count.
+def resolve_support_window(is_spike: torch.Tensor, num_bins: int) -> int:
+    """Return the exclusive upper bin bound that relocated spikes may occupy.
 
     Args:
-        spike_train: Binary array of shape (num_neurons, T).
-        f: Probability that any given spike is relocated.
-        max_attempts: Retry budget for finding a free timestep per spike.
+        is_spike: Boolean tensor of shape (B, C, T) marking the clean layer's spikes.
+        num_bins: Total number of simulation bins, T.
 
     Returns:
-        The perturbed spike train. The input is returned unchanged when f <= 0.
+        The window size, honouring the SUPPORT_BINS setting. For "auto" this is one
+        past the last bin occupied anywhere in the batch, which self-calibrates to
+        whichever arm and layer is being probed.
+    """
+    if SUPPORT_BINS is None:
+        return num_bins
+    if SUPPORT_BINS != "auto":
+        return int(SUPPORT_BINS)
+
+    occupied = is_spike.any(dim=0).any(dim=0).nonzero()
+    if occupied.numel() == 0:
+        return num_bins
+    return int(occupied.max()) + 1
+
+
+@torch.no_grad()
+def perturb_hidden_batch(
+    hidden_spikes: torch.Tensor,
+    f: float = 0.0,
+) -> torch.Tensor:
+    """Vectorised GPU-side partial spike relocation.
+
+    For each (batch, neuron), a fraction *f* of the existing spikes are removed and
+    replaced with the same number of spikes placed at randomly chosen
+    previously-unoccupied time bins. Spike count per neuron is preserved exactly.
+
+    Destinations are confined to the layer's temporal support (see SUPPORT_BINS),
+    so relocation cannot thin the population's spike density by scattering spikes
+    into the zero-padded tail. Per-neuron spike count is preserved either way: the
+    support always has room, since every spike being moved came out of it.
+
+    This replaces an earlier per-spike numpy loop that drew its relocation count
+    from Bernoulli(f) on the CPU. The count is now a deterministic floor(n * f),
+    matching the SHD scripts exactly so the two datasets share one estimator, and
+    the whole draw stays on-device. Note the draw is now a torch RNG consumer, so
+    the sweep must seed torch as well as numpy.
+
+    Args:
+        hidden_spikes: SLAYER-format tensor of shape (B, C, 1, 1, T).
+        f: Fraction of spikes to relocate (0 = untouched, 1 = fully random).
+
+    Returns:
+        Perturbed tensor with the same shape, dtype, and device.
     """
     if f <= 0:
-        return spike_train
+        return hidden_spikes
 
-    num_neurons, T = spike_train.shape
-    new_train = np.copy(spike_train)
+    B, C, H, W, T = hidden_spikes.shape
+    x = hidden_spikes.view(B, C, T)
+    is_spike = x > 0.5
+    window = resolve_support_window(is_spike, T)
 
-    for neuron_idx in range(num_neurons):
-        spike_times = np.where(spike_train[neuron_idx] == 1)[0]
-        for old_time in spike_times:
-            if np.random.rand() < f:
-                new_train[neuron_idx, old_time] = 0
-                inserted = False
-                attempts = 0
-                while not inserted and attempts < max_attempts:
-                    attempts += 1
-                    new_t = np.random.randint(0, T)
-                    if new_train[neuron_idx, new_t] == 0:
-                        new_train[neuron_idx, new_t] = 1
-                        inserted = True
-    return new_train
+    # Count spikes per (batch, neuron) and compute how many to move.
+    n_spikes = is_spike.sum(dim=-1, keepdim=True)  # (B, C, 1)
+    num_to_move = (n_spikes.float() * f).floor().long()  # (B, C, 1)
 
+    # --- 1. Choose which existing spikes to remove ---
+    # Random key per time bin; non-spike bins sort last.
+    key = torch.rand_like(x)
+    key = torch.where(is_spike, key, torch.full_like(key, 2.0))
+    # rank[b, c, t] = position of t in the per-(b,c) ascending sort of `key`.
+    rank = key.argsort(dim=-1).argsort(dim=-1)
+    remove_mask = rank < num_to_move  # (B, C, T)
 
-def perturb_hidden_batch(hidden_spikes: torch.Tensor, f: float) -> torch.Tensor:
-    """Apply spike-timing perturbation to every sample in a hidden-layer batch.
+    keep_mask = is_spike & ~remove_mask
 
-    Args:
-        hidden_spikes: Binary spikes in SLAYER's 5-D format
-            (batch, neurons, 1, 1, T).
-        f: Probability that any given spike is relocated.
+    # --- 2. Place the same number of spikes in currently-unoccupied bins ---
+    available = ~keep_mask  # everything except positions we are keeping
+    available[:, :, window:] = False  # stay inside the layer's temporal support
+    key2 = torch.rand_like(x)
+    key2 = torch.where(available, key2, torch.full_like(key2, 2.0))
+    rank2 = key2.argsort(dim=-1).argsort(dim=-1)
+    add_mask = rank2 < num_to_move  # disjoint from keep_mask by construction
 
-    Returns:
-        The perturbed batch, on the same device as the input.
-    """
-    dev = hidden_spikes.device
-    spikes_np = hidden_spikes.cpu().numpy()
-    batch_size = spikes_np.shape[0]
-
-    for b in range(batch_size):
-        sample = spikes_np[b, :, 0, 0, :]  # (C, T)
-        spikes_np[b, :, 0, 0, :] = partial_randomize_spike_train(sample, f)
-
-    return torch.from_numpy(spikes_np).to(dev)
+    new_spikes = (keep_mask | add_mask).to(hidden_spikes.dtype)
+    return new_spikes.view(B, C, H, W, T)
 
 
 # =====================================================================
@@ -452,7 +497,12 @@ def run_hidden_perturbation_sweep(
     for f in f_values:
         accuracies = []
         for repeat in range(num_repeats):
+            # perturb_hidden_batch draws from the torch RNG, so seeding numpy
+            # alone would leave the repeats identical rather than independent.
             np.random.seed(SEED + repeat)
+            torch.manual_seed(SEED + repeat)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(SEED + repeat)
             acc = test_with_hidden_perturbation(net, test_loader, f=f)
             accuracies.append(acc)
 
@@ -461,7 +511,7 @@ def run_hidden_perturbation_sweep(
         results[f] = {
             "mean": mean_acc, "std": std_acc, "values": accuracies
         }
-        print(f"  f={f:.1f}:  accuracy = {mean_acc:.4f} +/- {std_acc:.4f}")
+        print(f"  f={f:.2f}:  accuracy = {mean_acc:.4f} +/- {std_acc:.4f}")
 
     return results
 

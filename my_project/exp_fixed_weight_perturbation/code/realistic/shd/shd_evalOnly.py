@@ -75,9 +75,30 @@ BATCH_SIZE: int = 128
 SEED: int = 42
 MAX_DELAY: int = 64
 
-# Hidden-perturbation sweep
-F_VALUES: list[float] = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+# Hidden-perturbation sweep.
+# The low-f points matter: the no-delay arm's accuracy knee sits near f = 0.05-0.2,
+# so the original 0.2-spaced grid rendered a steep-but-smooth decline as a cliff.
+# The original six values are kept as a subset so old curves stay comparable.
+F_VALUES: list[float] = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 NUM_REPEATS: int = 3
+
+# Destinations for relocated spikes are confined to [0, SUPPORT_BINS).
+#
+# The .mat holds 100 time bins and load_shd_data zero-pads them to tSample=200, so
+# the hidden layer never fires in the upper half of the window. Relocating across
+# all 200 bins therefore drops drive from the live region and injects it into a
+# region the next layer has never been driven in, which is a *rate* insult riding
+# on a probe whose whole purpose is to destroy timing at fixed rate.
+#
+#   "auto" - measure the clean layer's own support, per batch (recommended)
+#   int    - pin the window explicitly
+#   None   - reproduce the uncorrected full-window behaviour
+#
+# "auto" rather than a constant because the support is arm-dependent: measured over
+# these checkpoints the 1st hidden layer stops at bin 87 (delay and no-delay alike),
+# but at the 2nd hidden layer delay1 stretches the delay arm to bin 158 while the
+# no-delay arm still stops at 89. No single constant serves both.
+SUPPORT_BINS: int | str | None = "auto"
 
 # All variations to sweep when EVAL_ALL_VARIATION is True
 ALL_DATASET_KEYS: list[str] = ["norm", "part", "whole"]
@@ -123,6 +144,29 @@ def load_shd_data(
 # Hidden-layer spike perturbation
 # =====================================================================
 
+def resolve_support_window(is_spike: torch.Tensor, num_bins: int) -> int:
+    """Return the exclusive upper bin bound that relocated spikes may occupy.
+
+    Args:
+        is_spike: Boolean tensor of shape (B, C, T) marking the clean layer's spikes.
+        num_bins: Total number of simulation bins, T.
+
+    Returns:
+        The window size, honouring the SUPPORT_BINS setting. For "auto" this is one
+        past the last bin occupied anywhere in the batch, which self-calibrates to
+        whichever arm and layer is being probed.
+    """
+    if SUPPORT_BINS is None:
+        return num_bins
+    if SUPPORT_BINS != "auto":
+        return int(SUPPORT_BINS)
+
+    occupied = is_spike.any(dim=0).any(dim=0).nonzero()
+    if occupied.numel() == 0:
+        return num_bins
+    return int(occupied.max()) + 1
+
+
 @torch.no_grad()
 def perturb_hidden_batch(
     hidden_spikes: torch.Tensor,
@@ -137,6 +181,11 @@ def perturb_hidden_batch(
     avoiding the CPU/numpy round-trip that dominates cost when perturbation
     runs on every batch.
 
+    Destinations are confined to the layer's temporal support (see SUPPORT_BINS),
+    so relocation cannot thin the population's spike density by scattering spikes
+    into the zero-padded tail. Per-neuron spike count is preserved either way: the
+    support always has room, since every spike being moved came out of it.
+
     Args:
         hidden_spikes: SLAYER-format tensor of shape (B, C, 1, 1, T).
         f: Fraction of spikes to relocate (0 = untouched, 1 = fully random).
@@ -150,6 +199,7 @@ def perturb_hidden_batch(
     B, C, H, W, T = hidden_spikes.shape
     x = hidden_spikes.view(B, C, T)
     is_spike = x > 0.5
+    window = resolve_support_window(is_spike, T)
 
     # Count spikes per (batch, neuron) and compute how many to move.
     n_spikes = is_spike.sum(dim=-1, keepdim=True)  # (B, C, 1)
@@ -167,6 +217,7 @@ def perturb_hidden_batch(
 
     # --- 2. Place the same number of spikes in currently-unoccupied bins ---
     available = ~keep_mask  # everything except positions we are keeping
+    available[:, :, window:] = False  # stay inside the layer's temporal support
     key2 = torch.rand_like(x)
     key2 = torch.where(available, key2, torch.full_like(key2, 2.0))
     rank2 = key2.argsort(dim=-1).argsort(dim=-1)
@@ -441,7 +492,7 @@ def run_hidden_perturbation_sweep(
         results[f] = {
             "mean": mean_acc, "std": std_acc, "values": accuracies
         }
-        print(f"  f={f:.1f}:  accuracy = {mean_acc:.4f} +/- {std_acc:.4f}")
+        print(f"  f={f:.2f}:  accuracy = {mean_acc:.4f} +/- {std_acc:.4f}")
 
     return results
 
