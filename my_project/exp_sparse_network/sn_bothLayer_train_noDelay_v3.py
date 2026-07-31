@@ -217,9 +217,27 @@ print(f"Using device: {device}")
 # manipulation; see "Reading the probe" in the module docstring. Probe artifacts carry
 # RUN_SUFFIX so they can never clobber a real run.
 #
-# Leave this True until the three inherited constants have been checked in the
-# BOTH-LAYER configuration. None of them was calibrated with two penalties running.
-QUICK_TEST: bool = True
+# **Keep this True for LOCAL runs.** Local execution is for probes only; the 16-model
+# grid runs on the remote server, where this is flipped to False.
+#
+# The probe has already been run (2026-07-31) and it validated all three inherited
+# constants IN THIS ARM, so the grid is ready whenever the remote run is:
+#   - WARMUP_EPOCHS = 20 survives the two-penalty k=1/floor=0 corner (acc .441, neither
+#     layer fully silent), so the absorbing failure it guards is ruled out;
+#   - FLOOR_STRENGTH = 1 separates `s` by +63.1/+57.7 (k=1) and +52.2/+53.1 (k=8) points
+#     at layer 1 / layer 2 -- every cell far past the 20-point criterion;
+#   - CEILING_STRENGTH = 10 reproduces the 1st-layer-only run at layer 1 to within ~2
+#     points of `s` and 0.1 spikes of `a` in all four cells, so adding the layer-2
+#     penalty constrains layer 2 without disturbing layer 1.
+# No inflation at either layer, accuracy .441-.555 against v1's .49-.59.
+#
+# For the remote grid: set False -> 4 k x 2 floor x 2 seeds = 16 models. Measured
+# locally at ~2 h/model on an RTX 2050, i.e. ~31.5 h there; scale to the remote GPU.
+#
+# (The DELAY arm is NOT ready -- its probe exposed a model-selection fault, fixed by
+# SETTLE_EPOCHS in that script, and it needs a re-probe first. Do not copy this flag or
+# these constants across.)
+QUICK_TEST: bool = False
 
 # Suffix appended to every output name (checkpoints, per-model logs, summary) when
 # running a probe, so a QUICK_TEST probe can never overwrite real-run artifacts that
@@ -270,7 +288,7 @@ CEILING_K_LAYER2_RATIO: float = 1.0
 # matched `k` a genuine controlled comparison rather than a correlation.
 FLOOR_STRENGTH: list[float] = [0.0, 1.0]
 
-SEEDS: list[int] = [42, 43]
+SEEDS: list[int] = [42, 43, 44]
 
 # Coefficient on the ceiling term, applied to EACH layer's term separately (the two are
 # summed). Charging each layer at the coefficient its own single-layer script used is
@@ -318,6 +336,34 @@ THETA_MARGIN: float = 11.0
 # k = 1, floor = 0 corner is the cell that would show it. If val_acc sits at chance (5%)
 # with silent -> 100% at either layer, raise this before anything else.
 WARMUP_EPOCHS: int = 20
+
+# NOTE, 2026-07-31 — the delay arm carries a `SETTLE_EPOCHS = 150` constant that this
+# script deliberately does not have, and the asymmetry is on measurement rather than
+# oversight.
+#
+# Best-model selection is on the TASK validation loss, so a checkpoint can in principle
+# be chosen from before the constraint has bound. In the DELAY arm's floor-ON column
+# that is exactly what happens: the task val loss peaks ~20 epochs after the penalties
+# engage and never recovers, so the saved model is one constrained for barely twenty
+# epochs (saved epoch 37-45 of ~340). That arm therefore holds off tracking until
+# `warmup + settle`.
+#
+# Measured on this arm's 400-epoch corner probe, the pathology is absent — every cell
+# selects late and its constraint state is unchanged between the saved and final epoch:
+#
+#   cell            saved/last    a1 saved -> last    over_k1 saved -> last
+#   -------------------------------------------------------------------------
+#   k=1, floor 0     326 / 399     2.54 -> 2.40         6.8% ->  6.6%
+#   k=1, floor 1     398 / 399     1.84 -> 1.84        33.8% -> 34.2%
+#   k=8, floor 0     396 / 399     3.52 -> 3.48         3.2% ->  3.0%
+#   k=8, floor 1     398 / 399     3.80 -> 3.79         5.2% ->  5.1%
+#
+# A settle window of 150 would begin tracking at epoch 170 and would therefore change
+# nothing here. It was left out so that the 16-model grid launched on 2026-07-31 stays
+# reproducible from this file. **If this arm is ever re-run, add it** — it is free, and
+# a cell that does go pathological would otherwise be silently mis-selected. Check
+# `argmin(val_loss)` against the run length in the training logs before trusting any
+# cell whose `over_k` looks anomalously high.
 
 # --- SLAYER neuron and simulation descriptors (identical to v1 and v2) ---
 SIM_PARAMS = {"Ts": 1, "tSample": 200}

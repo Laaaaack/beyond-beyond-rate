@@ -242,7 +242,7 @@ print(f"Using device: {device}")
 #
 # Leave this True until the three inherited constants have been checked in the
 # BOTH-LAYER configuration. None of them was calibrated with two penalties running.
-QUICK_TEST: bool = True
+QUICK_TEST: bool = False
 
 # Suffix appended to every output name (checkpoints, per-model logs, summary) when
 # running a probe, so a QUICK_TEST probe can never overwrite real-run artifacts that
@@ -296,7 +296,7 @@ CEILING_K_LAYER2_RATIO: float = 2.0
 # matched `k` a genuine controlled comparison rather than a correlation.
 FLOOR_STRENGTH: list[float] = [0.0, 1.0]
 
-SEEDS: list[int] = [42, 43]
+SEEDS: list[int] = [42, 43, 44]
 
 # Coefficient on the ceiling term, applied to EACH layer's term separately (the two are
 # summed). Charging each layer at the coefficient its own single-layer script used is
@@ -351,6 +351,44 @@ THETA_MARGIN: float = 11.0
 # probe's k = 1, floor = 0 corner is the cell that would show it. If val_acc sits at
 # chance (5%) with silent -> 100% at either layer, raise this before anything else.
 WARMUP_EPOCHS: int = 20
+
+# Epochs to let the constraint bind before best-model tracking and early stopping begin,
+# counted from the end of the warm-up. **Added 2026-07-31 from a both-layer, delay-arm
+# finding; it is not in the 1st- or 2nd-layer scripts.**
+#
+# Best-model selection is on the TASK validation loss -- document 5's deliberate choice,
+# so that the checkpoint is chosen on the task rather than on how well the constraint is
+# satisfied. In THIS arm's floor-ON column the task val loss is best about twenty epochs
+# after the penalties engage and never improves again, so without a settle window the
+# saved checkpoint is one that has barely been constrained, and early stopping then
+# fires at ~85% of the run. Measured on the 400-epoch probe at CEILING_STRENGTH = 10
+# (train set, saved epoch -> last epoch):
+#
+#   cell             saved/last     a1              over_k1          over_k2
+#   ----------------------------------------------------------------------------
+#   k1=1, floor 1     41 / 341     4.94 -> 2.27    62.5% -> 36.9%   66.4% -> 48.8%
+#   k1=8, floor 1     37 / 337     7.29 -> 4.07    28.9% ->  7.2%   14.4% ->  4.5%
+#   k1=1, floor 0    394 / 399     4.04 -> 4.04    14.8% -> 14.6%        --
+#   k1=8, floor 0    385 / 399     4.60 -> 4.59     6.2% ->  6.3%        --
+#
+# Only the floor-ON cells select early; the floor-off ones are unaffected, and the whole
+# no-delay arm is unaffected (it selects at epoch 326-398 of 400 in every cell).
+#
+# This is what makes the ceiling readable. Reading over_k off those early checkpoints
+# made CEILING_STRENGTH = 10 look far too weak (62% leak) when the trained-out run sits
+# at 36.9%, inside the 30-40% band the 1st-layer grid ran at. Raising the strength to 20
+# "fixed" the symptom at a cost of .153 clean accuracy in the floor-off column
+# (.717 -> .564) and was NOT adopted -- see the progress document's step 1b.
+#
+# 150 is chosen to be a near-no-op on healthy runs: applied to the completed 1st-layer
+# delay grid at 1250 epochs it would change the selected checkpoint in 1 of 16 cells,
+# because the other fifteen already select at epoch 433 or later. So it repairs the
+# pathological cells without disturbing comparability with the completed grids.
+#
+# Note the interaction with EARLY_STOP_PATIENCE: tracking starts at epoch
+# warmup + settle = 170, so in a 400-epoch probe early stopping can no longer fire at
+# all (170 + 300 > 400), and in the 1250-epoch grid it can fire from epoch 470.
+SETTLE_EPOCHS: int = 150
 
 # --- SLAYER neuron and simulation descriptors (identical to v1 and v2) ---
 SIM_PARAMS = {"Ts": 1, "tSample": 200}
@@ -931,6 +969,7 @@ def train_model(
     epochs: int,
     ceiling_strength: float = CEILING_STRENGTH,
     warmup_epochs: int = WARMUP_EPOCHS,
+    settle_epochs: int = SETTLE_EPOCHS,
     theta_margin: float = THETA_MARGIN,
     k_layer2_ratio: float = CEILING_K_LAYER2_RATIO,
     input_dim: int = INPUT_DIM,
@@ -956,7 +995,11 @@ def train_model(
 
     Best-model selection and early stopping use the *task* validation loss, so the
     saved checkpoint is chosen on the task rather than on how well the constraints are
-    satisfied.
+    satisfied — but only from ``warmup_epochs + settle_epochs`` onward, so that a
+    checkpoint from before the constraint had time to bind cannot be selected. In this
+    arm's floor-on column the task val loss peaks ~20 epochs after the penalties engage
+    and never recovers, so without the settle window the saved model is one that has
+    barely been constrained. See ``SETTLE_EPOCHS``.
 
     Args:
         train_loader: Training DataLoader.
@@ -968,6 +1011,9 @@ def train_model(
         epochs: Maximum training epochs.
         ceiling_strength: Coefficient on each ceiling term, fixed across the grid.
         warmup_epochs: Clean epochs before any penalty engages.
+        settle_epochs: Further epochs after the warm-up before best-model tracking and
+            early stopping begin, so the constraint has bound before a checkpoint can
+            be selected.
         theta_margin: Peak potential the floors require, at both layers.
         k_layer2_ratio: Layer 2's ceiling as a multiple of layer 1's.
         input_dim: Number of input neurons.
@@ -1170,8 +1216,13 @@ def train_model(
             )
             scheduler.step()
 
-            # Early stopping on task val loss.
-            if epoch < warmup_epochs:
+            # Best-model tracking and early stopping, both on the task val loss, and
+            # both held off until the constraint has had `settle_epochs` to bind. In
+            # the floor-on column the task loss is best ~20 epochs after the penalties
+            # engage and never improves again, so tracking from `warmup_epochs` alone
+            # would save a checkpoint that has barely been constrained and would then
+            # early-stop at ~85% of the run. See SETTLE_EPOCHS.
+            if epoch < warmup_epochs + settle_epochs:
                 continue
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
