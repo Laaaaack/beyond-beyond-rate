@@ -76,6 +76,32 @@ MAX_DELAY: int           = 64
 EARLY_STOP_PATIENCE: int = 300
 
 F_VALUES: list   = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+
+# Destinations for relocated spikes are confined to [0, SUPPORT_BINS).
+#
+# SSC holds 100 time bins and load_ssc_data zero-pads them to tSample=200, so the
+# hidden layer never fires in the upper half of the window. Relocating across all
+# 200 bins therefore drops drive from the live region and injects it into a region
+# the next layer has never been driven in, which is a *rate* insult riding on a
+# probe whose whole purpose is to destroy timing at fixed rate. Measured on the
+# 1st hidden layer, ~57% of relocated spikes landed where no hidden spike ever
+# naturally occurs.
+#
+#   "auto" - measure the clean layer's own support, per batch (recommended)
+#   int    - pin the window explicitly
+#   None   - reproduce the uncorrected full-window behaviour
+#
+# "auto" rather than a constant is essential at this layer: delay1 is applied
+# upstream of the probe, so measured over the fixed-weight checkpoints the 2nd
+# hidden layer runs to bin 158 in the delay arm but stops at 89 in the no-delay
+# arm. Pinning one constant would re-create the very dead zone this removes.
+#
+# NOTE: unlike the fixed-weight experiment, perturbation here runs inside the
+# *training* loop, so this is not an eval-only knob. Checkpoints in data/ predate
+# this fix and were trained under the full-window behaviour; they must be
+# retrained before their curves can be read against a corrected sweep. Set None to
+# reproduce those checkpoints' regime exactly.
+SUPPORT_BINS: int | str | None = "auto"
 NUM_REPEATS: int = 3
 
 
@@ -103,6 +129,29 @@ def load_ssc_data(
     return X, Y
 
 
+def resolve_support_window(is_spike: torch.Tensor, num_bins: int) -> int:
+    """Return the exclusive upper bin bound that relocated spikes may occupy.
+
+    Args:
+        is_spike: Boolean tensor of shape (B, C, T) marking the clean layer's spikes.
+        num_bins: Total number of simulation bins, T.
+
+    Returns:
+        The window size, honouring the SUPPORT_BINS setting. For "auto" this is one
+        past the last bin occupied anywhere in the batch, which self-calibrates to
+        whichever arm and layer is being probed.
+    """
+    if SUPPORT_BINS is None:
+        return num_bins
+    if SUPPORT_BINS != "auto":
+        return int(SUPPORT_BINS)
+
+    occupied = is_spike.any(dim=0).any(dim=0).nonzero()
+    if occupied.numel() == 0:
+        return num_bins
+    return int(occupied.max()) + 1
+
+
 @torch.no_grad()
 def perturb_hidden_batch(
     hidden_spikes: torch.Tensor,
@@ -115,6 +164,7 @@ def perturb_hidden_batch(
     B, C, H, W, T = hidden_spikes.shape
     x = hidden_spikes.view(B, C, T)
     is_spike = x > 0.5
+    window = resolve_support_window(is_spike, T)
 
     n_spikes = is_spike.sum(dim=-1, keepdim=True)
     num_to_move = (n_spikes.float() * f).floor().long()
@@ -127,6 +177,7 @@ def perturb_hidden_batch(
     keep_mask = is_spike & ~remove_mask
 
     available = ~keep_mask
+    available[:, :, window:] = False  # stay inside the layer's temporal support
     key2 = torch.rand_like(x)
     key2 = torch.where(available, key2, torch.full_like(key2, 2.0))
     rank2 = key2.argsort(dim=-1).argsort(dim=-1)
@@ -310,6 +361,11 @@ def load_model(
 
     Returns:
         The network in eval mode with the checkpoint weights loaded.
+
+    Destinations are confined to the layer's temporal support (see SUPPORT_BINS),
+    so relocation cannot thin the population's spike density by scattering spikes
+    into the zero-padded tail. Per-neuron spike count is preserved either way: the
+    support always has room, since every spike being moved came out of it.
     """
     net = SSCNetwork(
         input_dim, hidden_units, num_classes, use_delay, max_delay

@@ -92,8 +92,34 @@ MAX_DELAY: int = 64
 EARLY_STOP_PATIENCE: int = 300
 
 # --- Hidden-perturbation sweep ---
-F_VALUES: list[float] = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+F_VALUES: list[float] = [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0]
 NUM_REPEATS: int = 3
+
+# Destinations for relocated spikes are confined to [0, SUPPORT_BINS).
+#
+# The .mat holds 100 time bins and load_shd_data zero-pads them to tSample=200, so
+# the hidden layer never fires in the upper half of the window. Relocating across
+# all 200 bins therefore drops drive from the live region and injects it into a
+# region the next layer has never been driven in, which is a *rate* insult riding
+# on a probe whose whole purpose is to destroy timing at fixed rate. Measured on
+# the 1st hidden layer, ~57% of relocated spikes landed where no hidden spike ever
+# naturally occurs.
+#
+#   "auto" - measure the clean layer's own support, per batch (recommended)
+#   int    - pin the window explicitly
+#   None   - reproduce the uncorrected full-window behaviour
+#
+# "auto" rather than a constant because the support is arm-dependent: measured over
+# the fixed-weight checkpoints the 1st hidden layer stops at bin 87 in both arms,
+# but at the 2nd hidden layer delay1 stretches the delay arm to bin 158 while the
+# no-delay arm still stops at 89. No single constant serves both.
+#
+# NOTE: unlike the fixed-weight experiment, perturbation here runs inside the
+# *training* loop (train_model calls net(x_batch, f=f)), so this is not an
+# eval-only knob. Checkpoints in data/ predate this fix and were trained under the
+# full-window behaviour; they must be retrained before their curves can be read
+# against a corrected sweep. Set None to reproduce those checkpoints' regime.
+SUPPORT_BINS: int | str | None = "auto"
 
 
 def load_shd_data(mat_path: str, target_T: int = 200) -> tuple[np.ndarray, np.ndarray]:
@@ -121,6 +147,29 @@ def load_shd_data(mat_path: str, target_T: int = 200) -> tuple[np.ndarray, np.nd
     return X, Y
 
 
+def resolve_support_window(is_spike: torch.Tensor, num_bins: int) -> int:
+    """Return the exclusive upper bin bound that relocated spikes may occupy.
+
+    Args:
+        is_spike: Boolean tensor of shape (B, C, T) marking the clean layer's spikes.
+        num_bins: Total number of simulation bins, T.
+
+    Returns:
+        The window size, honouring the SUPPORT_BINS setting. For "auto" this is one
+        past the last bin occupied anywhere in the batch, which self-calibrates to
+        whichever arm and layer is being probed.
+    """
+    if SUPPORT_BINS is None:
+        return num_bins
+    if SUPPORT_BINS != "auto":
+        return int(SUPPORT_BINS)
+
+    occupied = is_spike.any(dim=0).any(dim=0).nonzero()
+    if occupied.numel() == 0:
+        return num_bins
+    return int(occupied.max()) + 1
+
+
 @torch.no_grad()
 def perturb_hidden_batch(
     hidden_spikes: torch.Tensor,
@@ -135,6 +184,11 @@ def perturb_hidden_batch(
     avoiding the CPU/numpy round-trip that dominates training cost when
     perturbation runs on every batch (mirrors the ``isi_delay`` version).
 
+    Destinations are confined to the layer's temporal support (see SUPPORT_BINS),
+    so relocation cannot thin the population's spike density by scattering spikes
+    into the zero-padded tail. Per-neuron spike count is preserved either way: the
+    support always has room, since every spike being moved came out of it.
+
     Args:
         hidden_spikes: SLAYER-format tensor of shape (B, C, 1, 1, T).
         f: Fraction of spikes to relocate (0 = untouched, 1 = fully random).
@@ -148,6 +202,7 @@ def perturb_hidden_batch(
     B, C, H, W, T = hidden_spikes.shape
     x = hidden_spikes.view(B, C, T)
     is_spike = x > 0.5
+    window = resolve_support_window(is_spike, T)
 
     # Count spikes per (batch, neuron) and compute how many to move.
     n_spikes = is_spike.sum(dim=-1, keepdim=True)  # (B, C, 1)
@@ -165,6 +220,7 @@ def perturb_hidden_batch(
 
     # --- 2. Place the same number of spikes in currently-unoccupied bins ---
     available = ~keep_mask  # everything except positions we are keeping
+    available[:, :, window:] = False  # stay inside the layer's temporal support
     key2 = torch.rand_like(x)
     key2 = torch.where(available, key2, torch.full_like(key2, 2.0))
     rank2 = key2.argsort(dim=-1).argsort(dim=-1)
