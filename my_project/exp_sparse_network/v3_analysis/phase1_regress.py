@@ -64,7 +64,7 @@ LOG_DIR = SCRIPT_DIR / "log"
 FIG_DIR = SCRIPT_DIR / "fig"
 
 VERSION_TAG: str = "v3_"
-ARMS: tuple[str, ...] = ("delay",)
+ARMS: tuple[str, ...] = ("delay", "nodelay")
 
 # The design acceptance threshold on the factorial itself (document 5 §4b).
 MAX_AXIS_CORRELATION: float = 0.5

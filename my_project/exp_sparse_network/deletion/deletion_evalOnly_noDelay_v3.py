@@ -1,7 +1,7 @@
-"""v3 Phase 1, WITH-DELAY arm: 1st-hidden-layer deletion sweep, eval-only.
+"""v3 Phase 1, NO-DELAY arm: 1st-hidden-layer deletion sweep, eval-only.
 
 Companion to the training script
-[sn_train_withDelay_v3.py](../sn_train_withDelay_v3.py), which trained the v3
+[sn_train_noDelay_v3.py](../sn_train_noDelay_v3.py), which trained the v3
 **factorial** — a per-pair ceiling ``relu(count - k)`` setting temporal sparsity
 ``a`` along ``CEILING_K = [1, 2, 4, 8]``, crossed with a membrane-potential floor
 setting selectivity ``s`` along ``FLOOR_STRENGTH = [0, 1]``, at seeds 42, 43 and 44
@@ -10,27 +10,29 @@ training**. It loads each of those 24 checkpoints and measures how much test
 accuracy degrades as the **1st hidden layer's** spikes are deleted at evaluation
 only.
 
-Why the v3 checkpoints rather than v1's: in v1 the two sparsity axes were
-confounded at ``rho(a, s) = -0.455`` in this arm and ``-0.943`` in the other, so no
-sweep over those models could attribute a trend to one rather than the other. The
-v3 grid breaks that by construction — ``rho(a, s) = -0.087`` (p = .69) across the
-24 models — which is what makes a deletion curve read against ``a`` interpretable.
-See document 5 §2b and §4 Phase 1.
+Why the v3 checkpoints rather than v1's: in v1 this arm's two sparsity axes were
+confounded at ``rho(a, s) = -0.943`` — the worst figure in the project — so no sweep
+over those models could attribute a trend to one rather than the other. The v3 grid
+breaks that by construction: ``rho(a, s) = -0.342`` (p = .10) across the 24 models,
+which is what makes a deletion curve read against ``a`` interpretable. See document 5
+§2b and §4 Phase 1.
 
-The no-delay arm is now trained as well, and its sibling is
-[deletion_evalOnly_noDelay_v3.py](deletion_evalOnly_noDelay_v3.py). The arms are kept
-as separate scripts (rather than one script with a flag) for the same reason the
-training scripts are: this network carries the learnable axonal delays
-``delay1``/``delay2``, which are themselves a timing mechanism, so its deletion curve
-measures sparsity's effect *on top of* whatever the delays contribute.
+Which arm this is, and what it is for. The sibling is
+[deletion_evalOnly_withDelay_v3.py](deletion_evalOnly_withDelay_v3.py). The arms are
+kept as separate scripts (rather than one script with a flag) for the same reason the
+training scripts are: that one carries the learnable axonal delays
+``delay1``/``delay2``, which are themselves a timing mechanism. **Here there are no
+delays at all**, so what this arm contributes is a replication in which nothing but
+the SRM neurons' membrane dynamics could carry timing.
 
-**This is the primary arm for interpretation**, and for this sweep in particular:
-here the deletion control is essentially orthogonal to selectivity,
-``rho(s, control) = +0.030``, where in the no-delay arm the two are entangled at
-**-0.818** (VIF 3.2) and ``rho(usage, control) = +0.822``. So this arm can hold
-general robustness fixed and still read a coefficient on ``s``; the other cannot.
-The readout gap points the same way — +.026 here against +.300 on every no-delay
-checkpoint.
+This particular sweep carries an extra warning in this arm. The Phase 1 regression
+found ``rho(s, control) = -0.818`` here (delay arm: +0.030) and
+``rho(usage, control) = +0.822``, i.e. **the deletion control and selectivity are
+badly entangled in the no-delay arm**. So this curve is doing more work here than in
+the delay arm, and any conclusion drawn from it about ``s`` is not separable from
+general robustness. The arm's other standing caveat also applies: its readout leaves
+**+.300** of accuracy unextracted relative to a linear decoder on its own 1st hidden
+layer, on every checkpoint (delay arm: +.026).
 
 Relation to [phase1_measure.py](../v3_analysis/phase1_measure.py): that script
 measures only the ``p_d = 0.8`` endpoint of this sweep, because that single number
@@ -38,15 +40,13 @@ is the general-robustness covariate the Phase 1 regressions control on. This scr
 sweeps the full grid, which shows the *shape* of the degradation rather than one
 point of it.
 
-Where the delays sit relative to the perturbation site: ``delay1`` is the first
-operation *after* the 1st hidden layer's spikes, so deletion is applied upstream of
-it — exactly as in training, where the sparsity penalty also acts on the
-pre-``delay1`` spike tensor.
+Where the perturbation site sits: the 1st hidden layer's spikes feed ``fc2``
+directly, with no delay line in between, so deletion is applied exactly where the
+training penalties acted.
 
 Protocol rule (do not break): sparsity is applied during *training* on clean data;
 deletion is applied here at *evaluation* only. The loaded checkpoint is never
-modified, no gradients are taken, and the delays are used exactly as trained (the
-adaptive clamping schedule is a training-time device and has no role here).
+modified and no gradients are taken.
 
 Per-spike deletion: each 1st-hidden spike is dropped independently with probability
 ``p_d``; survivors keep their exact times and no spikes are added. This is the one
@@ -58,10 +58,10 @@ What this script does, for every checkpoint listed in the training summary (the
 authoritative live-checkpoint list — read rather than globbed, so we evaluate
 exactly the models the milestone locked and reuse their recorded metadata):
 
-- loads the SGD-delay architecture and the checkpoint's weights, in eval mode;
+- loads the no-delay architecture and the checkpoint's weights, in eval mode;
 - sweeps ``PD_VALUES`` on the 1st hidden layer, ``NUM_REPEATS`` times per p_d
   for error bars, all inside ``torch.no_grad()``;
-- writes ``log/sparse_whole_delay_v3_deletion_eval.json`` with two sections:
+- writes ``log/sparse_whole_nodelay_v3_deletion_eval.json`` with two sections:
   ``per_setup``, one **seed-averaged** row per ``(k, floor)`` cell — the
   headline, since the three seeds are replicates of one cell rather than three
   conditions — and ``per_checkpoint``, the raw per-seed ``acc(p_d)`` sweeps
@@ -74,11 +74,11 @@ baseline-normalised ``temporal_score``. Plot it against the *measured* axes ``a`
 (``spikes_per_active_neuron``) and ``s`` (``silent_fraction``) separately — never
 against ``spikes_per_neuron`` alone, which is their product and moves with both, and
 never against the penalty knobs, whose map to achieved sparsity is nonlinear and
-seed-dependent (document 5 §8 rule 1). Clean accuracy across this grid is .707-.859,
+seed-dependent (document 5 §8 rule 1). Clean accuracy across this grid is .465-.550,
 so raw accuracy drops are not comparable across cells; the normalised score is.
 
 Architecture: Input(700) -> 128 hidden -> 128 hidden -> 20 output (SRMALPHA), with
-learnable delays after each hidden layer.
+no learnable delays anywhere.
 Sweep (eval only): p_d in {0.0, 0.2, 0.4, 0.6, 0.8}.
 
 v3 note — this sweep needs no support-window correction, unlike relocation and
@@ -136,18 +136,18 @@ MAX_QUICK_CHECKPOINTS: int = 2
 
 # --- Milestone scope (matches the training script) ---
 DATASET_KEY: str = "whole"
-DELAY_TAG: str = "delay"      # this arm; tags the summary and results files
+DELAY_TAG: str = "nodelay"    # this arm; tags the summary and results files
 INPUT_DIM: int = 700          # SHD whole
 MAT_FILE: str = str(SHD_DATA_DIR / "shd_whole.mat")
 
 # Training generation to evaluate. "v3" selects the 24-model factorial grid trained
-# by sn_train_withDelay_v3.py; it matches that script's own VERSION_TAG, and it tags
+# by sn_train_noDelay_v3.py; it matches that script's own VERSION_TAG, and it tags
 # both the summary read here and the results written below, so v3 sweeps can never
 # collide with v1's files in log/.
 VERSION_TAG: str = "v3"
 
 # The training summary enumerating this arm's live v3 checkpoints. Its keys are the
-# run tags (``sparse_whole_delay_v3_k{k}_floor{F}_seed{seed}``) and
+# run tags (``sparse_whole_nodelay_v3_k{k}_floor{F}_seed{seed}``) and
 # ``sn_data/{run_tag}.pt`` is the matching checkpoint. The 4-corner calibration probe
 # is kept separately as ..._train_summary_probe.json and is NOT evaluated here.
 TRAIN_SUMMARY_FILE: str = (
@@ -208,7 +208,6 @@ HIDDEN_UNITS: int = 128
 NUM_CLASSES: int = 20
 BATCH_SIZE: int = 128
 SEED: int = 42                # base seed for the deletion repeats
-MAX_DELAY: int = 64           # recorded for parity with training; unused at eval
 
 # --- Deletion sweep: probability of dropping each spike. 0 = clean baseline. ---
 # The grid the earlier fixed-weight deletion experiments used, so this milestone's
@@ -347,14 +346,17 @@ def delete_hidden_batch(
 
 
 class SparseSHDNetwork(nn.Module):
-    """2-hidden-layer SLAYER SNN with learnable delays, for the sparse checkpoints.
+    """2-hidden-layer SLAYER SNN without delays, for the sparse checkpoints.
 
     The parameter set is identical to the training class of the same name in
-    [sn_train_withDelay_v3.py](../sn_train_withDelay_v3.py) — ``fc1``/``fc2``/``fc3``
-    weight-norm parameters plus ``delay1``/``delay2`` — so this class loads those
-    checkpoints directly. The training script's adaptive delay-clamping schedule is
-    deliberately absent: it shapes delays *during* training, and the loaded values
-    are used here exactly as saved.
+    [sn_train_noDelay_v3.py](../sn_train_noDelay_v3.py) — ``fc1``/``fc2``/``fc3``
+    weight-norm parameters and nothing else — so this class loads those checkpoints
+    directly.
+
+    Spikes propagate straight from one dense layer to the next, so the only timing
+    machinery in the whole model is the SRM neurons' own membrane dynamics. That is
+    what this arm is for: whatever survives the sweep cannot be credited to a
+    learnable delay line, because there is none.
 
     ``forward_with_hidden_perturbation`` deletes 1st hidden layer spikes before
     the readout. It is eval-only; nothing here is ever trained.
@@ -380,11 +382,6 @@ class SparseSHDNetwork(nn.Module):
             slayer.dense(hidden_units, num_classes), name="weight"
         )
 
-        # delay1 sits at the start of _second_hidden_and_output, i.e. immediately
-        # after the perturbation site; delay2 stays between the fc2 spike and fc3.
-        self.delay1 = slayer.delay(hidden_units)
-        self.delay2 = slayer.delay(hidden_units)
-
     def _prepare_input(self, x: torch.Tensor) -> torch.Tensor:
         """Ensure the input is 5-D NCHWT on the correct device."""
         if isinstance(x, np.ndarray):
@@ -398,12 +395,9 @@ class SparseSHDNetwork(nn.Module):
         return self.slayer.spike(self.fc1(self.slayer.psp(x)))
 
     def _second_hidden_and_output(self, hidden1: torch.Tensor) -> torch.Tensor:
-        """hidden1 -> delay1 -> fc2 -> spike -> delay2 -> fc3 -> spike."""
-        x = self.delay1(hidden1)
-        x = self.slayer.spike(self.fc2(self.slayer.psp(x)))
-        x = self.delay2(x)
-        x = self.slayer.spike(self.fc3(self.slayer.psp(x)))
-        return x
+        """hidden1 -> fc2 -> spike -> fc3 -> spike (no delays anywhere)."""
+        x = self.slayer.spike(self.fc2(self.slayer.psp(hidden1)))
+        return self.slayer.spike(self.fc3(self.slayer.psp(x)))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Clean forward pass (equivalent to the p_d = 0 baseline)."""
@@ -439,7 +433,7 @@ def load_checkpoint(
     checkpoint_path: Path,
     input_dim: int = INPUT_DIM,
 ) -> SparseSHDNetwork:
-    """Load a trained checkpoint into a fresh delay network in eval mode.
+    """Load a trained checkpoint into a fresh no-delay network in eval mode.
 
     Args:
         checkpoint_path: Path to the saved state_dict (.pt).
@@ -535,7 +529,7 @@ def load_train_summary() -> dict:
     if not summary_path.exists():
         raise FileNotFoundError(
             f"Training summary not found: {summary_path}. Run "
-            f"sn_train_withDelay_v3.py first — this script only evaluates existing "
+            f"sn_train_noDelay_v3.py first — this script only evaluates existing "
             f"checkpoints."
         )
     with open(summary_path) as fp:
@@ -561,7 +555,7 @@ def run_deletion_sweep(test_loader: DataLoader) -> dict:
 
     print(f"\n{'#' * 70}")
     print("# v3 Phase 1 (eval-only deletion, 1st hidden layer)")
-    print(f"# arm: SGD-delay | dataset: SHD {DATASET_KEY} | grid: {VERSION_TAG} | "
+    print(f"# arm: no-delay | dataset: SHD {DATASET_KEY} | grid: {VERSION_TAG} | "
           f"QUICK_TEST={QUICK_TEST}")
     print(f"# checkpoints: {len(run_tags)} | p_d: {pd_values} | "
           f"repeats: {num_repeats}")
@@ -584,7 +578,7 @@ def run_deletion_sweep(test_loader: DataLoader) -> dict:
             )
 
         results[run_tag] = {
-            "use_delay": True,
+            "use_delay": False,
             # Copied verbatim rather than cast, so integer knobs (``seed``) stay
             # integers and a downstream join on them cannot go wrong.
             **{
@@ -740,7 +734,7 @@ def print_summary_table(aggregated: dict, pd_values: list[float]) -> None:
 
 
 def main() -> None:
-    """Load the shared test set once, then sweep deletion over the with-delay arm."""
+    """Load the shared test set once, then sweep deletion over the no-delay arm."""
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
     # The test split is fixed, so one loader serves every checkpoint.

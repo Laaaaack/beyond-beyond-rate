@@ -4,25 +4,34 @@ Companion to the training script
 [sn_train_withDelay_v3.py](../sn_train_withDelay_v3.py), which trained the v3
 **factorial** — a per-pair ceiling ``relu(count - k)`` setting temporal sparsity
 ``a`` along ``CEILING_K = [1, 2, 4, 8]``, crossed with a membrane-potential floor
-setting selectivity ``s`` along ``FLOOR_STRENGTH = [0, 1]``, at seeds 42 and 43 —
-and saved one checkpoint per ``(k, floor, seed)``. This script performs **no
-training**. It loads each of those 16 checkpoints and measures how much test
+setting selectivity ``s`` along ``FLOOR_STRENGTH = [0, 1]``, at seeds 42, 43 and 44
+— and saved one checkpoint per ``(k, floor, seed)``. This script performs **no
+training**. It loads each of those 24 checkpoints and measures how much test
 accuracy degrades as the **1st hidden layer's** spikes are shifted in time at
 evaluation only.
 
 Why the v3 checkpoints rather than v1's: in v1 the two sparsity axes were
 confounded at ``rho(a, s) = -0.455`` in this arm and ``-0.943`` in the other, so no
 sweep over those models could attribute a trend to one rather than the other. The
-v3 grid breaks that by construction — ``rho(a, s) = -0.053`` (p = .85) across the
-16 models — which is what makes a shift curve read against ``a`` interpretable.
+v3 grid breaks that by construction — ``rho(a, s) = -0.087`` (p = .69) across the
+24 models — which is what makes a shift curve read against ``a`` interpretable.
 See document 5 §2b and §4 Phase 1.
 
-The no-delay v3 arm is calibrated but not yet trained, so it has no sibling script
-yet; when it is, it belongs beside this one as ``shift_evalOnly_noDelay_v3.py``.
-The arms are kept as separate scripts (rather than one script with a flag) for the
-same reason the training scripts are: this network carries the learnable axonal
-delays ``delay1``/``delay2``, which are themselves a timing mechanism, so its shift
-curve measures sparsity's effect *on top of* whatever the delays contribute.
+The no-delay arm is now trained as well, and its sibling is
+[shift_evalOnly_noDelay_v3.py](shift_evalOnly_noDelay_v3.py). The arms are kept as
+separate scripts (rather than one script with a flag) for the same reason the
+training scripts are: this network carries the learnable axonal delays
+``delay1``/``delay2``, which are themselves a timing mechanism, so its shift curve
+measures sparsity's effect *on top of* whatever the delays contribute, where the
+sibling's measures it with membrane dynamics as the only timing machinery in the
+model.
+
+**This is the primary arm for interpretation**, on two Phase 0 findings the factorial
+cannot fix because they concern the dependent variable: this arm's readout leaves only
+**+.026** of accuracy unextracted relative to a linear decoder on its own layer 1 (the
+no-delay arm: +.300, on every checkpoint), and its deletion control is essentially
+orthogonal to selectivity, ``rho(s, control) = +0.030`` against the no-delay arm's
+**-0.818**. Coefficients on ``s`` are separable here and are not there.
 
 Relation to [phase1_measure.py](../v3_analysis/phase1_measure.py): that script
 measures only the *endpoints* the Phase 1 regressions need (relocation ``f = 1``
@@ -41,7 +50,7 @@ modified, no gradients are taken, and the delays are used exactly as trained (th
 adaptive clamping schedule is a training-time device and has no role here).
 
 Per-neuron shift: one offset is drawn from ``N(0, sigma)`` per (sample, neuron) and
-*all* of that neuron's spikes move together, clipped to ``[0, T-1]``. Unlike shift,
+*all* of that neuron's spikes move together, clipped to ``[0, T-1]``. Unlike jitter,
 each neuron's internal spike pattern survives intact — only its alignment to the
 other neurons and to stimulus onset is destroyed. Spike count is preserved except
 where end-of-window clipping merges spikes, so this too is a timing perturbation
@@ -54,10 +63,13 @@ exactly the models the milestone locked and reuse their recorded metadata):
 - loads the SGD-delay architecture and the checkpoint's weights, in eval mode;
 - sweeps ``SIGMA_VALUES`` on the 1st hidden layer, ``NUM_REPEATS`` times per sigma
   for error bars, all inside ``torch.no_grad()``;
-- writes ``log/sparse_whole_delay_v3_shift_eval.json`` mapping each run tag to its
-  ``acc(sigma)`` sweep, alongside the training summary's design knobs
-  (``ceiling_k``, ``floor_strength``, ``seed``) and *measured* sparsity metrics, so
-  the file is self-contained for the analysis.
+- writes ``log/sparse_whole_delay_v3_shift_eval.json`` with two sections:
+  ``per_setup``, one **seed-averaged** row per ``(k, floor)`` cell — the
+  headline, since the three seeds are replicates of one cell rather than three
+  conditions — and ``per_checkpoint``, the raw per-seed ``acc(sigma)`` sweeps
+  it was computed from. Both carry the training summary's design knobs
+  (``ceiling_k``, ``floor_strength``, ``seed``) and *measured* sparsity metrics,
+  so the file is self-contained for the analysis.
 
 The downstream analysis turns each ``acc(sigma)`` curve into a chance-corrected,
 baseline-normalised ``temporal_score``. Plot it against the *measured* axes ``a``
@@ -131,7 +143,7 @@ DELAY_TAG: str = "delay"      # this arm; tags the summary and results files
 INPUT_DIM: int = 700          # SHD whole
 MAT_FILE: str = str(SHD_DATA_DIR / "shd_whole.mat")
 
-# Training generation to evaluate. "v3" selects the 16-model factorial grid trained
+# Training generation to evaluate. "v3" selects the 24-model factorial grid trained
 # by sn_train_withDelay_v3.py; it matches that script's own VERSION_TAG, and it tags
 # both the summary read here and the results written below, so v3 sweeps can never
 # collide with v1's files in log/.
@@ -156,6 +168,19 @@ SUMMARY_PASSTHROUGH_FIELDS: tuple[str, ...] = (
     "ceiling_strength",
     "floor_strength",
     "seed",
+    "clean_acc",
+    "firing_rate",
+    "spikes_per_neuron",
+    "spikes_per_active_neuron",
+    "silent_fraction",
+    "over_k_fraction",
+)
+
+# Per-checkpoint fields averaged across seeds in the per-setup summary. The seeds of
+# one ``(k, floor)`` cell are replicates of the same factorial cell, so these are the
+# cell's achieved values; their across-seed spread is reported alongside, because a
+# mean that hides its spread is how seed noise gets read as structure.
+AVERAGED_SUMMARY_FIELDS: tuple[str, ...] = (
     "clean_acc",
     "firing_rate",
     "spikes_per_neuron",
@@ -299,7 +324,7 @@ def shift_hidden_batch(
     drawn and every spike of that neuron is moved by it, then clipped to
     ``[0, T - 1]``. Spikes that collide after clipping are merged (logical OR).
 
-    This is the coarser sibling of the shift perturbation. Shift moves every spike
+    This is the coarser sibling of the jitter perturbation. Jitter moves every spike
     independently and so destroys a neuron's *internal* spike pattern; a shift
     translates that pattern intact and destroys only its alignment relative to the
     other neurons and to stimulus onset. A network reading absolute or cross-neuron
@@ -341,7 +366,7 @@ class SparseSHDNetwork(nn.Module):
     """2-hidden-layer SLAYER SNN with learnable delays, for the sparse checkpoints.
 
     The parameter set is identical to the training class of the same name in
-    [sn_train_withDelay.py](../sn_train_withDelay.py) — ``fc1``/``fc2``/``fc3``
+    [sn_train_withDelay_v3.py](../sn_train_withDelay_v3.py) — ``fc1``/``fc2``/``fc3``
     weight-norm parameters plus ``delay1``/``delay2`` — so this class loads those
     checkpoints directly. The training script's adaptive delay-clamping schedule is
     deliberately absent: it shapes delays *during* training, and the loaded values
@@ -540,7 +565,8 @@ def run_shift_sweep(test_loader: DataLoader) -> dict:
         test_loader: The shared (fixed-split) test DataLoader.
 
     Returns:
-        The results dict written to disk (run tag -> metadata + sigma sweep).
+        The payload written to disk: ``per_setup`` (one seed-averaged row per
+        ``(k, floor)`` cell) and ``per_checkpoint`` (the raw per-seed rows).
     """
     sigma_values, num_repeats, max_checkpoints = resolve_eval_config()
     train_summary = load_train_summary()
@@ -585,21 +611,112 @@ def run_shift_sweep(test_loader: DataLoader) -> dict:
             "sigma_sweep": sigma_sweep,
         }
 
+    # The per-setup average is the headline; the per-checkpoint rows it was
+    # computed from are kept beside it, because they are the raw measurement and
+    # because the across-seed spread cannot be recovered from a mean alone.
+    aggregated = aggregate_over_seeds(results, "sigma_sweep", sigma_values)
+    payload = {"per_setup": aggregated, "per_checkpoint": results}
+
     results_path = (
         LOG_DIR
         / f"sparse_{DATASET_KEY}_{DELAY_TAG}_{VERSION_TAG}_shift_eval"
           f"{RUN_SUFFIX}.json"
     )
     with open(results_path, "w") as fp:
-        json.dump(results, fp, indent=2)
-    print(f"\nShift sweep saved to {results_path}")
+        json.dump(payload, fp, indent=2)
+    print(f"\nShift sweep saved to {results_path} "
+          f"({len(results)} checkpoints -> {len(aggregated)} setups)")
 
-    print_summary_table(results, sigma_values)
-    return results
+    print_summary_table(aggregated, sigma_values)
+    return payload
 
 
-def print_summary_table(results: dict, sigma_values: list[int]) -> None:
-    """Print one row per checkpoint: both sparsity axes vs clean and shifted accuracy.
+def aggregate_over_seeds(results: dict, sweep_field: str,
+                         grid_values: list) -> dict:
+    """Collapse the per-seed checkpoints into one row per ``(k, floor)`` setup.
+
+    The seeds are replicates of the same factorial cell, so the *cell* is the unit
+    the design is about, and a per-seed table invites reading noise as structure —
+    the three seeds of one cell differ by up to .08 in clean accuracy here.
+
+    Two quantities are averaged, and the two averages are **not** interchangeable:
+
+    - ``acc(sigma)`` at each grid point is averaged directly across seeds, which is
+      what a curve should show;
+    - ``retention`` is computed **per seed, against that seed's own clean accuracy**,
+      and only then averaged. The score exists to normalise away each model's
+      differing headroom above chance, so deriving it from an already-averaged curve
+      divided by an averaged baseline would put exactly that variation back in.
+
+    Args:
+        results: Per-checkpoint results, run tag -> metadata + sweep.
+        sweep_field: Key holding the sweep dict in each per-checkpoint row.
+        grid_values: The swept grid, in order. Its two ends define ``retention``.
+
+    Returns:
+        Dict keyed ``k{k}_floor{f}`` -> the cell's averaged metrics, ordered by
+        ``(ceiling_k, floor_strength)``. Every averaged field is accompanied by its
+        across-seed standard deviation and by the per-seed values it came from.
+    """
+    chance = 1.0 / NUM_CLASSES
+    grid_keys = [str(value) for value in grid_values]
+
+    cells: dict[str, list[dict]] = {}
+    for row in results.values():
+        setup_tag = f"k{row['ceiling_k']:g}_floor{row['floor_strength']:g}"
+        cells.setdefault(setup_tag, []).append(row)
+
+    aggregated: dict[str, dict] = {}
+    for setup_tag in sorted(cells, key=lambda tag: (cells[tag][0]["ceiling_k"],
+                                                    cells[tag][0]["floor_strength"])):
+        rows = sorted(cells[setup_tag], key=lambda row: row["seed"])
+
+        sweep = {}
+        for key in grid_keys:
+            per_seed = [row[sweep_field][key]["mean"] for row in rows]
+            sweep[key] = {
+                "mean": float(np.mean(per_seed)),
+                "std": float(np.std(per_seed)),
+                "values": [float(value) for value in per_seed],
+            }
+
+        retentions = []
+        for row in rows:
+            clean = row[sweep_field][grid_keys[0]]["mean"]
+            worst = row[sweep_field][grid_keys[-1]]["mean"]
+            headroom = clean - chance
+            retentions.append((worst - chance) / headroom
+                              if headroom > 0 else float("nan"))
+
+        averaged = {}
+        for field in AVERAGED_SUMMARY_FIELDS:
+            if field not in rows[0]:
+                continue
+            per_seed = [row[field] for row in rows]
+            averaged[field] = float(np.mean(per_seed))
+            averaged[f"{field}_std"] = float(np.std(per_seed))
+
+        aggregated[setup_tag] = {
+            "ceiling_k": rows[0]["ceiling_k"],
+            "floor_strength": rows[0]["floor_strength"],
+            "n_seeds": len(rows),
+            "seeds": [row["seed"] for row in rows],
+            "retention": float(np.mean(retentions)),
+            "retention_std": float(np.std(retentions)),
+            "retention_per_seed": [float(value) for value in retentions],
+            **averaged,
+            sweep_field: sweep,
+        }
+    return aggregated
+
+
+def format_mean_std(mean: float, std: float, decimals: int = 3) -> str:
+    """Render one averaged quantity as ``mean+-std`` for the printed table."""
+    return f"{mean:.{decimals}f}+-{std:.{decimals}f}"
+
+
+def print_summary_table(aggregated: dict, sigma_values: list[int]) -> None:
+    """Print one row per ``(k, floor)`` setup, averaged over its seeds.
 
     ``retention`` is the chance-corrected fraction of accuracy surviving the
     strongest shift; the analysis's ``temporal_score`` is ``1 - retention``. It is
@@ -609,29 +726,33 @@ def print_summary_table(results: dict, sigma_values: list[int]) -> None:
     ``a`` and ``s`` are both shown, and ``sp/neu`` (their product) last, because the
     whole point of the v3 grid is that the first two move independently: reading a
     trend off the product alone is exactly the mistake that made v1 uninterpretable
-    (document 5 §8 rule 1).
+    (document 5 §8 rule 1). Every column carries its across-seed spread, so a cell
+    whose seeds disagree cannot be mistaken for a tight one.
 
     Args:
-        results: The results dict produced by ``run_shift_sweep``.
+        aggregated: The per-setup dict produced by ``aggregate_over_seeds``.
         sigma_values: The sigma grid that was swept, in order.
     """
-    chance = 1.0 / NUM_CLASSES
     sigma_min, sigma_max = str(sigma_values[0]), str(sigma_values[-1])
 
     print(
-        f"\n{'run_tag':<40} {'a':>6} {'s':>7} {'sp/neu':>7} {'acc(0)':>8} "
-        f"{'acc(' + sigma_max + ')':>9} {'retention':>10}"
+        f"\n{'setup':<14} {'n':>2} {'a':>13} {'s':>13} {'sp/neu':>7} "
+        f"{'acc(' + sigma_min + ')':>15} {'acc(' + sigma_max + ')':>15} "
+        f"{'retention':>15}"
     )
-    for run_tag, row in results.items():
-        clean = row["sigma_sweep"][sigma_min]["mean"]
-        worst = row["sigma_sweep"][sigma_max]["mean"]
-        headroom = clean - chance
-        retention = (worst - chance) / headroom if headroom > 0 else float("nan")
+    for setup_tag, row in aggregated.items():
+        sweep = row["sigma_sweep"]
         print(
-            f"{run_tag:<40} {row['spikes_per_active_neuron']:>6.2f} "
-            f"{row['silent_fraction']:>7.3f} {row['spikes_per_neuron']:>7.2f} "
-            f"{clean:>8.4f} {worst:>9.4f} {retention:>10.3f}"
+            f"{setup_tag:<14} {row['n_seeds']:>2} "
+            f"{format_mean_std(row['spikes_per_active_neuron'], row['spikes_per_active_neuron_std'], 2):>13} "
+            f"{format_mean_std(row['silent_fraction'], row['silent_fraction_std'], 3):>13} "
+            f"{row['spikes_per_neuron']:>7.2f} "
+            f"{format_mean_std(sweep[sigma_min]['mean'], sweep[sigma_min]['std'], 4):>15} "
+            f"{format_mean_std(sweep[sigma_max]['mean'], sweep[sigma_max]['std'], 4):>15} "
+            f"{format_mean_std(row['retention'], row['retention_std'], 3):>15}"
         )
+    print("\n  Means over seeds; +- is the across-seed standard deviation. "
+          "Per-seed rows are kept in the results file under 'per_checkpoint'.")
 
 
 def main() -> None:

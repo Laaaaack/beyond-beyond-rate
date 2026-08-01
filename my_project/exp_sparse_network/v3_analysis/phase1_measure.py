@@ -92,7 +92,7 @@ NUM_REPEATS: int = 3
 
 # Which training generation and arms to measure.
 VERSION_TAG: str = "v3_"
-ARMS: tuple[tuple[str, bool], ...] = (("delay", True),)
+ARMS: tuple[tuple[str, bool], ...] = (("delay", True), ("nodelay", False))
 
 
 class SparseNetwork(nn.Module):

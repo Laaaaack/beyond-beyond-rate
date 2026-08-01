@@ -1,94 +1,101 @@
-"""v3 Phase 1, WITH-DELAY arm: 1st-hidden-layer deletion sweep, eval-only.
+"""v3 Phase 1, NO-DELAY arm: 1st-hidden-layer shift sweep, eval-only.
 
 Companion to the training script
-[sn_train_withDelay_v3.py](../sn_train_withDelay_v3.py), which trained the v3
+[sn_train_noDelay_v3.py](../sn_train_noDelay_v3.py), which trained the v3
 **factorial** — a per-pair ceiling ``relu(count - k)`` setting temporal sparsity
 ``a`` along ``CEILING_K = [1, 2, 4, 8]``, crossed with a membrane-potential floor
 setting selectivity ``s`` along ``FLOOR_STRENGTH = [0, 1]``, at seeds 42, 43 and 44
 — and saved one checkpoint per ``(k, floor, seed)``. This script performs **no
 training**. It loads each of those 24 checkpoints and measures how much test
-accuracy degrades as the **1st hidden layer's** spikes are deleted at evaluation
-only.
+accuracy degrades as the **1st hidden layer's** spikes are shifted in time at
+evaluation only.
 
-Why the v3 checkpoints rather than v1's: in v1 the two sparsity axes were
-confounded at ``rho(a, s) = -0.455`` in this arm and ``-0.943`` in the other, so no
-sweep over those models could attribute a trend to one rather than the other. The
-v3 grid breaks that by construction — ``rho(a, s) = -0.087`` (p = .69) across the
-24 models — which is what makes a deletion curve read against ``a`` interpretable.
-See document 5 §2b and §4 Phase 1.
+Why the v3 checkpoints rather than v1's: in v1 this arm's two sparsity axes were
+confounded at ``rho(a, s) = -0.943`` — the worst figure in the project — so no sweep
+over those models could attribute a trend to one rather than the other. The v3 grid
+breaks that by construction: ``rho(a, s) = -0.342`` (p = .10) across the 24 models,
+which is what makes a shift curve read against ``a`` interpretable. See document 5
+§2b and §4 Phase 1.
 
-The no-delay arm is now trained as well, and its sibling is
-[deletion_evalOnly_noDelay_v3.py](deletion_evalOnly_noDelay_v3.py). The arms are kept
+Which arm this is, and what it is for. The sibling is
+[shift_evalOnly_withDelay_v3.py](shift_evalOnly_withDelay_v3.py). The arms are kept
 as separate scripts (rather than one script with a flag) for the same reason the
-training scripts are: this network carries the learnable axonal delays
-``delay1``/``delay2``, which are themselves a timing mechanism, so its deletion curve
-measures sparsity's effect *on top of* whatever the delays contribute.
+training scripts are: that one carries the learnable axonal delays
+``delay1``/``delay2``, which are themselves a timing mechanism, so its curve measures
+sparsity's effect *on top of* whatever the delays contribute. **Here there are no
+delays at all**, so any timing effect this sweep finds is attributable to the SRM
+neurons' membrane dynamics alone — which is what makes this arm worth running as a
+replication rather than a duplicate.
 
-**This is the primary arm for interpretation**, and for this sweep in particular:
-here the deletion control is essentially orthogonal to selectivity,
-``rho(s, control) = +0.030``, where in the no-delay arm the two are entangled at
-**-0.818** (VIF 3.2) and ``rho(usage, control) = +0.822``. So this arm can hold
-general robustness fixed and still read a coefficient on ``s``; the other cannot.
-The readout gap points the same way — +.026 here against +.300 on every no-delay
-checkpoint.
+Two caveats specific to this arm, both from Phase 0 and neither fixable by the
+factorial, because they concern the *dependent* variable rather than the independent
+ones:
+
+- this arm's readout leaves **+.300** of accuracy unextracted relative to a linear
+  decoder on its own 1st hidden layer, on **every** checkpoint (delay arm: +.026), so
+  a ``temporal_score`` here is as much a statement about ``fc2``/``fc3`` as about
+  layer 1;
+- its deletion control is strongly tied to selectivity, ``rho(s, control) = -0.818``
+  against the delay arm's +0.030, so a trend attributed to ``a`` here is on much
+  firmer ground than one attributed to ``s``.
 
 Relation to [phase1_measure.py](../v3_analysis/phase1_measure.py): that script
-measures only the ``p_d = 0.8`` endpoint of this sweep, because that single number
-is the general-robustness covariate the Phase 1 regressions control on. This script
-sweeps the full grid, which shows the *shape* of the degradation rather than one
-point of it.
+measures only the *endpoints* the Phase 1 regressions need (relocation ``f = 1``
+and the ``p_d = 0.8`` deletion control) on these same checkpoints. Shift is not one
+of them — it is the cross-neuron alignment probe, kept here as a second, coarser
+timing perturbation to read the relocation result against.
 
-Where the delays sit relative to the perturbation site: ``delay1`` is the first
-operation *after* the 1st hidden layer's spikes, so deletion is applied upstream of
-it — exactly as in training, where the sparsity penalty also acts on the
-pre-``delay1`` spike tensor.
+Where the perturbation site sits: the 1st hidden layer's spikes feed ``fc2``
+directly, with no delay line in between, so the shift is injected exactly where the
+training penalties acted.
 
 Protocol rule (do not break): sparsity is applied during *training* on clean data;
-deletion is applied here at *evaluation* only. The loaded checkpoint is never
-modified, no gradients are taken, and the delays are used exactly as trained (the
-adaptive clamping schedule is a training-time device and has no role here).
+shift is applied here at *evaluation* only. The loaded checkpoint is never
+modified and no gradients are taken.
 
-Per-spike deletion: each 1st-hidden spike is dropped independently with probability
-``p_d``; survivors keep their exact times and no spikes are added. This is the one
-perturbation here that is *not* rate-preserving — it is the milestone's
-rate/robustness control, and its curve is read against the timing perturbations
-(jitter, shift) rather than as a timing measure on its own.
+Per-neuron shift: one offset is drawn from ``N(0, sigma)`` per (sample, neuron) and
+*all* of that neuron's spikes move together, clipped to ``[0, T-1]``. Unlike jitter,
+each neuron's internal spike pattern survives intact — only its alignment to the
+other neurons and to stimulus onset is destroyed. Spike count is preserved except
+where end-of-window clipping merges spikes, so this too is a timing perturbation
+rather than a rate one.
 
 What this script does, for every checkpoint listed in the training summary (the
 authoritative live-checkpoint list — read rather than globbed, so we evaluate
 exactly the models the milestone locked and reuse their recorded metadata):
 
-- loads the SGD-delay architecture and the checkpoint's weights, in eval mode;
-- sweeps ``PD_VALUES`` on the 1st hidden layer, ``NUM_REPEATS`` times per p_d
+- loads the no-delay architecture and the checkpoint's weights, in eval mode;
+- sweeps ``SIGMA_VALUES`` on the 1st hidden layer, ``NUM_REPEATS`` times per sigma
   for error bars, all inside ``torch.no_grad()``;
-- writes ``log/sparse_whole_delay_v3_deletion_eval.json`` with two sections:
+- writes ``log/sparse_whole_nodelay_v3_shift_eval.json`` with two sections:
   ``per_setup``, one **seed-averaged** row per ``(k, floor)`` cell — the
   headline, since the three seeds are replicates of one cell rather than three
-  conditions — and ``per_checkpoint``, the raw per-seed ``acc(p_d)`` sweeps
+  conditions — and ``per_checkpoint``, the raw per-seed ``acc(sigma)`` sweeps
   it was computed from. Both carry the training summary's design knobs
   (``ceiling_k``, ``floor_strength``, ``seed``) and *measured* sparsity metrics,
   so the file is self-contained for the analysis.
 
-The downstream analysis turns each ``acc(p_d)`` curve into a chance-corrected,
+The downstream analysis turns each ``acc(sigma)`` curve into a chance-corrected,
 baseline-normalised ``temporal_score``. Plot it against the *measured* axes ``a``
 (``spikes_per_active_neuron``) and ``s`` (``silent_fraction``) separately — never
 against ``spikes_per_neuron`` alone, which is their product and moves with both, and
 never against the penalty knobs, whose map to achieved sparsity is nonlinear and
-seed-dependent (document 5 §8 rule 1). Clean accuracy across this grid is .707-.859,
+seed-dependent (document 5 §8 rule 1). Clean accuracy across this grid is .465-.550,
 so raw accuracy drops are not comparable across cells; the normalised score is.
 
 Architecture: Input(700) -> 128 hidden -> 128 hidden -> 20 output (SRMALPHA), with
-learnable delays after each hidden layer.
-Sweep (eval only): p_d in {0.0, 0.2, 0.4, 0.6, 0.8}.
+no learnable delays anywhere.
+Sweep (eval only): sigma in {0, 1, 3, 5, 10, 17, 25} time steps (ms).
 
 v3 note — this sweep needs no support-window correction, unlike relocation and
-jitter. Deletion removes spikes and never chooses a destination bin, so there is no
-window to confine and the temporal support is irrelevant to it. Its role in v3 is
-unchanged: it is the general-robustness control the timing probes are read against,
-and Phase 0 showed that control is not optional — it tracked sparsity at +0.936 /
-+0.713, nearly as strongly as the timing probes did, so much of what looks like a
-timing effect is a network simply being robust to hidden interference of any kind.
-See ``v3_analysis/temporal_support.py`` and document 5 §2a, §4 Phase 0.
+jitter. A shift is a *rigid translation* of one neuron's whole spike train, so it
+preserves the population's instantaneous spike density exactly and never dilutes it
+into the zero-padded tail; the rate insult that the other two probes acquire from
+the padding simply does not arise here. Clipping targets to the measured support
+``[0, 88)`` would instead pile spikes up at the support edge and merge them, which
+*would* destroy per-neuron count — so the full-window clip below is the correct
+choice for this perturbation, not an oversight. See
+``v3_analysis/temporal_support.py`` and document 5 §2a.
 """
 
 import json
@@ -103,11 +110,11 @@ from torch.utils.data import Dataset, DataLoader
 # Directory of this script. Dataset, checkpoint, and log paths are anchored here so
 # the script can be launched from any working directory. The sparsity training is
 # shared across the perturbation experiments, so its checkpoints and summaries live
-# one level up in exp_sparse_network/; only this deletion eval's own output is local.
+# one level up in exp_sparse_network/; only this shift eval's own output is local.
 SCRIPT_DIR = Path(__file__).resolve().parent
 CKPT_DIR = SCRIPT_DIR / ".." / "sn_data"        # trained checkpoints read from here
 TRAIN_LOG_DIR = SCRIPT_DIR / ".." / "sn_log"    # training summary read from here
-LOG_DIR = SCRIPT_DIR / "log"                    # deletion eval results written here
+LOG_DIR = SCRIPT_DIR / "log"                    # shift eval results written here
 SHD_DATA_DIR = SCRIPT_DIR / ".." / "shd" / "shd_data"  # SHD .mat source
 
 # slayerSNN is provided by the workspace venv (pip-installed egg); a plain import
@@ -122,7 +129,7 @@ print(f"Using device: {device}")
 # Global Configuration
 # =====================================================================
 # Quick pipeline check. True evaluates only the first MAX_QUICK_CHECKPOINTS models
-# on a coarse p_d grid with a single repeat, and suffixes the output file with
+# on a coarse sigma grid with a single repeat, and suffixes the output file with
 # RUN_SUFFIX so a probe can never overwrite the real eval results. False = the real
 # sweep over every checkpoint in the training summary.
 QUICK_TEST: bool = False
@@ -136,18 +143,18 @@ MAX_QUICK_CHECKPOINTS: int = 2
 
 # --- Milestone scope (matches the training script) ---
 DATASET_KEY: str = "whole"
-DELAY_TAG: str = "delay"      # this arm; tags the summary and results files
+DELAY_TAG: str = "nodelay"    # this arm; tags the summary and results files
 INPUT_DIM: int = 700          # SHD whole
 MAT_FILE: str = str(SHD_DATA_DIR / "shd_whole.mat")
 
 # Training generation to evaluate. "v3" selects the 24-model factorial grid trained
-# by sn_train_withDelay_v3.py; it matches that script's own VERSION_TAG, and it tags
+# by sn_train_noDelay_v3.py; it matches that script's own VERSION_TAG, and it tags
 # both the summary read here and the results written below, so v3 sweeps can never
 # collide with v1's files in log/.
 VERSION_TAG: str = "v3"
 
 # The training summary enumerating this arm's live v3 checkpoints. Its keys are the
-# run tags (``sparse_whole_delay_v3_k{k}_floor{F}_seed{seed}``) and
+# run tags (``sparse_whole_nodelay_v3_k{k}_floor{F}_seed{seed}``) and
 # ``sn_data/{run_tag}.pt`` is the matching checkpoint. The 4-corner calibration probe
 # is kept separately as ..._train_summary_probe.json and is NOT evaluated here.
 TRAIN_SUMMARY_FILE: str = (
@@ -207,31 +214,30 @@ TEST_RANGE = (0.75, 0.9)
 HIDDEN_UNITS: int = 128
 NUM_CLASSES: int = 20
 BATCH_SIZE: int = 128
-SEED: int = 42                # base seed for the deletion repeats
-MAX_DELAY: int = 64           # recorded for parity with training; unused at eval
+SEED: int = 42                # base seed for the shift repeats
 
-# --- Deletion sweep: probability of dropping each spike. 0 = clean baseline. ---
-# The grid the earlier fixed-weight deletion experiments used, so this milestone's
-# curves can be read beside them.
-PD_VALUES: list[float] = [0.0, 0.2, 0.4, 0.6, 0.8]
+# --- Shift sweep: sigma in time steps (ms). 0 = clean baseline. ---
+# The same grid the jitter sweep uses, so the two timing perturbations share one
+# x-axis; it also matches the earlier fixed-weight perturbation results.
+SIGMA_VALUES: list[int] = [0, 1, 3, 5, 10, 17, 25]
 
-# --- Repeats per p_d, for error bars (the deletion mask is stochastic). ---
+# --- Repeats per sigma, for error bars (the shift draw is stochastic). ---
 NUM_REPEATS: int = 3
 
 
-def resolve_eval_config() -> tuple[list[float], int, int | None]:
-    """Return (pd_values, num_repeats, max_checkpoints) for this run.
+def resolve_eval_config() -> tuple[list[int], int, int | None]:
+    """Return (sigma_values, num_repeats, max_checkpoints) for this run.
 
     Collapses to a tiny, fast sweep when ``QUICK_TEST`` is set, so the eval
     pipeline can be validated before committing to every checkpoint.
 
     Returns:
-        Tuple of (pd_values, num_repeats, max_checkpoints), where
+        Tuple of (sigma_values, num_repeats, max_checkpoints), where
         ``max_checkpoints`` is None for the real run (evaluate all of them).
     """
     if QUICK_TEST:
-        return [0.0, 0.4, 0.8], 1, MAX_QUICK_CHECKPOINTS
-    return PD_VALUES, NUM_REPEATS, None
+        return [0, 5, 25], 1, MAX_QUICK_CHECKPOINTS
+    return SIGMA_VALUES, NUM_REPEATS, None
 
 
 def load_shd_data(mat_path: str, target_T: int = 200) -> tuple[np.ndarray, np.ndarray]:
@@ -294,7 +300,7 @@ def build_test_loader(
 
     The split is a fixed fractional range, so the test set is identical to the one
     the training script held out — and identical across every checkpoint and both
-    arms — which is what makes the deletion curves comparable.
+    arms — which is what makes the shift curves comparable.
 
     Args:
         X: Full dataset features, shape (N, neurons, T).
@@ -311,53 +317,69 @@ def build_test_loader(
 
 
 @torch.no_grad()
-def delete_hidden_batch(
+def shift_hidden_batch(
     hidden_spikes: torch.Tensor,
-    p_d: float,
+    sigma: float,
 ) -> torch.Tensor:
-    """Vectorised GPU-side per-spike deletion (eval-only helper).
+    """Vectorised GPU-side per-neuron Gaussian shift (eval-only helper).
 
-    Each spike is kept independently with probability ``1 - p_d`` via a Bernoulli
-    mask drawn directly on the input device. Surviving spike times are unchanged
-    and no new spikes are created.
+    For each ``(sample, neuron)`` a single integer offset ``round(N(0, sigma))`` is
+    drawn and every spike of that neuron is moved by it, then clipped to
+    ``[0, T - 1]``. Spikes that collide after clipping are merged (logical OR).
 
-    Unlike jitter and shift, this perturbation is deliberately **not**
-    rate-preserving: it removes roughly a fraction ``p_d`` of the layer's spikes
-    outright. It is the milestone's rate/robustness control rather than a timing
-    measure. A network whose accuracy rests on a few precisely-placed spikes should
-    degrade faster than one whose accuracy rests on a redundant population rate, so
-    this curve is read *against* the timing perturbations — an already-sparse layer
-    has fewer spikes to lose, which is itself part of what the comparison probes.
+    This is the coarser sibling of the jitter perturbation. Jitter moves every spike
+    independently and so destroys a neuron's *internal* spike pattern; a shift
+    translates that pattern intact and destroys only its alignment relative to the
+    other neurons and to stimulus onset. A network reading absolute or cross-neuron
+    spike timing loses accuracy here; one reading each neuron's own inter-spike
+    structure, or just its rate, does not.
+
+    Spike count is preserved except where end-of-window clipping merges spikes,
+    which is why the shift grid stays small relative to ``T = 200``.
 
     Args:
         hidden_spikes: SLAYER-format tensor of shape (B, C, 1, 1, T).
-        p_d: Per-spike deletion probability in [0, 1]. 0 means no deletion.
+        sigma: Per-neuron shift std dev in time steps (ms). 0 means no shift.
 
     Returns:
-        Spike tensor with the same shape, dtype and device.
+        Shifted tensor with the same shape, dtype and device.
     """
-    if p_d <= 0:
+    if sigma <= 0:
         return hidden_spikes
-    if p_d >= 1:
-        return torch.zeros_like(hidden_spikes)
 
-    is_spike = hidden_spikes > 0.5
-    keep = torch.rand_like(hidden_spikes) > p_d
-    return (is_spike & keep).to(hidden_spikes.dtype)
+    B, C, H, W, T = hidden_spikes.shape
+    x = hidden_spikes.view(B, C, T)
+    is_spike = (x > 0.5).to(x.dtype)
+
+    # One integer offset per (sample, neuron); broadcast over the time axis.
+    offset = (torch.randn(B, C, 1, device=x.device) * sigma).round().long()
+    t_idx = torch.arange(T, device=x.device).view(1, 1, T)
+    target = (t_idx + offset).clamp(0, T - 1).expand(B, C, T).contiguous()
+
+    # Scatter each source bin's spike onto its shifted target; summing then
+    # thresholding merges colliding spikes as a logical OR.
+    new_x = torch.zeros_like(x)
+    new_x.scatter_add_(-1, target, is_spike)
+    new_x = (new_x > 0.5).to(hidden_spikes.dtype)
+
+    return new_x.view(B, C, H, W, T)
 
 
 class SparseSHDNetwork(nn.Module):
-    """2-hidden-layer SLAYER SNN with learnable delays, for the sparse checkpoints.
+    """2-hidden-layer SLAYER SNN without delays, for the sparse checkpoints.
 
     The parameter set is identical to the training class of the same name in
-    [sn_train_withDelay_v3.py](../sn_train_withDelay_v3.py) — ``fc1``/``fc2``/``fc3``
-    weight-norm parameters plus ``delay1``/``delay2`` — so this class loads those
-    checkpoints directly. The training script's adaptive delay-clamping schedule is
-    deliberately absent: it shapes delays *during* training, and the loaded values
-    are used here exactly as saved.
+    [sn_train_noDelay_v3.py](../sn_train_noDelay_v3.py) — ``fc1``/``fc2``/``fc3``
+    weight-norm parameters and nothing else — so this class loads those checkpoints
+    directly.
 
-    ``forward_with_hidden_perturbation`` deletes 1st hidden layer spikes before
-    the readout. It is eval-only; nothing here is ever trained.
+    Spikes propagate straight from one dense layer to the next, so the only timing
+    machinery in the whole model is the SRM neurons' own membrane dynamics. That is
+    what this arm is for: whatever survives the sweep cannot be credited to a
+    learnable delay line, because there is none.
+
+    ``forward_with_hidden_perturbation`` shifts the 1st hidden layer before the
+    readout. It is eval-only; nothing here is ever trained.
     """
 
     def __init__(
@@ -380,11 +402,6 @@ class SparseSHDNetwork(nn.Module):
             slayer.dense(hidden_units, num_classes), name="weight"
         )
 
-        # delay1 sits at the start of _second_hidden_and_output, i.e. immediately
-        # after the perturbation site; delay2 stays between the fc2 spike and fc3.
-        self.delay1 = slayer.delay(hidden_units)
-        self.delay2 = slayer.delay(hidden_units)
-
     def _prepare_input(self, x: torch.Tensor) -> torch.Tensor:
         """Ensure the input is 5-D NCHWT on the correct device."""
         if isinstance(x, np.ndarray):
@@ -398,15 +415,12 @@ class SparseSHDNetwork(nn.Module):
         return self.slayer.spike(self.fc1(self.slayer.psp(x)))
 
     def _second_hidden_and_output(self, hidden1: torch.Tensor) -> torch.Tensor:
-        """hidden1 -> delay1 -> fc2 -> spike -> delay2 -> fc3 -> spike."""
-        x = self.delay1(hidden1)
-        x = self.slayer.spike(self.fc2(self.slayer.psp(x)))
-        x = self.delay2(x)
-        x = self.slayer.spike(self.fc3(self.slayer.psp(x)))
-        return x
+        """hidden1 -> fc2 -> spike -> fc3 -> spike (no delays anywhere)."""
+        x = self.slayer.spike(self.fc2(self.slayer.psp(hidden1)))
+        return self.slayer.spike(self.fc3(self.slayer.psp(x)))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Clean forward pass (equivalent to the p_d = 0 baseline)."""
+        """Clean forward pass (equivalent to the sigma = 0 baseline)."""
         x = self._prepare_input(x)
         hidden1 = self._first_hidden(x)
         return self._second_hidden_and_output(hidden1)
@@ -414,24 +428,24 @@ class SparseSHDNetwork(nn.Module):
     def forward_with_hidden_perturbation(
         self,
         x: torch.Tensor,
-        p_d: float = 0.0,
+        sigma: float = 0.0,
     ) -> torch.Tensor:
-        """Eval-only: delete 1st hidden layer spikes before the readout.
+        """Eval-only: shift the 1st hidden layer's spikes before the readout.
 
-        Must be called inside ``torch.no_grad()`` — ``delete_hidden_batch`` is not
-        autograd-safe. ``p_d = 0`` reduces to the clean forward pass.
+        Must be called inside ``torch.no_grad()`` — ``shift_hidden_batch`` is not
+        autograd-safe. ``sigma = 0`` reduces to the clean forward pass.
 
         Args:
             x: Input spike trains.
-            p_d: Per-spike deletion probability in [0, 1].
+            sigma: Shift std dev in time steps (ms).
 
         Returns:
             The output spike tensor.
         """
         x = self._prepare_input(x)
         hidden1 = self._first_hidden(x)
-        if p_d > 0:
-            hidden1 = delete_hidden_batch(hidden1, p_d)
+        if sigma > 0:
+            hidden1 = shift_hidden_batch(hidden1, sigma)
         return self._second_hidden_and_output(hidden1)
 
 
@@ -439,7 +453,7 @@ def load_checkpoint(
     checkpoint_path: Path,
     input_dim: int = INPUT_DIM,
 ) -> SparseSHDNetwork:
-    """Load a trained checkpoint into a fresh delay network in eval mode.
+    """Load a trained checkpoint into a fresh no-delay network in eval mode.
 
     Args:
         checkpoint_path: Path to the saved state_dict (.pt).
@@ -462,17 +476,17 @@ def load_checkpoint(
 
 
 @torch.no_grad()
-def test_at_pd(
+def test_at_sigma(
     net: SparseSHDNetwork,
     test_loader: DataLoader,
-    p_d: float,
+    sigma: float,
 ) -> float:
-    """Return test accuracy with spikes deleted from the 1st hidden layer at ``p_d``.
+    """Return test accuracy with the 1st hidden layer shifted at ``sigma``.
 
     Args:
         net: Loaded network in eval mode.
         test_loader: Test DataLoader.
-        p_d: Per-spike deletion probability; 0 is the clean baseline.
+        sigma: Shift std dev in time steps (ms); 0 is the clean baseline.
 
     Returns:
         Fraction of correctly classified test samples.
@@ -480,7 +494,7 @@ def test_at_pd(
     correct = 0
     total = 0
     for x_batch, y_batch in test_loader:
-        outputs = net.forward_with_hidden_perturbation(x_batch, p_d=p_d)
+        outputs = net.forward_with_hidden_perturbation(x_batch, sigma=sigma)
         pred = snn.predict.getClass(outputs)
         correct += (pred.cpu() == y_batch.cpu()).sum().item()
         total += y_batch.size(0)
@@ -490,21 +504,21 @@ def test_at_pd(
 def test_with_repeats(
     net: SparseSHDNetwork,
     test_loader: DataLoader,
-    p_d: float,
+    sigma: float,
     num_repeats: int,
 ) -> dict:
-    """Repeat the thinned evaluation ``num_repeats`` times for error bars.
+    """Repeat the shifted evaluation ``num_repeats`` times for error bars.
 
-    Each repeat re-seeds torch (which seeds the CUDA generator the deletion mask draws
+    Each repeat re-seeds torch (which seeds the CUDA generator the shift draws
     from) so the perturbation differs run to run but the whole sweep is
-    reproducible. ``p_d = 0`` involves no draw, so its repeats are identical and
+    reproducible. ``sigma = 0`` involves no draw, so its repeats are identical and
     its std must come out at 0 — a useful check that no other randomness leaks into
     evaluation.
 
     Args:
         net: Loaded network in eval mode.
         test_loader: Test DataLoader.
-        p_d: Per-spike deletion probability in [0, 1].
+        sigma: Shift std dev in time steps (ms).
         num_repeats: Number of repeats.
 
     Returns:
@@ -514,7 +528,7 @@ def test_with_repeats(
     for repeat in range(num_repeats):
         torch.manual_seed(SEED + repeat)
         np.random.seed(SEED + repeat)
-        accuracies.append(test_at_pd(net, test_loader, p_d))
+        accuracies.append(test_at_sigma(net, test_loader, sigma))
     return {
         "mean": float(np.mean(accuracies)),
         "std": float(np.std(accuracies)),
@@ -535,15 +549,15 @@ def load_train_summary() -> dict:
     if not summary_path.exists():
         raise FileNotFoundError(
             f"Training summary not found: {summary_path}. Run "
-            f"sn_train_withDelay_v3.py first — this script only evaluates existing "
+            f"sn_train_noDelay_v3.py first — this script only evaluates existing "
             f"checkpoints."
         )
     with open(summary_path) as fp:
         return json.load(fp)
 
 
-def run_deletion_sweep(test_loader: DataLoader) -> dict:
-    """Sweep eval-only 1st-layer deletion over every checkpoint and save the results.
+def run_shift_sweep(test_loader: DataLoader) -> dict:
+    """Sweep eval-only 1st-layer shift over every checkpoint and save the results.
 
     Args:
         test_loader: The shared (fixed-split) test DataLoader.
@@ -552,7 +566,7 @@ def run_deletion_sweep(test_loader: DataLoader) -> dict:
         The payload written to disk: ``per_setup`` (one seed-averaged row per
         ``(k, floor)`` cell) and ``per_checkpoint`` (the raw per-seed rows).
     """
-    pd_values, num_repeats, max_checkpoints = resolve_eval_config()
+    sigma_values, num_repeats, max_checkpoints = resolve_eval_config()
     train_summary = load_train_summary()
 
     run_tags = list(train_summary)
@@ -560,10 +574,10 @@ def run_deletion_sweep(test_loader: DataLoader) -> dict:
         run_tags = run_tags[:max_checkpoints]
 
     print(f"\n{'#' * 70}")
-    print("# v3 Phase 1 (eval-only deletion, 1st hidden layer)")
-    print(f"# arm: SGD-delay | dataset: SHD {DATASET_KEY} | grid: {VERSION_TAG} | "
+    print("# v3 Phase 1 (eval-only shift, 1st hidden layer)")
+    print(f"# arm: no-delay | dataset: SHD {DATASET_KEY} | grid: {VERSION_TAG} | "
           f"QUICK_TEST={QUICK_TEST}")
-    print(f"# checkpoints: {len(run_tags)} | p_d: {pd_values} | "
+    print(f"# checkpoints: {len(run_tags)} | sigmas: {sigma_values} | "
           f"repeats: {num_repeats}")
     print(f"{'#' * 70}")
 
@@ -574,17 +588,17 @@ def run_deletion_sweep(test_loader: DataLoader) -> dict:
 
         net = load_checkpoint(CKPT_DIR / f"{run_tag}.pt")
 
-        pd_sweep = {}
-        for p_d in pd_values:
-            sweep_result = test_with_repeats(net, test_loader, p_d, num_repeats)
-            pd_sweep[str(p_d)] = sweep_result
+        sigma_sweep = {}
+        for sigma in sigma_values:
+            sweep_result = test_with_repeats(net, test_loader, sigma, num_repeats)
+            sigma_sweep[str(sigma)] = sweep_result
             print(
-                f"  p_d={p_d:<4} acc={sweep_result['mean']:.4f} "
+                f"  sigma={sigma:<3} acc={sweep_result['mean']:.4f} "
                 f"+/- {sweep_result['std']:.4f}"
             )
 
         results[run_tag] = {
-            "use_delay": True,
+            "use_delay": False,
             # Copied verbatim rather than cast, so integer knobs (``seed``) stay
             # integers and a downstream join on them cannot go wrong.
             **{
@@ -592,26 +606,26 @@ def run_deletion_sweep(test_loader: DataLoader) -> dict:
                 for field in SUMMARY_PASSTHROUGH_FIELDS
                 if field in row
             },
-            "pd_sweep": pd_sweep,
+            "sigma_sweep": sigma_sweep,
         }
 
     # The per-setup average is the headline; the per-checkpoint rows it was
     # computed from are kept beside it, because they are the raw measurement and
     # because the across-seed spread cannot be recovered from a mean alone.
-    aggregated = aggregate_over_seeds(results, "pd_sweep", pd_values)
+    aggregated = aggregate_over_seeds(results, "sigma_sweep", sigma_values)
     payload = {"per_setup": aggregated, "per_checkpoint": results}
 
     results_path = (
         LOG_DIR
-        / f"sparse_{DATASET_KEY}_{DELAY_TAG}_{VERSION_TAG}_deletion_eval"
+        / f"sparse_{DATASET_KEY}_{DELAY_TAG}_{VERSION_TAG}_shift_eval"
           f"{RUN_SUFFIX}.json"
     )
     with open(results_path, "w") as fp:
         json.dump(payload, fp, indent=2)
-    print(f"\nDeletion sweep saved to {results_path} "
+    print(f"\nShift sweep saved to {results_path} "
           f"({len(results)} checkpoints -> {len(aggregated)} setups)")
 
-    print_summary_table(aggregated, pd_values)
+    print_summary_table(aggregated, sigma_values)
     return payload
 
 
@@ -625,7 +639,7 @@ def aggregate_over_seeds(results: dict, sweep_field: str,
 
     Two quantities are averaged, and the two averages are **not** interchangeable:
 
-    - ``acc(pd)`` at each grid point is averaged directly across seeds, which is
+    - ``acc(sigma)`` at each grid point is averaged directly across seeds, which is
       what a curve should show;
     - ``retention`` is computed **per seed, against that seed's own clean accuracy**,
       and only then averaged. The score exists to normalise away each model's
@@ -699,11 +713,11 @@ def format_mean_std(mean: float, std: float, decimals: int = 3) -> str:
     return f"{mean:.{decimals}f}+-{std:.{decimals}f}"
 
 
-def print_summary_table(aggregated: dict, pd_values: list[float]) -> None:
+def print_summary_table(aggregated: dict, sigma_values: list[int]) -> None:
     """Print one row per ``(k, floor)`` setup, averaged over its seeds.
 
     ``retention`` is the chance-corrected fraction of accuracy surviving the
-    heaviest deletion; the analysis's control score is ``1 - retention``. It is
+    strongest shift; the analysis's ``temporal_score`` is ``1 - retention``. It is
     printed here only for eyeballing — the scoring, the regression on ``a`` and ``s``
     and the plotting belong to the analysis step.
 
@@ -715,24 +729,24 @@ def print_summary_table(aggregated: dict, pd_values: list[float]) -> None:
 
     Args:
         aggregated: The per-setup dict produced by ``aggregate_over_seeds``.
-        pd_values: The p_d grid that was swept, in order.
+        sigma_values: The sigma grid that was swept, in order.
     """
-    pd_min, pd_max = str(pd_values[0]), str(pd_values[-1])
+    sigma_min, sigma_max = str(sigma_values[0]), str(sigma_values[-1])
 
     print(
         f"\n{'setup':<14} {'n':>2} {'a':>13} {'s':>13} {'sp/neu':>7} "
-        f"{'acc(' + pd_min + ')':>15} {'acc(' + pd_max + ')':>15} "
+        f"{'acc(' + sigma_min + ')':>15} {'acc(' + sigma_max + ')':>15} "
         f"{'retention':>15}"
     )
     for setup_tag, row in aggregated.items():
-        sweep = row["pd_sweep"]
+        sweep = row["sigma_sweep"]
         print(
             f"{setup_tag:<14} {row['n_seeds']:>2} "
             f"{format_mean_std(row['spikes_per_active_neuron'], row['spikes_per_active_neuron_std'], 2):>13} "
             f"{format_mean_std(row['silent_fraction'], row['silent_fraction_std'], 3):>13} "
             f"{row['spikes_per_neuron']:>7.2f} "
-            f"{format_mean_std(sweep[pd_min]['mean'], sweep[pd_min]['std'], 4):>15} "
-            f"{format_mean_std(sweep[pd_max]['mean'], sweep[pd_max]['std'], 4):>15} "
+            f"{format_mean_std(sweep[sigma_min]['mean'], sweep[sigma_min]['std'], 4):>15} "
+            f"{format_mean_std(sweep[sigma_max]['mean'], sweep[sigma_max]['std'], 4):>15} "
             f"{format_mean_std(row['retention'], row['retention_std'], 3):>15}"
         )
     print("\n  Means over seeds; +- is the across-seed standard deviation. "
@@ -740,14 +754,14 @@ def print_summary_table(aggregated: dict, pd_values: list[float]) -> None:
 
 
 def main() -> None:
-    """Load the shared test set once, then sweep deletion over the with-delay arm."""
+    """Load the shared test set once, then sweep shift over the no-delay arm."""
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
     # The test split is fixed, so one loader serves every checkpoint.
     X, Y = load_shd_data(MAT_FILE, target_T=SIM_PARAMS["tSample"])
     test_loader = build_test_loader(X, Y, batch_size=BATCH_SIZE)
 
-    run_deletion_sweep(test_loader)
+    run_shift_sweep(test_loader)
 
 
 if __name__ == "__main__":

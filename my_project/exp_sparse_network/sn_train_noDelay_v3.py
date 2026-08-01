@@ -980,6 +980,33 @@ def report_design_acceptance(summary: dict[str, dict]) -> None:
     print(f"{'=' * 70}")
 
 
+def load_existing_summary(summary_path: Path) -> dict[str, dict]:
+    """Return the rows already in ``summary_path``, or an empty dict if it has none.
+
+    The summary is written whole at the end of a run, so a run launched with a reduced
+    ``SEEDS`` list — extending an existing grid by one seed, say — would otherwise
+    *replace* the file and drop every row it did not retrain. Seeding the summary with
+    what is already there makes an extension additive, and it is also what the design
+    acceptance check needs: ``rho(a, s)`` is a statement about the whole grid, not
+    about the subset this invocation happened to train.
+
+    A run that retrains an existing ``(k, floor, seed)`` still overwrites that row,
+    which is correct — the checkpoint was overwritten too.
+
+    Args:
+        summary_path: Path the run will write its summary to.
+
+    Returns:
+        The existing rows, run tag -> recorded metrics.
+    """
+    if not summary_path.exists():
+        return {}
+    with open(summary_path) as fp:
+        existing = json.load(fp)
+    print(f"Extending {summary_path.name}: {len(existing)} existing rows kept.")
+    return existing
+
+
 def run_milestone() -> None:
     """Train the (k, floor_strength, seed) factorial and record both sparsity axes."""
     ceiling_k, floor_strengths, seeds, epochs, warmup_epochs = resolve_run_config()
@@ -1006,7 +1033,11 @@ def run_milestone() -> None:
         X, Y, batch_size=BATCH_SIZE, seed=42,
     )
 
-    summary: dict[str, dict] = {}
+    summary_path = (
+        LOG_DIR
+        / f"sparse_{DATASET_KEY}_nodelay_{VERSION_TAG}_train_summary{RUN_SUFFIX}.json"
+    )
+    summary: dict[str, dict] = load_existing_summary(summary_path)
 
     for k in ceiling_k:
         for floor_strength in floor_strengths:
@@ -1060,10 +1091,6 @@ def run_milestone() -> None:
                               fp, indent=2)
                 print(f"  Training log saved to {log_path}")
 
-    summary_path = (
-        LOG_DIR
-        / f"sparse_{DATASET_KEY}_nodelay_{VERSION_TAG}_train_summary{RUN_SUFFIX}.json"
-    )
     with open(summary_path, "w") as fp:
         json.dump(summary, fp, indent=2)
     print(f"\nSummary saved to {summary_path}")

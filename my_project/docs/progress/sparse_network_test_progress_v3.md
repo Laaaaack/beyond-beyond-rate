@@ -1,8 +1,7 @@
 # First Milestone v3 — separating the two things "sparsity" does (design, Phase 0, Phase 1)
 
-**Status (2026-07-29): PHASE 0 COMPLETE. PHASE 1 COMPLETE in the delay arm —
-16 models trained, measured and analysed. No-delay arm calibrated and ready (~29 h),
-not launched.**
+**Status (2026-08-01): PHASE 0 COMPLETE. PHASE 1 COMPLETE IN BOTH ARMS —
+48 models trained (4 `k` × 2 floor × 3 seeds × 2 arms), measured and analysed.**
 
 §2 was five spot checks on 3 checkpoints per arm, made to decide what v3 should be.
 §4's Phase 0 has now run all of them properly over all 27 checkpoints, plus the
@@ -10,22 +9,24 @@ correctness fix to the perturbation window. **The dissociation §2c predicted ho
 full n, and it is now the result:** availability is flat (ρ = −0.211, p = .45 /
 −0.035, p = .91) while usage climbs steeply (+0.939 / +0.881).
 
-Phase 0 also **changed which arm Phase 1 runs in — it is now the delay arm**, on two
+Phase 0 also **changed which arm Phase 1 runs in first — the delay arm**, on two
 findings about the *dependent* variable that a factorial cannot fix. Both training
-scripts are written and three settings are now calibrated on measured runs rather than
+scripts are written and three settings are calibrated on measured runs rather than
 assumed: `WARMUP_EPOCHS = 20` (0 is unsurvivable), `FLOOR_STRENGTH = 1` (separates `s`
 by ~50 points at matched `k`, at no accuracy cost), and `CEILING_STRENGTH = 10` (3 left
-the H1 axis moving only 1.4×). **Both arms are calibrated**, and the delay arm's 16 models
-**pass the design acceptance check at ρ(`a`, `s`) = −0.053** against v1's −0.455 —
-`a` and `s` are separable for the first time in this project.
+the H1 axis moving only 1.4×). Both arms **pass the design acceptance check** —
+ρ(`a`, `s`) = **−0.087** (delay) and **−0.342** (no-delay), against v1's −0.455 and
+−0.943. `a` and `s` are separable for the first time in this project, in both arms.
 
-**The Phase 1 answer: H1′ gained no support once its confound was removed.** β_a's point
-estimate runs *against* H1′ (β\* = +0.30, n.s.); the largest terms are selectivity
-(β\* = −0.44, p = .074) and the general-robustness control (β\* = +0.43, p = .083);
-availability stays flat for a third time. v1's ρ(usage, `a`) = +0.881 in this arm falls
-to a non-significant β\* = +0.30 once the axes are decorrelated and general robustness
-is held fixed. The binding limitation is now **power, not design** — see §4's Phase 1
-RESULT. **Owner:** _(you)_
+**The Phase 1 answer, now that n = 24 per arm: H1′ is refuted on its own terms, in
+both arms independently.** β_a is *positive* and significant — the direction opposite
+to H1′'s prediction — at β\* = **+0.394** (p = .033) in the delay arm and β\* =
+**+0.495** (p = .0001) in the no-delay arm, with `s` held fixed *by construction* and
+general robustness controlled. Selectivity carries a real effect in H2's direction
+(β\* = −0.370, p = .045, delay), and the matched floor-on/floor-off contrast is
+significant in the no-delay arm (+0.119, p = .0002). The earlier "underpowered"
+verdict was exactly that: the n = 16 delay estimate (β\* = +0.30, p = .20) was the same
+effect, unresolved. See §4's Phase 1 RESULT. **Owner:** _(you)_
 
 **This is document 5 of 5. Read in order:**
 
@@ -444,10 +445,14 @@ nonzero value in the other.
 ```python
 CEILING_K       = [1, 2, 4, 8]      # sets a; the H1 axis
 FLOOR_STRENGTH  = [0.0, F]          # sets s; the H2 axis
-SEEDS           = [42, 43]
-ARM             = "delay"           # 16 models -- CHANGED after Phase 0, see above
+SEEDS           = [42, 43, 44]      # was [42, 43]; the 3rd seed is what settled beta_a
+ARM             = "delay"           # 24 models/arm -- delay FIRST, see above
 EPOCHS          = 1250
 ```
+
+As executed, **both** arms ran this grid: 24 models each, 48 in total. The delay arm was
+launched first at seeds 42/43 and extended to seed 44 once its n = 16 result came back
+underpowered; the no-delay arm ran all three seeds in one pass.
 
 Implemented as
 [sn_train_withDelay_v3.py](../../exp_sparse_network/sn_train_withDelay_v3.py)
@@ -475,8 +480,13 @@ delay arm only if the no-delay result warrants it. Add seed 44 only for whicheve
 > **Superseded by the arm decision above.** Reason 2 no longer holds — Phase 0
 > decomposed v1's no-delay result and what remains after controls is +0.238 (p = .43).
 > Reasons 1, 3 and 4 stand and are why the no-delay arm is kept as the secondary run.
-> The order is now delay first, no-delay to replicate. Seed 44 for the decisive `k` is
-> unchanged.
+> The order is now delay first, no-delay to replicate.
+>
+> **Superseded again, 2026-08-01.** Both arms ran the full grid at all three seeds, so
+> the ordering was a scheduling decision rather than a scoping one, and the selective
+> "seed 44 only for the decisive `k`" plan was dropped — every cell got the third seed.
+> That was the right call: it is what moved β_a from p = .204 to p = .033, and picking
+> which `k` was "decisive" in advance would have required knowing the answer first.
 
 **A warm-up is required, and 0 is not survivable.** Found before the probe was run,
 by a 60-epoch check on the full training set at `k = 1`, floor = 0 — the corner where
@@ -586,8 +596,8 @@ expect β_a to carry wider error bars than β_s. Pushing further (strength 30) w
 tried; the 3 → 10 step already cost .05–.13 of accuracy, and v2's whole history is that
 buying constraint tightness with accuracy destroys the thing being measured.
 
-**Status: the delay-arm grid is running** (remote, from 2026-07-29). ~37 h for 16
-models at 1250 epochs.
+**Status: the delay-arm grid is complete** — 24 models at 1250 epochs (seeds 42 and 43
+remote from 2026-07-29, seed 44 added and finished 2026-08-01).
 
 #### No-delay arm calibration
 
@@ -678,7 +688,9 @@ passes, and it is now a measurement rather than an extrapolation from two corner
 Against v1's **−0.943** in this same arm, that is v3's central claim demonstrated: the
 factorial breaks the confound that made v1 uninterpretable. Caveat: one seed, 400
 epochs, so it is a strong indication and not the final check — the script recomputes it
-across the real 16 models.
+across the real grid. *(It did: **−0.342** on the 24 real models. The 400-epoch map
+under-stated the residual coupling, as §4b's "calibrate nothing from a probe" rule
+would predict, but the check still passes with room.)*
 
 Three further things the interior settles:
 
@@ -705,11 +717,10 @@ toward v1's 3.8×, for 2–4 extra models. Not applied, because the delay arm is
 running the 4-level grid and changing the row levels mid-flight would cost the
 cross-arm comparison. Worth considering if β_a comes back underpowered.
 
-**Status: the no-delay arm is calibrated and ready.** All three constants validated
-*in this arm* — `WARMUP_EPOCHS = 20`, `FLOOR_STRENGTH = 1`, `CEILING_STRENGTH = 10` —
-and no change was needed to any of them. Set `QUICK_TEST = False` in
-[sn_train_noDelay_v3.py](../../exp_sparse_network/sn_train_noDelay_v3.py) for the 16-model
-grid (~29 h).
+**Status: the no-delay arm is complete** — 24 models at 1250 epochs, finished
+2026-08-01. All three constants were validated *in this arm* before launch —
+`WARMUP_EPOCHS = 20`, `FLOOR_STRENGTH = 1`, `CEILING_STRENGTH = 10` — and no change
+was needed to any of them.
 
 **Design acceptance check — this one is on the *design*, not the network.** Across the
 16 trained models, compute ρ(`a`, `s`). **If |ρ| > 0.5 the factorial has failed to
@@ -735,83 +746,138 @@ floor-off contrast at matched `a` is a genuine controlled comparison — the fir
 this line of work, and the thing that lets v3 make a causal claim where v1 could only
 correlate.
 
-#### Phase 1 RESULT — delay arm, 16 models @ 1250 ep — **COMPLETE, 2026-07-29**
+#### Phase 1 RESULT — both arms, 24 models each @ 1250 ep — **COMPLETE, 2026-08-01**
 
-Grid trained remotely; measured and analysed locally. Scripts:
+Grids trained (delay remotely, no-delay locally); measured and analysed locally. Scripts:
 [phase1_measure.py](../../exp_sparse_network/v3_analysis/phase1_measure.py) (usage +
 deletion control) and
 [phase1_regress.py](../../exp_sparse_network/v3_analysis/phase1_regress.py)
 (regressions, contrast, figure), with availability from
 [hidden_channel_decode.py](../../exp_sparse_network/v3_analysis/hidden_channel_decode.py)
-retargeted at the v3 summaries via its `VERSION_TAG`.
+retargeted at the v3 summaries via its `VERSION_TAG`. Both arms now run through the same
+three scripts; the arm lists in all three were widened from `("delay",)` to both.
 
-**1. The design acceptance check PASSES — and this is the result that matters most.**
+**1. The design acceptance check PASSES in both arms.**
 
-| | ρ(`a`, `s`) | VIFs |
+| | ρ(`a`, `s`) | VIFs in the usage model |
 |---|---|---|
 | v1 no-delay (observational) | **−0.943** | — |
 | v1 delay (observational) | **−0.455** | — |
-| **v3 delay factorial (n=16)** | **−0.053** (p = .85) | **1.00–1.10** |
+| **v3 delay factorial (n=24)** | **−0.087** (p = .69) | **1.01–1.03** |
+| **v3 no-delay factorial (n=24)** | **−0.342** (p = .10) | **1.03–3.21** |
 
-`a` spans 2.43–5.29 (2.18×), `s` spans 5.2%–66.3%, clean accuracy .707–.859 (v1:
-.780–.883), firing 1.10–4.55 against this arm's natural 11.66. ρ(`k`, `a`) = +0.497 and
-ρ(floor, `s`) = −0.868, so both knobs moved their own axis and neither moved the other.
-**For the first time in this project, `a` and `s` are separable.** That is what v1 and
-v2 could not deliver, and it is what makes everything below a test rather than a
-correlation.
+| | delay | no-delay |
+|---|---|---|
+| `a` span | 2.43–5.29 (2.18×) | 1.79–4.06 (2.26×) |
+| `s` span | 5.2%–66.3% | 5.6%–76.3% |
+| clean acc (v1's range) | .707–.859 (.780–.883) | .465–.550 (.490–.590) |
+| firing vs this arm's natural | 1.10–4.55 vs 11.66 | 0.50–3.83 vs 7.85 |
 
-**2. Availability is flat — third independent replication, now under a manipulated design.**
+**For the first time in this project, `a` and `s` are separable** — and in the no-delay
+arm the confound went from **−0.943 to −0.342**, which is the single number v3 was built
+to produce. That is what makes everything below a test rather than a correlation.
+
+One caveat, and it is this arm's own: in the no-delay arm the deletion control is itself
+strongly tied to selectivity, ρ(`s`, control) = **−0.818** (delay: +0.030), giving VIF
+3.2 on both terms. So the no-delay arm can identify β_a cleanly (VIF 1.03, ρ(`a`,
+control) = +0.05) but **cannot cleanly separate β_s from general robustness**. That is
+Phase 0's §2d/§4 finding about this arm reappearing under the factorial — the factorial
+fixes the *independent* variables, and this was never one of them.
+
+**2. Availability: flat in the delay arm, and NOT flat in the no-delay arm.**
 
 ```
-timing_fraction ~ log(a) + s     R² = .054  (adj R² = −.091),  n = 16, df = 13
-  log_a   −0.0082  [−0.0422, +0.0258]  p = .611   β* = −0.141
-  s       −0.0122  [−0.0497, +0.0254]  p = .497   β* = −0.189
+delay       timing_fraction ~ log(a) + s    R² = .106 (adj .021),  n = 24, df = 21
+  log_a   +0.0007  [−0.0360, +0.0373]  p = .970   β* = +0.008
+  s       −0.0301  [−0.0699, +0.0097]  p = .131   β* = −0.325
+
+no-delay    timing_fraction ~ log(a) + s    R² = .560 (adj .518),  n = 24, df = 21
+  log_a   −0.0302  [−0.0529, −0.0074]  p = .012   β* = −0.403
+  s       −0.0452  [−0.0652, −0.0252]  p = .0001  β* = −0.688
 ```
 
-Range .20–.25 across the whole grid. A negative adjusted R² means the two axes together
-explain less than nothing. Phase 0 found this observationally on v1's 27 checkpoints;
-it now holds when both axes are *set by construction*.
+The delay arm replicates the flatness for a third time, now with both axes set by
+construction. **The no-delay arm does not** — and this is new to v3, because Phase 0
+could only look at the raw correlation, which here is ρ(availability, `a`) = −0.289
+(p = .17), i.e. invisible until `s` is partialled out. Two things to hold onto:
+
+- The **sign is H1's**: β_a < 0 means *fewer* spikes per active neuron ⇒ *more* of the
+  layer's decodable information requires timing. So in this arm the layer does shift
+  toward a timing code as `a` falls — while its readout moves the opposite way (§3
+  below). The dissociation is not just "one moves, one doesn't"; here **the two move in
+  opposite directions**, which is a stronger form of the same finding.
+- The **effect is small in absolute terms.** Timing fraction spans .230–.299 (mean .264)
+  across the whole no-delay grid, and .168–.254 (mean .220) in the delay arm. A
+  significant β on a range that narrow is worth reporting and not worth leaning on.
 
 **3. The usage regression — the actual test of H1′ vs H2.**
 
 ```
-usage ~ log(a) + s + deletion control     R² = .429 (adj .286),  n = 16, df = 12
-  log_a             +0.0678  [−0.0420, +0.1775]  p = .204   β* = +0.298   VIF 1.03
-  s                 −0.1105  [−0.2337, +0.0126]  p = .074   β* = −0.440   VIF 1.07
-  control_deletion  +0.5853  [−0.0881, +1.2588]  p = .083   β* = +0.433   VIF 1.10
+delay       usage ~ log(a) + s + deletion control   R² = .415 (adj .328),  n = 24, df = 20
+  log_a             +0.0850  [+0.0076, +0.1624]  p = .033   β* = +0.394   VIF 1.01
+  s                 −0.0868  [−0.1714, −0.0023]  p = .045   β* = −0.370   VIF 1.02
+  control_deletion  +0.4332  [−0.0119, +0.8784]  p = .056   β* = +0.351   VIF 1.03
+
+no-delay    usage ~ log(a) + s + deletion control   R² = .814 (adj .786),  n = 24, df = 20
+  log_a             +0.2003  [+0.1179, +0.2828]  p = .0001  β* = +0.495   VIF 1.03
+  s                 −0.1147  [−0.2429, +0.0134]  p = .077   β* = −0.323   VIF 3.21
+  control_deletion  +0.8997  [+0.1194, +1.6800]  p = .026   β* = +0.413   VIF 3.16
 ```
 
-with the control omitted, for comparison: β_a = +0.085 (p = .142), β_s = −0.084
-(p = .184), R² = .258.
+with the control omitted, for comparison — delay: β_a = +0.0915 (p = .031), β_s =
+−0.0757 (p = .093), R² = .295; no-delay: β_a = +0.1932 (p = .0002), β_s = −0.2368
+(p = 1.3e−5), R² = .760.
 
-**4. The controlled floor-on vs floor-off contrast at matched `a`** (6 nearest-neighbour
-pairs, |Δ log `a`| ≤ 0.2): mean Δusage = **+0.023** (se .022, p = .35). H2's predicted
-direction, not significant.
+**4. The controlled floor-on vs floor-off contrast at matched `a`** (nearest-neighbour
+pairs, |Δ log `a`| ≤ 0.2):
 
-**Verdict against §5.** The closest row is **row 4** — "β_a ≈ 0 and β_s ≈ 0 … report the
-dissociation as the result" — but that wording is too symmetric for what the numbers
-say. The honest reading:
+| arm | pairs | mean Δusage | p |
+|---|---|---|---|
+| delay | 10 | +0.015 (se .017) | .41 |
+| **no-delay** | **11** | **+0.119 (se .021)** | **.0002** |
 
-- **H1′ gained no support even with its confound removed.** β_a's point estimate is
-  **positive** (β* = +0.298), i.e. *against* H1′, which predicts β_a < 0. The 95% CI
-  [−0.042, +0.178] excludes any large H1′ effect while leaving a small one possible.
-- **The residual signal is selectivity and general robustness, not temporal sparsity.**
-  `s` is the largest standardised effect (β* = −0.440, p = .074) and in H2's direction;
-  the deletion control is essentially its equal (β* = +0.433, p = .083). Two of the three
-  terms in the model are *not* about timing.
-- **Most of v1's apparent effect was confound plus general robustness.** v1 measured
-  ρ(usage, `a`) = **+0.881** in this arm. Decorrelate the axes by design and control for
-  general robustness, and the same relationship falls to β* = +0.30, n.s. That
-  quantifies how much of the original finding was the thing v3 was built to remove.
-- **The design is underpowered to separate a modest H2 effect from none.** n = 16,
-  df = 12, with the two most interesting terms at p = .07–.08. This is the binding
-  limitation, and it is a limitation of scale, not of design — the manipulation worked.
+H2 predicts Δ > 0 — removing silence should *raise* timing reliance. The no-delay arm
+delivers that at 11 of 11 pairs positive; the delay arm's mean runs the same way but is
+indistinguishable from zero.
 
-**What would resolve it.** Not a different mechanism — the mechanism is validated. More
-models, and a wider `a` axis. Both are cheap relative to what has already been spent:
-adding seeds 44/45 doubles n to 32 for ~37 h, and the no-ceiling row discussed in the
-no-delay calibration would widen `a` from 2.2× toward v1's 4.1×. With β_s at p = .074 on
-n = 16, doubling n would very likely settle H2 either way.
+**Verdict against §5.** The result has moved off row 4 and onto **row 2 — "β_a > 0,
+significant: H1 refuted on its own terms"** — in **both arms independently**. The
+honest reading:
+
+- **H1′ is refuted, not merely unsupported.** β_a is positive and clears α in both arms
+  (p = .033 delay, p = .0001 no-delay), with `s` held fixed *by construction* and
+  general robustness controlled. H1′ predicts β_a < 0; both 95% CIs exclude zero on the
+  wrong side. This is §5's strongest available negative, and the two arms reach it by
+  different routes — no learnable delays in one, so the effect there cannot be about
+  delay lines at all.
+- **What changed from n = 16 was power, exactly as predicted.** The delay arm's n = 16
+  estimate was β\* = +0.298, p = .204; at n = 24 the same effect is β\* = +0.394,
+  p = .033. Direction, magnitude and rank all held; only the interval shrank. The
+  "underpowered" verdict recorded on 2026-07-29 was correct and has now been resolved by
+  the third seed rather than overturned.
+- **H2 gets partial, arm-dependent support.** In the delay arm — the one that can
+  identify it — β_s is significant and in H2's direction (β\* = −0.370, p = .045), but
+  the matched contrast there is null. In the no-delay arm the matched contrast is
+  decisive (+0.119, p = .0002) but β_s is entangled with the deletion control at
+  ρ = −0.818. So: selectivity does something, in H2's direction, in both arms; neither
+  arm delivers it cleanly *and* by both routes at once.
+- **Much of what looks like "timing reliance" is still not about timing.** The deletion
+  control is a significant positive term in both models (β\* = +0.351, +0.413), and in
+  the no-delay arm ρ(usage, control) = **+0.822**. Any reading of `usage` that does not
+  hold this fixed is partly a statement about general robustness — which is why the
+  control is in the model rather than in a footnote.
+- **The no-delay readout caveat still stands and is not fixed by any of this.** Phase 0
+  measured a +.300 gap between that arm's own accuracy and a linear decoder on its layer
+  1, on every checkpoint. Its `usage` is as much about `fc2`/`fc3` as about layer 1's
+  code, so the delay arm remains the primary venue for the *interpretation* even though
+  the no-delay arm carries the larger coefficients.
+
+**What is genuinely left.** Not power, and not the mechanism. The remaining design limit
+is the **width of the `a` axis**: 2.18× (delay) and 2.26× (no-delay) against v1's
+observational 4.1× / 3.8×, because the ceiling stops binding at `k = 8` (2.8–11% of pairs
+still above it). A no-ceiling or `k = 16` row would anchor the top of the axis near the
+natural rate, for 4–6 extra models per arm. With β_a now significant in both arms this
+would sharpen an existing result rather than decide an open one.
 
 ### Phase 2 — confirmation venue (only if Phase 1 is ambiguous)
 
@@ -843,11 +909,19 @@ Phase 1, with the design acceptance check passed:
 | β_a ≈ 0, β_s < 0 significant | **H2 confirmed.** "Sparsity" was never the operative variable; *selectivity* was. The supervisor's question has no single answer, because the answer depends on which channel the sparsity mechanism leaves open — a more useful finding than either yes or no. |
 | β_a ≈ 0 and β_s ≈ 0 | Timing dependence is invariant to both. Consistent with §2c's flat availability; report the dissociation as the result. |
 | Clean accuracy at chance in the floor-on column | The constraint is unlearnable in this architecture. Report it; move to Phase 2. |
-| \|ρ(`a`, `s`)\| > 0.5 across the 16 models | Design failed; the factorial did not decorrelate. Not interpretable as a test of H1′. |
+| \|ρ(`a`, `s`)\| > 0.5 across the grid | Design failed; the factorial did not decorrelate. Not interpretable as a test of H1′. |
 
 Rows 3 and 4 are the ones §2c makes most likely, and both are perfectly good results.
 Note that row 3 in particular **reconciles every observation in this project** — v1's
 positive ρ, the identity-decode rise, and the flat availability — under one mechanism.
+
+> **Outcome, 2026-08-01: row 2, in both arms** (β_a > 0, p = .033 delay / .0001
+> no-delay). Row 3's mechanism is *partly* in play alongside it — β_s is significant and
+> in H2's direction in the delay arm, and the matched contrast is decisive in the
+> no-delay arm — but β_a is not null, so this is not row 3. The two rows are not
+> mutually exclusive in practice: selectivity does build the identity code §2c and v1
+> both point at, *and* temporal sparsity moves usage in the direction opposite to H1′.
+> See §4's Phase 1 RESULT.
 
 ---
 
@@ -887,14 +961,22 @@ Phase 1's regression, provided the truncation is applied at eval (document 4 §4
 | Phase 0 — relocation `f=1` window check, both arms | ~20 min | **done** |
 | Phase 0 — patch 8 eval scripts + re-run relocation, jitter, deletion | ~1.7 h | **done** — correctness fix from §2a |
 | Phase 0 — headline join, correlations, figure | ~1 min | **done** |
-| Phase 1 — corner probe, 4 models @ 400 ep | ~2.5 h | manipulation check only |
-| Phase 1 — full grid, 16 models @ 1250 ep (no-delay) | **~29 h** | 1.8 h/model, scaled from v2's measured probe times |
-| Phase 1 — delay arm, if warranted | ~37 h | optional |
-| Phase 2 — synthetic CCISI/ISI | a few hours | much smaller networks |
+| Phase 1 — corner probe + calibration, delay arm | ~3.8 h | **done** — `F`, then `CEILING_STRENGTH` |
+| Phase 1 — warm-up check + 8-cell map, no-delay arm | ~5 h | **done** — all three constants re-validated in-arm |
+| Phase 1 — delay grid, 24 models @ 1250 ep | **~55 h** | **done** — 2.3 h/model, seeds 42/43 then 44 |
+| Phase 1 — no-delay grid, 24 models @ 1250 ep | **~43 h** | **done** — 1.8 h/model |
+| Phase 1 — measurement layer, both arms, 48 checkpoints | ~35 min | **done** — decode + relocation/deletion endpoints + regressions |
+| Phase 2 — synthetic CCISI/ISI | a few hours | not needed; see §9 |
 
-**~2.5 h bought the complete Phase 0 answer** (estimated ~3 h). Phase 1 is the ~30 h
-that turns a correlation into a controlled comparison. Compare with v2's outstanding
-62–94 h, which would have produced neither.
+**~2.5 h bought the complete Phase 0 answer** (estimated ~3 h). Phase 1 cost ~107 h of
+training and turned a correlation into a controlled comparison in two independent arms.
+Compare with v2's outstanding 62–94 h, which would have produced neither.
+
+The third seed was the cheapest thing in the whole programme relative to what it bought:
+~35 h of training moved the delay arm's β_a from p = .204 to p = .033 and its β_s from
+p = .074 to p = .045, i.e. it converted the headline result from "inconclusive but
+directional" to a refutation. The measurement layer that reads all 48 models costs
+**~35 min**, so re-analysing is free and only training is not.
 
 ---
 
@@ -912,7 +994,10 @@ Inherits everything in document 1 §7 and document 4 §7. New to v3:
    shift would have destroyed per-neuron count. Ask what a perturbation does to spike
    *density* before deciding it needs the window (§4, Phase 0 step 3).
 3. **Availability and usage are different measurements and can disagree** — here they
-   do (§2c vs §2a). Reporting one without the other is how v1 became hard to read.
+   do (§2c vs §2a), and in the no-delay factorial they **move in opposite directions**
+   (Phase 1 RESULT §2 vs §3): as `a` falls the layer holds *more* timing information and
+   the readout uses *less* of it. Reporting one without the other is how v1 became hard
+   to read.
 4. **Compare `FULL` against the capacity-matched shuffle, never against `COUNT`.**
    The dimensionality difference alone is worth ~.12 of decode accuracy (§3a).
 5. **400-epoch probes cannot calibrate anything.** Every v1 model was still improving
@@ -929,6 +1014,21 @@ Inherits everything in document 1 §7 and document 4 §7. New to v3:
    `warmup = 0` the layer is 100% silent by epoch 5 and never recovers — the dead zone
    as an *absorbing training state* rather than an eval-time artifact. Do not copy a
    warm-up setting across from a version whose penalty had a different sign.
+9. **Decorrelating `a` from `s` does not decorrelate `s` from the deletion control.**
+   The factorial only governs the two *independent* variables. In the no-delay arm
+   ρ(`s`, control) = **−0.818** (VIF 3.2), so β_s there is not separable from general
+   robustness even though ρ(`a`, `s`) = −0.342 passes. Check the covariate's
+   correlations too, not just the design's — a passing design acceptance check is not a
+   licence to read every coefficient in the model.
+10. **The v3 training scripts write their summary whole.** A run launched with a reduced
+    `SEEDS` list used to *replace* the arm's summary and drop every row it did not
+    retrain — which is how the delay arm's seed-42/43 rows were lost when seed 44 was
+    added. Both scripts now seed the summary from the existing file, and
+    [rebuild_train_summary.py](../../exp_sparse_network/v3_analysis/rebuild_train_summary.py)
+    recovers missing rows from the checkpoints. Note the checkpoints are the durable
+    artifact and the summary is not — re-measuring a checkpoint is not bit-exact
+    (cuDNN path; `clean_acc` moves by ≤ .002), so recover rather than re-measure
+    wholesale.
 
 ---
 
@@ -968,27 +1068,38 @@ Inherits everything in document 1 §7 and document 4 §7. New to v3:
 - [x] Phase 1 — row axis calibrated: **`CEILING_STRENGTH = 10`** roughly doubles the
       `a` span, holds the floor separation at ~49 points, no collapse, accuracy
       .685–.771. Row axis remains *soft* (41% of pairs still above `k` at `k=1`)
-- [x] Phase 1 — **delay-arm 16-model grid at 1250 epochs (~37 h) LAUNCHED** on a
-      remote server, 2026-07-29
+- [x] Phase 1 — **delay-arm grid at 1250 epochs LAUNCHED** on a remote server,
+      2026-07-29 (16 models at seeds 42/43; extended to seed 44 and completed
+      2026-08-01, 24 models, ~55 h total)
 - [x] Phase 1 — **no-delay arm calibrated** (locally, while the delay grid runs): all
       three constants validated unchanged in this arm; manipulation is *cleaner* here
       (floor separation +50…+64 points at every `k`, ceiling leak 2.8–34%, accuracy
       .447–.536 against v1's .49–.59)
 - [x] Phase 1 — design acceptance check **pre-verified on the no-delay 8-cell map**:
       **ρ(`a`, `s`) = −0.238** against v1's −0.943 (1 seed, 400 ep — indicative, and
-      recomputed on the real 16 models by the script)
-- [x] Phase 1 — **delay-arm grid complete and analysed** (16 models @ 1250 ep)
-- [x] Phase 1 — design acceptance check on the real grid: **ρ(`a`, `s`) = −0.053**
-      (p = .85), VIFs 1.00–1.10 — the factorial broke the confound
-- [x] Phase 1 — regressions, controlled floor-on vs floor-off contrast at matched `a`
-- [x] v3 verdict recorded against §5 — closest to row 4, but asymmetric: H1′
-      unsupported (β_a point estimate runs against it), residual signal is `s` plus
-      general robustness, underpowered to settle H2
-- [ ] Phase 1 — no-delay 16-model grid at 1250 epochs (~29 h) — READY, NOT LAUNCHED
-- [ ] Phase 1 — **resolve the power limit**: add seeds 44/45 (n 16 → 32, ~37 h) and/or
-      a no-ceiling row to widen `a` from 2.2× toward v1's 4.1×
-- [ ] Phase 1 — design acceptance check: |ρ(`a`, `s`)| < 0.5
-- [ ] Phase 1 — regressions, controlled floor-on vs floor-off contrast at matched `a`
-- [ ] Phase 2 only if §5 lands on an ambiguous row — it did land on an ambiguous
-      row (4), but the ambiguity is power rather than mechanism, so more models in
-      *this* venue dominates moving to CCISI
+      recomputed on the real grid by the script)
+- [x] Phase 1 — **no-delay 24-model grid at 1250 epochs complete** (~43 h),
+      2026-08-01
+- [x] Phase 1 — **both grids complete and analysed at n = 24 per arm** (48 models);
+      measurement layer widened to both arms in `hidden_channel_decode.py`,
+      `phase1_measure.py` and `phase1_regress.py`
+- [x] Phase 1 — design acceptance check on the real grids: ρ(`a`, `s`) = **−0.087**
+      (delay, p = .69) and **−0.342** (no-delay, p = .10) — the factorial broke the
+      confound in both arms, including the one v1 confounded at −0.943
+- [x] Phase 1 — regressions and the controlled floor-on vs floor-off contrast at
+      matched `a`, both arms
+- [x] Phase 1 — delay-arm summary rows for seeds 42/43 **recovered** after the seed-44
+      run overwrote them; cause fixed in both training scripts (see §8 item 10)
+- [x] v3 verdict recorded against §5 — **row 2 in both arms: H1′ refuted on its own
+      terms** (β_a > 0, p = .033 delay / .0001 no-delay). H2 gets partial,
+      arm-dependent support: β_s significant in the delay arm (p = .045), matched
+      contrast decisive in the no-delay arm (+0.119, p = .0002)
+- [x] Phase 1 — the power limit recorded on 2026-07-29 is **resolved** by the third
+      seed (n 16 → 24 per arm): the delay arm's β_a went p = .204 → **.033** and β_s
+      p = .074 → **.045**, same direction and magnitude throughout
+- [ ] *Optional, sharpens rather than decides:* widen the `a` axis with a no-ceiling
+      or `k = 16` row (4–6 models/arm). Currently 2.18× / 2.26× against v1's
+      4.1× / 3.8×, because the ceiling stops binding at `k = 8`
+- [ ] Phase 2 (CCISI/ISI) — **not needed.** §5 landed on row 2, not an ambiguous row,
+      and it did so independently in two arms. Keep as a confirmation venue only if a
+      reviewer wants the known-ground-truth replication

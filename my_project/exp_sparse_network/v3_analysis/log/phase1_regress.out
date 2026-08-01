@@ -1,38 +1,101 @@
+
 ==========================================================================
-  v3 PHASE 1 — DELAY ARM  (n = 16)
+  v3 PHASE 1 — DELAY ARM  (n = 24)
 ==========================================================================
+
 --- design acceptance check (this gates everything below) ---
-  rho(a, s) = -0.053 (p = 0.8456), threshold |rho| <= 0.5
+  rho(a, s) = -0.087 (p = 0.6862), threshold |rho| <= 0.5
   PASS — the factorial decorrelated the axes   [v1 observational: -0.455 delay, -0.943 no-delay]
   a spans 2.43–5.29 (2.18x) | s spans 5.2%–66.3% | clean acc 0.707–0.859
+
 --- usage ~ log(a) + s + deletion control ---
-  n = 16, df = 12, R^2 = 0.429 (adj 0.286)
+  n = 24, df = 20, R^2 = 0.415 (adj 0.328)
   term                         beta        se       t         p              95% CI   beta*    VIF
-  log_a                     +0.0678    0.0504   +1.35    0.2035   [-0.0420,+0.1775]  +0.298   1.03
-  s                         -0.1105    0.0565   -1.96    0.0742   [-0.2337,+0.0126]  -0.440   1.07
-  control_deletion          +0.5853    0.3091   +1.89    0.0826   [-0.0881,+1.2588]  +0.433   1.10
+  log_a                     +0.0850    0.0371   +2.29    0.0329   [+0.0076,+0.1624]  +0.394   1.01
+  s                         -0.0868    0.0405   -2.14    0.0446   [-0.1714,-0.0023]  -0.370   1.02
+  control_deletion          +0.4332    0.2134   +2.03    0.0558   [-0.0119,+0.8784]  +0.351   1.03
+
 --- usage ~ log(a) + s   (control omitted) ---
-  n = 16, df = 13, R^2 = 0.258 (adj 0.144)
+  n = 24, df = 21, R^2 = 0.295 (adj 0.228)
   term                         beta        se       t         p              95% CI   beta*    VIF
-  log_a                     +0.0848    0.0543   +1.56    0.1420   [-0.0324,+0.2021]  +0.374   1.00
-  s                         -0.0841    0.0600   -1.40    0.1843   [-0.2136,+0.0455]  -0.335   1.00
+  log_a                     +0.0915    0.0396   +2.31    0.0312   [+0.0091,+0.1738]  +0.423   1.00
+  s                         -0.0757    0.0430   -1.76    0.0932   [-0.1652,+0.0138]  -0.323   1.00
+
 --- timing_fraction ~ log(a) + s ---
-  n = 16, df = 13, R^2 = 0.054 (adj -0.091)
+  n = 24, df = 21, R^2 = 0.106 (adj 0.021)
   term                         beta        se       t         p              95% CI   beta*    VIF
-  log_a                     -0.0082    0.0157   -0.52    0.6112   [-0.0422,+0.0258]  -0.141   1.00
-  s                         -0.0122    0.0174   -0.70    0.4966   [-0.0497,+0.0254]  -0.189   1.00
+  log_a                     +0.0007    0.0176   +0.04    0.9700   [-0.0360,+0.0373]  +0.008   1.00
+  s                         -0.0301    0.0191   -1.57    0.1307   [-0.0699,+0.0097]  -0.325   1.00
+
 --- controlled contrast: floor ON vs OFF at matched a (|d log a| <= 0.2) ---
   floor ON                               floor OFF                               dlogA   s_on   s_off   dusage
+  sparse_whole_delay_v3_k1_floor1_seed44 sparse_whole_delay_v3_k1_floor0_seed44  0.180  21.3%   62.8%   -0.047
   sparse_whole_delay_v3_k2_floor1_seed43 sparse_whole_delay_v3_k2_floor0_seed42  0.179  15.1%   49.4%   -0.021
   sparse_whole_delay_v3_k2_floor1_seed42 sparse_whole_delay_v3_k1_floor0_seed42  0.157  16.4%   66.3%   -0.015
+  sparse_whole_delay_v3_k2_floor1_seed44 sparse_whole_delay_v3_k2_floor0_seed44  0.129  15.3%   56.9%   +0.072
   sparse_whole_delay_v3_k4_floor1_seed42 sparse_whole_delay_v3_k2_floor0_seed43  0.062  10.2%   58.0%   +0.037
   sparse_whole_delay_v3_k4_floor1_seed43 sparse_whole_delay_v3_k4_floor0_seed42  0.068   9.3%   48.0%   +0.028
-  sparse_whole_delay_v3_k8_floor1_seed43 sparse_whole_delay_v3_k8_floor0_seed42  0.075   6.2%   34.8%   -0.014
+  sparse_whole_delay_v3_k4_floor1_seed44 sparse_whole_delay_v3_k1_floor0_seed43  0.095   9.0%   63.7%   +0.031
+  sparse_whole_delay_v3_k8_floor1_seed43 sparse_whole_delay_v3_k8_floor0_seed44  0.057   6.2%   38.8%   -0.016
+  sparse_whole_delay_v3_k8_floor1_seed44 sparse_whole_delay_v3_k8_floor0_seed42  0.050   5.4%   34.8%   -0.043
   sparse_whole_delay_v3_k8_floor1_seed42 sparse_whole_delay_v3_k8_floor0_seed43  0.058   5.2%   39.8%   +0.124
-  mean delta usage = +0.0230 (se 0.0224, t = +1.03, p = 0.3514, 6 pairs)
+  mean delta usage = +0.0148 (se 0.0171, t = +0.86, p = 0.4102, 10 pairs)
   H2 predicts delta > 0: removing silence should RAISE timing reliance.
+
 ==========================================================================
-  VERDICT (delay): INCONCLUSIVE but directional, and NOT symmetric between the hypotheses. Neither coefficient clears alpha = 0.05 at n = 16 (df = 12). b_a = +0.0678 [-0.0420, +0.1775], p = 0.203 — point estimate runs AGAINST H1' (H1' predicts b_a < 0). b_s = -0.1105 [-0.2337, +0.0126], p = 0.074 — H2's direction. Largest standardised effect: s (beta* = -0.440). Availability remains flat (b_a p = 0.611), a third independent replication of it. Read as: H1' gained no support even with its confound removed, the residual signal is selectivity and general robustness, and the design is underpowered to separate a modest H2 effect from none.
+  VERDICT (delay): H1' REFUTED on its own terms — b_a > 0 with s fixed by construction, so the prediction ran backwards even after the confound was broken. The strongest available negative.
 ==========================================================================
+
 Figure -> D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\fig\phase1_regress_delay.png
+
+==========================================================================
+  v3 PHASE 1 — NODELAY ARM  (n = 24)
+==========================================================================
+
+--- design acceptance check (this gates everything below) ---
+  rho(a, s) = -0.342 (p = 0.1022), threshold |rho| <= 0.5
+  PASS — the factorial decorrelated the axes   [v1 observational: -0.455 delay, -0.943 no-delay]
+  a spans 1.79–4.06 (2.26x) | s spans 5.6%–76.3% | clean acc 0.465–0.550
+
+--- usage ~ log(a) + s + deletion control ---
+  n = 24, df = 20, R^2 = 0.814 (adj 0.786)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.2003    0.0395   +5.07    0.0001   [+0.1179,+0.2828]  +0.495   1.03
+  s                         -0.1147    0.0614   -1.87    0.0765   [-0.2429,+0.0134]  -0.323   3.21
+  control_deletion          +0.8997    0.3741   +2.41    0.0260   [+0.1194,+1.6800]  +0.413   3.16
+
+--- usage ~ log(a) + s   (control omitted) ---
+  n = 24, df = 21, R^2 = 0.760 (adj 0.737)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.1932    0.0437   +4.42    0.0002   [+0.1024,+0.2840]  +0.478   1.02
+  s                         -0.2368    0.0384   -6.17    0.0000   [-0.3166,-0.1570]  -0.666   1.02
+
+--- timing_fraction ~ log(a) + s ---
+  n = 24, df = 21, R^2 = 0.560 (adj 0.518)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     -0.0302    0.0109   -2.76    0.0117   [-0.0529,-0.0074]  -0.403   1.02
+  s                         -0.0452    0.0096   -4.71    0.0001   [-0.0652,-0.0252]  -0.688   1.02
+
+--- controlled contrast: floor ON vs OFF at matched a (|d log a| <= 0.2) ---
+  floor ON                               floor OFF                               dlogA   s_on   s_off   dusage
+  sparse_whole_nodelay_v3_k1_floor1_seed43 sparse_whole_nodelay_v3_k1_floor0_seed43  0.139  19.7%   75.7%   +0.021
+  sparse_whole_nodelay_v3_k1_floor1_seed44 sparse_whole_nodelay_v3_k2_floor0_seed44  0.187  19.3%   68.1%   +0.139
+  sparse_whole_nodelay_v3_k1_floor1_seed42 sparse_whole_nodelay_v3_k1_floor0_seed44  0.195  18.3%   76.3%   +0.024
+  sparse_whole_nodelay_v3_k2_floor1_seed42 sparse_whole_nodelay_v3_k2_floor0_seed43  0.131  13.0%   70.6%   +0.041
+  sparse_whole_nodelay_v3_k2_floor1_seed44 sparse_whole_nodelay_v3_k2_floor0_seed42  0.193  13.8%   69.0%   +0.083
+  sparse_whole_nodelay_v3_k4_floor1_seed43 sparse_whole_nodelay_v3_k4_floor0_seed43  0.003   8.1%   59.2%   +0.104
+  sparse_whole_nodelay_v3_k4_floor1_seed44 sparse_whole_nodelay_v3_k4_floor0_seed42  0.007   9.1%   59.7%   +0.181
+  sparse_whole_nodelay_v3_k4_floor1_seed42 sparse_whole_nodelay_v3_k4_floor0_seed44  0.061   8.0%   57.5%   +0.200
+  sparse_whole_nodelay_v3_k8_floor1_seed44 sparse_whole_nodelay_v3_k8_floor0_seed42  0.105   6.0%   48.6%   +0.144
+  sparse_whole_nodelay_v3_k8_floor1_seed43 sparse_whole_nodelay_v3_k8_floor0_seed44  0.136   5.8%   48.3%   +0.166
+  sparse_whole_nodelay_v3_k8_floor1_seed42 sparse_whole_nodelay_v3_k8_floor0_seed43  0.159   5.6%   43.1%   +0.207
+  mean delta usage = +0.1192 (se 0.0208, t = +5.73, p = 0.0002, 11 pairs)
+  H2 predicts delta > 0: removing silence should RAISE timing reliance.
+
+==========================================================================
+  VERDICT (nodelay): H1' REFUTED on its own terms — b_a > 0 with s fixed by construction, so the prediction ran backwards even after the confound was broken. The strongest available negative.
+==========================================================================
+
+Figure -> D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\fig\phase1_regress_nodelay.png
+
 Results -> D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\phase1_regress.json

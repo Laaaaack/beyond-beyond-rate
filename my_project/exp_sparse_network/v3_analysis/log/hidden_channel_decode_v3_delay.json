@@ -25,6 +25,19 @@
     "peak_potential_silent_median": 0.60992431640625,
     "peak_potential_active_median": 18.06604766845703
   },
+  "sparse_whole_delay_v3_k1_floor0_seed44": {
+    "spikes_per_neuron": 1.1361472606658936,
+    "spikes_per_active_neuron": 3.054937253550312,
+    "silent_fraction": 0.6280947311289246,
+    "decode_count": 0.7421509686038744,
+    "decode_identity": 0.6158984635938544,
+    "decode_full": 0.8256513026052105,
+    "decode_shuffled": 0.6953907815631263,
+    "timing_information": 0.1302605210420842,
+    "timing_fraction": 0.16793695904921846,
+    "peak_potential_silent_median": 0.3039016127586365,
+    "peak_potential_active_median": 16.915355682373047
+  },
   "sparse_whole_delay_v3_k1_floor1_seed42": {
     "spikes_per_neuron": 1.8790550231933594,
     "spikes_per_active_neuron": 2.426718028497417,
@@ -50,6 +63,19 @@
     "timing_fraction": 0.2296012837921244,
     "peak_potential_silent_median": 6.464629650115967,
     "peak_potential_active_median": 24.52954864501953
+  },
+  "sparse_whole_delay_v3_k1_floor1_seed44": {
+    "spikes_per_neuron": 2.0074679851531982,
+    "spikes_per_active_neuron": 2.5523727037922024,
+    "silent_fraction": 0.21348947895791584,
+    "decode_count": 0.6880427521710086,
+    "decode_identity": 0.46893787575150303,
+    "decode_full": 0.8216432865731463,
+    "decode_shuffled": 0.6452905811623246,
+    "timing_information": 0.1763527054108217,
+    "timing_fraction": 0.22854174782495787,
+    "peak_potential_silent_median": 7.0031633377075195,
+    "peak_potential_active_median": 15.253268241882324
   },
   "sparse_whole_delay_v3_k2_floor0_seed42": {
     "spikes_per_neuron": 1.623643159866333,
@@ -77,6 +103,19 @@
     "peak_potential_silent_median": 0.06712961196899414,
     "peak_potential_active_median": 19.284700393676758
   },
+  "sparse_whole_delay_v3_k2_floor0_seed44": {
+    "spikes_per_neuron": 1.4442113637924194,
+    "spikes_per_active_neuron": 3.3537011571628317,
+    "silent_fraction": 0.5693679024716098,
+    "decode_count": 0.7421509686038744,
+    "decode_identity": 0.5918503674014696,
+    "decode_full": 0.8423513694054776,
+    "decode_shuffled": 0.676686706746827,
+    "timing_information": 0.16566466265865065,
+    "timing_fraction": 0.20907979597858622,
+    "peak_potential_silent_median": 0.296968936920166,
+    "peak_potential_active_median": 19.32745933532715
+  },
   "sparse_whole_delay_v3_k2_floor1_seed42": {
     "spikes_per_neuron": 2.324169158935547,
     "spikes_per_active_neuron": 2.7804880941917207,
@@ -102,6 +141,19 @@
     "timing_fraction": 0.23911841041569168,
     "peak_potential_silent_median": 6.865269660949707,
     "peak_potential_active_median": 16.359107971191406
+  },
+  "sparse_whole_delay_v3_k2_floor1_seed44": {
+    "spikes_per_neuron": 2.4969522953033447,
+    "spikes_per_active_neuron": 2.9472284328471905,
+    "silent_fraction": 0.15277951736806947,
+    "decode_count": 0.7127588510354042,
+    "decode_identity": 0.4816299265197061,
+    "decode_full": 0.8336673346693386,
+    "decode_shuffled": 0.6599866399465598,
+    "timing_information": 0.1736806947227788,
+    "timing_fraction": 0.2216255380812342,
+    "peak_potential_silent_median": 7.054078102111816,
+    "peak_potential_active_median": 16.322059631347656
   },
   "sparse_whole_delay_v3_k4_floor0_seed42": {
     "spikes_per_neuron": 1.9079774618148804,
@@ -129,6 +181,19 @@
     "peak_potential_silent_median": 0.9459712505340576,
     "peak_potential_active_median": 22.174243927001953
   },
+  "sparse_whole_delay_v3_k4_floor0_seed44": {
+    "spikes_per_neuron": 2.1622097492218018,
+    "spikes_per_active_neuron": 3.9213112553535,
+    "silent_fraction": 0.4486003256513026,
+    "decode_count": 0.738810955243821,
+    "decode_identity": 0.5784903139612558,
+    "decode_full": 0.8390113560454242,
+    "decode_shuffled": 0.7027388109552438,
+    "timing_information": 0.13627254509018039,
+    "timing_fraction": 0.17271303390763243,
+    "peak_potential_silent_median": 0.032555244863033295,
+    "peak_potential_active_median": 21.858051300048828
+  },
   "sparse_whole_delay_v3_k4_floor1_seed42": {
     "spikes_per_neuron": 2.961475133895874,
     "spikes_per_active_neuron": 3.2969591748486025,
@@ -154,6 +219,19 @@
     "timing_fraction": 0.20370920510970597,
     "peak_potential_silent_median": 6.900068283081055,
     "peak_potential_active_median": 19.24306297302246
+  },
+  "sparse_whole_delay_v3_k4_floor1_seed44": {
+    "spikes_per_neuron": 3.141042470932007,
+    "spikes_per_active_neuron": 3.4514487886440044,
+    "silent_fraction": 0.08993507849031396,
+    "decode_count": 0.7287909151636607,
+    "decode_identity": 0.44622578490313963,
+    "decode_full": 0.8423513694054776,
+    "decode_shuffled": 0.6740146960587843,
+    "timing_information": 0.16833667334669333,
+    "timing_fraction": 0.21245205075243428,
+    "peak_potential_silent_median": 6.894692420959473,
+    "peak_potential_active_median": 19.20008659362793
   },
   "sparse_whole_delay_v3_k8_floor0_seed42": {
     "spikes_per_neuron": 3.24141001701355,
@@ -181,6 +259,19 @@
     "peak_potential_silent_median": 0.36307430267333984,
     "peak_potential_active_median": 29.99007797241211
   },
+  "sparse_whole_delay_v3_k8_floor0_seed44": {
+    "spikes_per_neuron": 2.986780881881714,
+    "spikes_per_active_neuron": 4.88131795935594,
+    "silent_fraction": 0.38811998997995995,
+    "decode_count": 0.7568470273881096,
+    "decode_identity": 0.5003340013360054,
+    "decode_full": 0.8657314629258517,
+    "decode_shuffled": 0.6753507014028056,
+    "timing_information": 0.19038076152304606,
+    "timing_fraction": 0.23338656184743886,
+    "peak_potential_silent_median": 0.012758584693074226,
+    "peak_potential_active_median": 29.422718048095703
+  },
   "sparse_whole_delay_v3_k8_floor1_seed42": {
     "spikes_per_neuron": 4.546817779541016,
     "spikes_per_active_neuron": 4.798492204732886,
@@ -206,5 +297,18 @@
     "timing_fraction": 0.2084124372442307,
     "peak_potential_silent_median": 6.8314127922058105,
     "peak_potential_active_median": 27.101959228515625
+  },
+  "sparse_whole_delay_v3_k8_floor1_seed44": {
+    "spikes_per_neuron": 4.471119403839111,
+    "spikes_per_active_neuron": 4.724380270017399,
+    "silent_fraction": 0.053607214428857713,
+    "decode_count": 0.7454909819639278,
+    "decode_identity": 0.3800935203740815,
+    "decode_full": 0.8517034068136272,
+    "decode_shuffled": 0.6753507014028056,
+    "timing_information": 0.1763527054108216,
+    "timing_fraction": 0.21997250343707034,
+    "peak_potential_silent_median": 7.027680397033691,
+    "peak_potential_active_median": 26.574718475341797
   }
 }

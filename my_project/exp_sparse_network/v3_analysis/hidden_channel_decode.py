@@ -79,7 +79,7 @@ QUICK_TAG_SUBSTRINGS: tuple[str, ...] = ("str0.01_seed42", "str1_seed42",
 # not the architecture, so the parameter set and the forward pass are v1's exactly.
 # (This is unlike v2.2, whose truncation had to be reapplied at eval.)
 VERSION_TAG: str = "v3_"
-ARMS: tuple[tuple[str, bool], ...] = (("delay", True),)
+ARMS: tuple[tuple[str, bool], ...] = (("delay", True), ("nodelay", False))
 
 # --- Architecture and simulation, identical to training ---
 SIM_PARAMS = {"Ts": 1, "tSample": 200}
