@@ -89,7 +89,7 @@ MAX_DELAY: int    = 64
 # The low-f points matter: the no-delay arm's accuracy knee sits near f = 0.05-0.2,
 # so the original 0.2-spaced grid rendered a steep-but-smooth decline as a cliff.
 # The original six values are kept as a subset so old curves stay comparable.
-F_VALUES: list   = [0.0, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0]
+F_VALUES: list[float] = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 NUM_REPEATS: int = 3
 
 # Destinations for relocated spikes are confined to [0, SUPPORT_BINS).

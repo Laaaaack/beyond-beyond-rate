@@ -196,7 +196,7 @@ CEILING_K: list[float] = [1.0, 2.0, 4.0, 8.0]
 # than a correlation -- the first in this line of work.
 FLOOR_STRENGTH: list[float] = [0.0, 1.0]
 
-SEEDS: list[int] = [42, 43]
+SEEDS: list[int] = [42, 43, 44]
 
 # Coefficient on the ceiling term. Fixed across the whole grid so that `k` is the only
 # thing varying along the row axis.
