@@ -1,89 +1,144 @@
-"""v3 Phase 1, WITH-DELAY arm: 1st-hidden-layer jitter sweep, eval-only.
+"""v3 Phase 1 at LAYER 2, WITH-DELAY: 2nd-layer jitter sweep, eval-only.
 
 Companion to the training script
-[sn_train_withDelay_v3.py](../sn_train_withDelay_v3.py), which trained the v3
-**factorial** — a per-pair ceiling ``relu(count - k)`` setting temporal sparsity
-``a`` along ``CEILING_K = [1, 2, 4, 8]``, crossed with a membrane-potential floor
-setting selectivity ``s`` along ``FLOOR_STRENGTH = [0, 1]``, at seeds 42, 43 and 44
-— and saved one checkpoint per ``(k, floor, seed)``. This script performs **no
-training**. It loads each of those 24 checkpoints and measures how much test
-accuracy degrades as the **1st hidden layer's** spikes are jittered in time at
-evaluation only.
+[sn_2ndLayer_train_withDelay_v3.py](../sn_2ndLayer_train_withDelay_v3.py),
+which trains the **2nd-layer** v3 factorial — a per-pair ceiling
+``relu(count - k)`` setting temporal sparsity ``a`` along
+``CEILING_K = [1, 2, 4, 8, 16]``, crossed with a membrane-potential floor
+setting selectivity ``s`` along ``FLOOR_STRENGTH = [0, 1]``, at seeds 42, 43
+and 44 (5 k x 2 floor x 3 seeds = 30 models) — and saves one checkpoint per
+``(k, floor, seed)``. **Both penalties act on the 2nd hidden layer**, so this
+script performs **no training** and measures how much test accuracy degrades
+when that same layer's spikes are jittered at evaluation only.
 
-Why the v3 checkpoints rather than v1's: in v1 the two sparsity axes were
-confounded at ``rho(a, s) = -0.455`` in this arm and ``-0.943`` in the other, so no
-sweep over those models could attribute a trend to one rather than the other. The
-v3 grid breaks that by construction — ``rho(a, s) = -0.087`` (p = .69) across the
-24 models — which is what makes a jitter curve read against ``a`` interpretable.
-See document 5 §2b and §4 Phase 1.
+**The checkpoints do not exist yet, and that is expected.** Document 6 records
+both layer-2 grids as calibrated, corner-probed and ready but **not launched**,
+so until ``sn_log/sparse_whole_delay_v3L2_train_summary.json`` exists this
+script raises ``FileNotFoundError`` and does nothing else. It is written ahead
+of the grid on purpose: retargeting the measurement layer is document 6 §4 step
+3, the largest piece of outstanding work, and the grids are uninterpretable
+without it.
 
-The no-delay arm is now trained as well, and its sibling is
-[jitter_evalOnly_noDelay_v3.py](jitter_evalOnly_noDelay_v3.py). The arms
-are kept as separate scripts (rather than one script with a flag) for the same reason
-the training scripts are: this network carries the learnable axonal delays
-``delay1``/``delay2``, which are themselves a timing mechanism, so its jitter curve
-measures sparsity's effect *on top of* whatever the delays contribute, where the
-sibling's measures it with membrane dynamics as the only timing machinery in the
-model.
+Why layer 2, and why the factorial is still required here. The 1st-layer v3
+factorial returned a null — with ``a`` and ``s`` decorrelated by construction,
+``beta_a``'s point estimate ran *against* H1' and the residual signal was
+selectivity plus general robustness. That is a result about **layer 1**.
+Running the same experiment one layer deeper is the cheapest way to find out
+whether it is a fact about temporal coding or a fact about the first layer of
+this particular network, and the two layers are demonstrably not copies of one
+another: measured across v1's checkpoints, ``rho(a, s)`` at layer 2 in this arm
+is **+0.427** (p = .17), the *opposite sign* from layer 1's -0.455. Layer 2
+carries its own confound, running the other way, so the factorial is as
+necessary here as it was at layer 1 — and it is a **different** confound being
+broken. See document 6 §1 and §2.
 
-**This is the primary arm for interpretation**, on two Phase 0 findings the factorial
-cannot fix because they concern the dependent variable: this arm's readout leaves only
-**+.026** of accuracy unextracted relative to a linear decoder on its own layer 1 (the
-no-delay arm: +.300, on every checkpoint), and its deletion control is essentially
-orthogonal to selectivity, ``rho(s, control) = +0.030`` against the no-delay arm's
-**-0.818**. Coefficients on ``s`` are separable here and are not there.
+This arm has a further reason to exist at layer 2 specifically: **``delay1``
+sits immediately after layer 1**, so the learnable-delay machinery this arm was
+built to study does its work *between* the two hidden layers. Layer 2 is the
+first place its output is visible, and testing H1' only at layer 1 tests it
+upstream of the mechanism (document 6 §1).
+
+Which arm this is. The sibling is
+[the no-delay sibling](jitter_2ndLayer_evalOnly_noDelay_v3.py). The arms are
+kept as separate scripts (rather than one script with a flag) for the same
+reason the training scripts are. This network carries the learnable axonal
+delays ``delay1``/``delay2``, which are themselves a timing mechanism, so this
+sweep measures sparsity's effect *on top of* whatever the delays contribute.
+
+**Which arm is primary is an open question at layer 2, not an inherited one.**
+The 1st-layer scripts name the delay arm as the interpretive venue on two Phase
+0 numbers — the readout-efficiency gap (+.026 here, +.300 in the no-delay arm)
+and the deletion control being indistinguishable from the timing probe in the
+no-delay arm. Both were measured **at layer 1**, and the readout gap is not
+even the same quantity here: at layer 2 the readout is ``fc3`` alone, not
+``fc2`` + ``fc3``. Neither has a layer-2 counterpart yet, so no arm-primacy
+claim is repeated in this file. Settling it before re-measuring would be
+inheriting a constant across a layer boundary, which is the mistake document 6
+exists to avoid (§4 step 2, §5 point 6).
 
 Relation to [phase1_measure.py](../v3_analysis/phase1_measure.py): that script
-measures only the *endpoints* the Phase 1 regressions need (relocation ``f = 1``
-and the ``p_d = 0.8`` deletion control) on these same checkpoints. This script
-sweeps the full jitter grid, which the regressions do not use but which shows the
-*shape* of the degradation rather than a single number.
+measures only the *endpoints* the Phase 1 regressions need (relocation
+``f = 1`` and the ``p_d = 0.8`` deletion control). Jitter is not one of them —
+it is kept here as a second, coarser timing perturbation to read the relocation
+result against. Note that ``phase1_measure.py`` is itself still hardwired to
+layer 1 and is on document 6 §4 step 3's retarget list; once retargeted it must
+share this file's injection site and window for the two to agree.
 
-Where the delays sit relative to the perturbation site: ``delay1`` is the first
-operation *after* the 1st hidden layer's spikes, so jitter is injected upstream of
-it — exactly as in training, where the sparsity penalty also acts on the
-pre-``delay1`` spike tensor.
+Where the perturbation site sits, and the trap that comes with it. ``delay1``
+lives *between* layer 1 and ``fc2``, so relative to layer 2 it is **upstream**
+of the injection point, where relative to layer 1 it was downstream. The
+1st-layer scripts inject before ``delay1`` and are right to ignore it; this one
+must apply it, and ``_second_hidden`` does —
+``hidden2 = spike(fc2(psp(delay1(hidden1))))``, the same tensor the training
+penalties charged. Getting this wrong would not raise; it would silently sweep
+a different network (document 6 §5 point 3). ``delay2`` stays downstream,
+between the injection site and ``fc3``.
 
-Protocol rule (do not break): sparsity is applied during *training* on clean data;
-jitter is applied here at *evaluation* only. The loaded checkpoint is never
-modified, no gradients are taken, and the delays are used exactly as trained (the
-adaptive clamping schedule is a training-time device and has no role here).
+Protocol rule (do not break): sparsity is applied during *training* on clean
+data; jitter is applied here at *evaluation* only. The loaded checkpoint is
+never modified and no gradients are taken.
 
-Per-spike jitter: each 1st-hidden spike is independently shifted by an offset drawn
-from ``N(0, sigma)``, clipped to the layer's measured temporal support
-``[0, SUPPORT_BINS)`` and placed at the nearest free bin. Per-neuron spike count is
-preserved, so the perturbation destroys spike *timing*, not *rate* — a network that
-leans on timing loses accuracy; a pure rate coder does not.
+Per-spike jitter: each 2nd-hidden spike is independently shifted by an offset
+drawn from ``N(0, sigma)``, clipped to the layer's measured temporal support
+``[0, SUPPORT_BINS)`` and placed at the nearest free bin. Per-neuron spike
+count is preserved, so the perturbation destroys spike *timing*, not *rate* — a
+network that leans on timing loses accuracy; a pure rate coder does not.
 
-v3 correction: the clip is to the layer's measured support rather than to ``T - 1``.
-The zero-padded tail holds no hidden spikes, so jittering into it thins the
-population's spike density and mixes a rate insult into a timing-only probe.
+**The window is layer 2's own, measured per arm.** The clip is to
+``[0, SUPPORT_BINS)`` = ``[0, 160)``, not to ``T - 1`` and not to layer 1's
+``[0, 88)``: ``delay1`` (up to 64 bins) shifts layer 1's spikes later before
+``fc2`` ever sees them, so this layer's support runs to bin 159 where layer 1's
+stops at 87, and its median spike lands at bin 65-79 against layer 1's 18-20.
+Jittering into a region the layer never occupies thins the population's spike
+density and mixes a rate insult into a timing-only probe. See the
+``SUPPORT_BINS`` comment below and document 6 §2a and §4 step 3.
 
 What this script does, for every checkpoint listed in the training summary (the
 authoritative live-checkpoint list — read rather than globbed, so we evaluate
 exactly the models the milestone locked and reuse their recorded metadata):
 
-- loads the SGD-delay architecture and the checkpoint's weights, in eval mode;
-- sweeps ``SIGMA_VALUES`` on the 1st hidden layer, ``NUM_REPEATS`` times per sigma
-  for error bars, all inside ``torch.no_grad()``;
-- writes ``log/sparse_whole_delay_v3_jitter_eval.json`` with two sections:
-  ``per_setup``, one **seed-averaged** row per ``(k, floor)`` cell — the headline,
-  since the three seeds are replicates of one cell rather than three conditions — and
-  ``per_checkpoint``, the raw per-seed ``acc(sigma)`` sweeps it was computed from.
-  Both carry the training summary's design knobs (``ceiling_k``, ``floor_strength``,
-  ``seed``) and *measured* sparsity metrics, so the file is self-contained for the
-  analysis.
+- loads the delay architecture and the checkpoint's weights, in eval mode;
+- sweeps ``SIGMA_VALUES`` on the **2nd** hidden layer, ``NUM_REPEATS`` times
+  per sigma for error bars, all inside ``torch.no_grad()``;
+- writes ``log/sparse_whole_delay_v3L2_jitter_eval.json`` with two sections:
+  ``per_setup``, one **seed-averaged** row per ``(k, floor)`` cell — the
+  headline, since the three seeds are replicates of one cell rather than three
+  conditions — and ``per_checkpoint``, the raw per-seed ``acc(sigma)`` sweeps
+  it was computed from. Both carry the training summary's design knobs
+  (``ceiling_k``, ``floor_strength``, ``seed``) and *measured* sparsity
+  metrics, plus ``target_layer``, so the file is self-contained for the
+  analysis and cannot be mistaken for a 1st-layer run.
 
-The downstream analysis turns each ``acc(sigma)`` curve into a chance-corrected,
-baseline-normalised ``temporal_score``. Plot it against the *measured* axes ``a``
-(``spikes_per_active_neuron``) and ``s`` (``silent_fraction``) separately — never
-against ``spikes_per_neuron`` alone, which is their product and moves with both, and
-never against the penalty knobs, whose map to achieved sparsity is nonlinear and
-seed-dependent (document 5 §8 rule 1). Clean accuracy across this grid is .707-.859,
-so raw accuracy drops are not comparable across cells; the normalised score is.
+The ``v3L2`` tag is load-bearing throughout (document 6 §5 point 2). The 1st-
+and 2nd-layer grids share dataset, arm, ``k``, floor and seed and differ only
+in which layer the penalties acted on, so without it this script would read the
+1st-layer summary and write over the 1st-layer results.
 
-Architecture: Input(700) -> 128 hidden -> 128 hidden -> 20 output (SRMALPHA), with
-learnable delays after each hidden layer.
+The downstream analysis turns each ``acc(sigma)`` curve into a
+chance-corrected, baseline-normalised ``temporal_score``. Plot it against the
+*measured* axes ``a`` (``spikes_per_active_neuron``) and ``s``
+(``silent_fraction``) separately — never against ``spikes_per_neuron`` alone,
+which is their product and moves with both, and never against the penalty
+knobs, whose map to achieved sparsity is nonlinear and seed-dependent (document
+5 §8 rule 1). Raw accuracy drops are not comparable across cells; the
+normalised score is.
+
+**Do not pre-fill a clean-accuracy range for this grid from the corner probe.**
+The probe's .830-.888 came from four models at 400 epochs, and document 6 is
+explicit that penalties calibrated at reduced epochs re-densify by the full
+1250-epoch run. Read the range off the training summary once the grid has run.
+
+One layer-2 reading note with no 1st-layer analogue: ``rho(a, s)`` at layer 2
+is **positive**. A reader carrying document 5's -0.943 across will misread the
+sign of the confound being broken. The design acceptance check is on ``|rho|``,
+so the threshold is unaffected, but the interpretation of a failure differs
+(document 6 §5 point 5).
+
+Architecture: Input(700) -> 128 hidden -> 128 hidden -> 20 output (SRMALPHA),
+with the learnable axonal delays ``delay1`` (hidden1 -> fc2) and ``delay2``
+(hidden2 -> fc3). Unchanged from v1 and from the 1st-layer v3 grid — only the
+layer the penalties and this sweep act on moved, which is why these checkpoints
+load with ``strict=True``.
 Sweep (eval only): sigma in {0, 1, 3, 5, 10, 17, 25} time steps (ms).
 """
 
@@ -136,14 +191,29 @@ DELAY_TAG: str = "delay"      # this arm; tags the summary and results files
 INPUT_DIM: int = 700          # SHD whole
 MAT_FILE: str = str(SHD_DATA_DIR / "shd_whole.mat")
 
-# Training generation to evaluate. "v3" selects the 24-model factorial grid trained
-# by sn_train_withDelay_v3.py; it matches that script's own VERSION_TAG, and it tags
-# both the summary read here and the results written below, so v3 sweeps can never
-# collide with v1's files in log/.
-VERSION_TAG: str = "v3"
+# Which hidden layer this sweep injects into. It matches the training scripts'
+# constant of the same name: the penalties acted on layer 2, so the perturbation
+# must too, or the sweep measures a layer the experiment never constrained.
+# ``delay1`` sits *upstream* of this layer, so it is applied before the
+# perturbation site rather than after it — the trap document 6 §5 point 3
+# names explicitly. A layer-1 probe correctly ignores ``delay1``; a layer-2
+# probe must apply it, and getting this wrong silently measures the wrong
+# tensor rather than raising an error.
+TARGET_LAYER: int = 2
 
-# The training summary enumerating this arm's live v3 checkpoints. Its keys are the
-# run tags (``sparse_whole_delay_v3_k{k}_floor{F}_seed{seed}``) and
+# Training generation to evaluate. "v3L2" selects the 30-model **2nd-layer**
+# factorial trained by sn_2ndLayer_train_withDelay_v3.py; it matches that script's own
+# VERSION_TAG, and it tags both the summary read here and the results written
+# below.
+#
+# This tag is load-bearing (document 6 §5 point 2). The 1st- and 2nd-layer grids
+# share dataset, arm, k, floor and seed and differ only by which layer the
+# penalties acted on, so without a distinct tag this script would read the
+# 1st-layer summary and write over the 1st-layer results.
+VERSION_TAG: str = "v3L2"
+
+# The training summary enumerating this arm's live v3L2 checkpoints. Its keys are
+# the run tags (``sparse_whole_delay_v3L2_k{k}_floor{F}_seed{seed}``) and
 # ``sn_data/{run_tag}.pt`` is the matching checkpoint. The 4-corner calibration probe
 # is kept separately as ..._train_summary_probe.json and is NOT evaluated here.
 TRAIN_SUMMARY_FILE: str = (
@@ -206,23 +276,31 @@ BATCH_SIZE: int = 128
 SEED: int = 42                # base seed for the jitter repeats
 MAX_DELAY: int = 64           # recorded for parity with training; unused at eval
 
-# --- Jitter destination window (v3 correction) ---
+# --- Jitter destination window (measured at LAYER 2, this arm) ---
 # shd_whole.mat holds 100 time bins and load_shd_data zero-pads them to the
-# simulator's 200, so the 1st hidden layer's spikes never occupy a bin beyond 87
-# (measured over all 27 checkpoints by v3_analysis/temporal_support.py). Clipping
-# jitter targets to T - 1 = 199 therefore lets the largest sigmas push spikes into
-# a region where no hidden spike ever naturally occurs, which thins the
-# population's instantaneous spike density — a *rate* insult riding on a probe
-# that is supposed to hold rate fixed and destroy only timing.
+# simulator's 200, so no hidden layer ever occupies the whole window. Clipping jitter
+# targets to T - 1 = 199 lets the largest sigmas push spikes into a region where no
+# hidden spike naturally occurs, which thins the population's instantaneous spike
+# density — a *rate* insult riding on a probe that is supposed to hold rate fixed and
+# destroy only timing.
 #
 # Clipping to the support instead concentrates the overflow at the support edge.
 # That is the lesser distortion: the collision retry below preserves each neuron's
 # spike count exactly either way, so the edge pile-up costs alignment, not rate.
 #
-# Set to None to reproduce the uncorrected full-window behaviour exactly; the two
-# runs write to different files (see WINDOW_SUFFIX), so neither can overwrite the
-# other.
-SUPPORT_BINS: int | None = 88
+# **This bound is measured at layer 2 and is NOT the 1st-layer script's**, and this
+# arm is where the difference is large. ``delay1`` (up to 64 bins) shifts layer 1's
+# spikes later before ``fc2`` ever sees them, so the 2nd hidden layer's support runs
+# to bin 159 where layer 1's stops at 87, and its median spike lands at bin 65-79
+# against layer 1's 18-20. Inheriting ``[0, 88)`` here would clip roughly the whole
+# upper half of this layer's own support into a pile at bin 87 — a large rate insult
+# in a timing probe, produced by carrying a constant across a layer boundary.
+# Measured over all 27 v1 checkpoints by v3_analysis/layer2_baseline.py; see document
+# 6 §2a, §2b point 3 and §5 point 3.
+#
+# Set to None to reproduce full-window behaviour; the two runs write to different
+# files (see WINDOW_SUFFIX), so neither can overwrite the other.
+SUPPORT_BINS: int | None = 160
 
 # Appended to the results filename. The corrected window is what a v3 run means, so
 # it takes the bare name and the full-window variant is the one that gets marked.
@@ -398,14 +476,22 @@ class SparseSHDNetwork(nn.Module):
     """2-hidden-layer SLAYER SNN with learnable delays, for the sparse checkpoints.
 
     The parameter set is identical to the training class of the same name in
-    [sn_train_withDelay_v3.py](../sn_train_withDelay_v3.py) — ``fc1``/``fc2``/``fc3``
-    weight-norm parameters plus ``delay1``/``delay2`` — so this class loads those
-    checkpoints directly. The training script's adaptive delay-clamping schedule is
-    deliberately absent: it shapes delays *during* training, and the loaded values
-    are used here exactly as saved.
+    [sn_2ndLayer_train_withDelay_v3.py](../sn_2ndLayer_train_withDelay_v3.py) —
+    ``fc1``/``fc2``/``fc3`` weight-norm parameters plus ``delay1``/``delay2`` —
+    so this class loads those checkpoints directly. It is also identical to v1's
+    and to the 1st-layer v3 grid's: only the layer the penalties target moved,
+    never the architecture. The training script's adaptive delay-clamping
+    schedule is deliberately absent: it shapes delays *during* training, and the
+    loaded values are used here exactly as saved.
 
-    ``forward_with_hidden_perturbation`` jitters the 1st hidden layer before
-    ``delay1`` and the readout. It is eval-only; nothing here is ever trained.
+    ``forward_with_hidden_perturbation`` injects into the **2nd** hidden layer,
+    the tensor both training penalties acted on, and passes the result through
+    ``delay2`` to ``fc3``. Note the asymmetry with the 1st-layer scripts:
+    ``delay1`` is applied *before* the injection site here, inside
+    ``_second_hidden``, because layer 2 is downstream of it. The forward pass is
+    split into ``_first_hidden`` / ``_second_hidden`` / ``_output`` so that site
+    is a named stage rather than an inline expression. It is eval-only; nothing
+    here is ever trained.
     """
 
     def __init__(
@@ -428,8 +514,11 @@ class SparseSHDNetwork(nn.Module):
             slayer.dense(hidden_units, num_classes), name="weight"
         )
 
-        # delay1 sits at the start of _second_hidden_and_output, i.e. immediately
-        # after the perturbation site; delay2 stays between the fc2 spike and fc3.
+        # delay1 sits inside _second_hidden, i.e. UPSTREAM of the perturbation
+        # site: layer 2 is what fc2 produces once delay1 has already routed
+        # layer 1's spikes, which is why this layer's temporal support runs to
+        # bin 159 rather than layer 1's 87. delay2 stays downstream, between the
+        # perturbation site and fc3.
         self.delay1 = slayer.delay(hidden_units)
         self.delay2 = slayer.delay(hidden_units)
 
@@ -445,26 +534,42 @@ class SparseSHDNetwork(nn.Module):
         """Input -> PSP -> fc1 -> spike -> 1st hidden spikes (strictly binary)."""
         return self.slayer.spike(self.fc1(self.slayer.psp(x)))
 
-    def _second_hidden_and_output(self, hidden1: torch.Tensor) -> torch.Tensor:
-        """hidden1 -> delay1 -> fc2 -> spike -> delay2 -> fc3 -> spike."""
-        x = self.delay1(hidden1)
-        x = self.slayer.spike(self.fc2(self.slayer.psp(x)))
-        x = self.delay2(x)
-        x = self.slayer.spike(self.fc3(self.slayer.psp(x)))
-        return x
+    def _second_hidden(self, hidden1: torch.Tensor) -> torch.Tensor:
+        """hidden1 -> delay1 -> fc2 -> spike -> 2nd hidden spikes.
+
+        ``delay1`` is applied here, before ``fc2``, so the tensor returned is the
+        one the training penalties charged. This is the layer-2 trap of document
+        6 §5 point 3: skipping ``delay1`` would still run and still produce a
+        curve, it would just be a curve about a different network.
+
+        Args:
+            hidden1: 1st hidden layer spikes, shape (B, C, 1, 1, T).
+
+        Returns:
+            The 2nd hidden layer's spikes, same shape.
+        """
+        return self.slayer.spike(
+            self.fc2(self.slayer.psp(self.delay1(hidden1)))
+        )
+
+    def _output(self, hidden2: torch.Tensor) -> torch.Tensor:
+        """hidden2 -> delay2 -> fc3 -> spike."""
+        return self.slayer.spike(
+            self.fc3(self.slayer.psp(self.delay2(hidden2)))
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Clean forward pass (equivalent to the sigma = 0 baseline)."""
         x = self._prepare_input(x)
-        hidden1 = self._first_hidden(x)
-        return self._second_hidden_and_output(hidden1)
+        hidden2 = self._second_hidden(self._first_hidden(x))
+        return self._output(hidden2)
 
     def forward_with_hidden_perturbation(
         self,
         x: torch.Tensor,
         sigma: float = 0.0,
     ) -> torch.Tensor:
-        """Eval-only: jitter the 1st hidden layer's spikes before the readout.
+        """Eval-only: jitter the **2nd** hidden layer spikes before ``fc3``.
 
         Must be called inside ``torch.no_grad()`` — ``jitter_hidden_batch`` is not
         autograd-safe. ``sigma = 0`` reduces to the clean forward pass.
@@ -477,10 +582,10 @@ class SparseSHDNetwork(nn.Module):
             The output spike tensor.
         """
         x = self._prepare_input(x)
-        hidden1 = self._first_hidden(x)
+        hidden2 = self._second_hidden(self._first_hidden(x))
         if sigma > 0:
-            hidden1 = jitter_hidden_batch(hidden1, sigma)
-        return self._second_hidden_and_output(hidden1)
+            hidden2 = jitter_hidden_batch(hidden2, sigma)
+        return self._output(hidden2)
 
 
 def load_checkpoint(
@@ -515,7 +620,7 @@ def test_at_sigma(
     test_loader: DataLoader,
     sigma: float,
 ) -> float:
-    """Return test accuracy with the 1st hidden layer jittered at ``sigma``.
+    """Return test accuracy with the 2nd hidden layer jittered at ``sigma``.
 
     Args:
         net: Loaded network in eval mode.
@@ -583,15 +688,17 @@ def load_train_summary() -> dict:
     if not summary_path.exists():
         raise FileNotFoundError(
             f"Training summary not found: {summary_path}. Run "
-            f"sn_train_withDelay_v3.py first — this script only evaluates existing "
-            f"checkpoints."
+            f"sn_2ndLayer_train_withDelay_v3.py first — this script only evaluates "
+            f"existing checkpoints. The 2nd-layer grids are calibrated but had "
+            f"not been launched as of document 6, so this is the expected "
+            f"failure until they are."
         )
     with open(summary_path) as fp:
         return json.load(fp)
 
 
 def run_jitter_sweep(test_loader: DataLoader) -> dict:
-    """Sweep eval-only 1st-layer jitter over every checkpoint and save the results.
+    """Sweep eval-only 2nd-layer jitter over every checkpoint and save results.
 
     Args:
         test_loader: The shared (fixed-split) test DataLoader.
@@ -608,7 +715,7 @@ def run_jitter_sweep(test_loader: DataLoader) -> dict:
         run_tags = run_tags[:max_checkpoints]
 
     print(f"\n{'#' * 70}")
-    print("# v3 Phase 1 (eval-only jitter, 1st hidden layer)")
+    print(f"# v3 Phase 1, layer {TARGET_LAYER} (eval-only jitter)")
     print(f"# arm: SGD-delay | dataset: SHD {DATASET_KEY} | grid: {VERSION_TAG} | "
           f"QUICK_TEST={QUICK_TEST}")
     print(f"# checkpoints: {len(run_tags)} | sigmas: {sigma_values} | "
@@ -634,6 +741,7 @@ def run_jitter_sweep(test_loader: DataLoader) -> dict:
 
         results[run_tag] = {
             "use_delay": True,
+            "target_layer": TARGET_LAYER,
             # Copied verbatim rather than cast, so integer knobs (``seed``) stay
             # integers and a downstream join on them cannot go wrong.
             **{

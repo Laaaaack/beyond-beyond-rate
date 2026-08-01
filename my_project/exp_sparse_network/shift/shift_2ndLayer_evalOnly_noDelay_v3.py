@@ -1,89 +1,136 @@
-"""v3 Phase 1, WITH-DELAY arm: 1st-hidden-layer jitter sweep, eval-only.
+"""v3 Phase 1 at LAYER 2, NO-DELAY: 2nd-layer shift sweep, eval-only.
 
 Companion to the training script
-[sn_train_withDelay_v3.py](../sn_train_withDelay_v3.py), which trained the v3
-**factorial** — a per-pair ceiling ``relu(count - k)`` setting temporal sparsity
-``a`` along ``CEILING_K = [1, 2, 4, 8]``, crossed with a membrane-potential floor
-setting selectivity ``s`` along ``FLOOR_STRENGTH = [0, 1]``, at seeds 42, 43 and 44
-— and saved one checkpoint per ``(k, floor, seed)``. This script performs **no
-training**. It loads each of those 24 checkpoints and measures how much test
-accuracy degrades as the **1st hidden layer's** spikes are jittered in time at
-evaluation only.
+[sn_2ndLayer_train_noDelay_v3.py](../sn_2ndLayer_train_noDelay_v3.py), which
+trains the **2nd-layer** v3 factorial — a per-pair ceiling ``relu(count - k)``
+setting temporal sparsity ``a`` along ``CEILING_K = [1, 2, 4, 8]``, crossed
+with a membrane-potential floor setting selectivity ``s`` along
+``FLOOR_STRENGTH = [0, 1]``, at seeds 42, 43 and 44 (4 k x 2 floor x 3 seeds =
+24 models) — and saves one checkpoint per ``(k, floor, seed)``. **Both
+penalties act on the 2nd hidden layer**, so this script performs **no
+training** and measures how much test accuracy degrades when that same layer's
+spikes are shifted at evaluation only.
 
-Why the v3 checkpoints rather than v1's: in v1 the two sparsity axes were
-confounded at ``rho(a, s) = -0.455`` in this arm and ``-0.943`` in the other, so no
-sweep over those models could attribute a trend to one rather than the other. The
-v3 grid breaks that by construction — ``rho(a, s) = -0.087`` (p = .69) across the
-24 models — which is what makes a jitter curve read against ``a`` interpretable.
-See document 5 §2b and §4 Phase 1.
+**The checkpoints do not exist yet, and that is expected.** Document 6 records
+both layer-2 grids as calibrated, corner-probed and ready but **not launched**,
+so until ``sn_log/sparse_whole_nodelay_v3L2_train_summary.json`` exists this
+script raises ``FileNotFoundError`` and does nothing else. It is written ahead
+of the grid on purpose: retargeting the measurement layer is document 6 §4 step
+3, the largest piece of outstanding work, and the grids are uninterpretable
+without it.
 
-The no-delay arm is now trained as well, and its sibling is
-[jitter_evalOnly_noDelay_v3.py](jitter_evalOnly_noDelay_v3.py). The arms
-are kept as separate scripts (rather than one script with a flag) for the same reason
-the training scripts are: this network carries the learnable axonal delays
-``delay1``/``delay2``, which are themselves a timing mechanism, so its jitter curve
-measures sparsity's effect *on top of* whatever the delays contribute, where the
-sibling's measures it with membrane dynamics as the only timing machinery in the
-model.
+Why layer 2, and why the factorial is still required here. The 1st-layer v3
+factorial returned a null — with ``a`` and ``s`` decorrelated by construction,
+``beta_a``'s point estimate ran *against* H1' and the residual signal was
+selectivity plus general robustness. That is a result about **layer 1**.
+Running the same experiment one layer deeper is the cheapest way to find out
+whether it is a fact about temporal coding or a fact about the first layer of
+this particular network, and the two layers are demonstrably not copies of one
+another: measured across v1's checkpoints, ``rho(a, s)`` at layer 2 in this arm
+is **+0.829** (p = 1.4e-4), the *opposite sign* from layer 1's -0.943. Layer 2
+carries its own confound, running the other way, so the factorial is as
+necessary here as it was at layer 1 — and it is a **different** confound being
+broken. See document 6 §1 and §2.
 
-**This is the primary arm for interpretation**, on two Phase 0 findings the factorial
-cannot fix because they concern the dependent variable: this arm's readout leaves only
-**+.026** of accuracy unextracted relative to a linear decoder on its own layer 1 (the
-no-delay arm: +.300, on every checkpoint), and its deletion control is essentially
-orthogonal to selectivity, ``rho(s, control) = +0.030`` against the no-delay arm's
-**-0.818**. Coefficients on ``s`` are separable here and are not there.
+Which arm this is. The sibling is
+[the with-delay sibling](shift_2ndLayer_evalOnly_withDelay_v3.py). The arms are
+kept as separate scripts (rather than one script with a flag) for the same
+reason the training scripts are. **Here there are no delays at all**, so any
+timing effect this sweep finds is attributable to the SRM neurons' membrane
+dynamics alone.
+
+**Which arm is primary is an open question at layer 2, not an inherited one.**
+The 1st-layer scripts name the delay arm as the interpretive venue on two Phase
+0 numbers — the readout-efficiency gap (+.300 here, +.026 in the delay arm) and
+the deletion control being indistinguishable from the timing probe in the
+no-delay arm. Both were measured **at layer 1**, and the readout gap is not
+even the same quantity here: at layer 2 the readout is ``fc3`` alone, not
+``fc2`` + ``fc3``. Neither has a layer-2 counterpart yet, so no arm-primacy
+claim is repeated in this file. Settling it before re-measuring would be
+inheriting a constant across a layer boundary, which is the mistake document 6
+exists to avoid (§4 step 2, §5 point 6).
 
 Relation to [phase1_measure.py](../v3_analysis/phase1_measure.py): that script
-measures only the *endpoints* the Phase 1 regressions need (relocation ``f = 1``
-and the ``p_d = 0.8`` deletion control) on these same checkpoints. This script
-sweeps the full jitter grid, which the regressions do not use but which shows the
-*shape* of the degradation rather than a single number.
+measures only the *endpoints* the Phase 1 regressions need (relocation
+``f = 1`` and the ``p_d = 0.8`` deletion control). Shift is not one of them —
+it is kept here as a second, coarser timing perturbation to read the relocation
+result against. Note that ``phase1_measure.py`` is itself still hardwired to
+layer 1 and is on document 6 §4 step 3's retarget list; once retargeted it must
+share this file's injection site and window for the two to agree.
 
-Where the delays sit relative to the perturbation site: ``delay1`` is the first
-operation *after* the 1st hidden layer's spikes, so jitter is injected upstream of
-it — exactly as in training, where the sparsity penalty also acts on the
-pre-``delay1`` spike tensor.
+Where the perturbation site sits: ``hidden2 = spike(fc2(psp(hidden1)))``,
+exactly the tensor the training penalties charged, and what ``fc3`` reads.
+There is no delay line anywhere in this arm, so the site is unambiguous — but
+see the sibling, where ``delay1`` sits upstream of this layer and must be
+applied.
 
-Protocol rule (do not break): sparsity is applied during *training* on clean data;
-jitter is applied here at *evaluation* only. The loaded checkpoint is never
-modified, no gradients are taken, and the delays are used exactly as trained (the
-adaptive clamping schedule is a training-time device and has no role here).
+Protocol rule (do not break): sparsity is applied during *training* on clean
+data; shift is applied here at *evaluation* only. The loaded checkpoint is
+never modified and no gradients are taken.
 
-Per-spike jitter: each 1st-hidden spike is independently shifted by an offset drawn
-from ``N(0, sigma)``, clipped to the layer's measured temporal support
-``[0, SUPPORT_BINS)`` and placed at the nearest free bin. Per-neuron spike count is
-preserved, so the perturbation destroys spike *timing*, not *rate* — a network that
-leans on timing loses accuracy; a pure rate coder does not.
+Per-neuron shift: one offset is drawn from ``N(0, sigma)`` per (sample, neuron)
+and *all* of that neuron's spikes move together, clipped to ``[0, T-1]``.
+Unlike jitter, each neuron's internal spike pattern survives intact — only its
+alignment to the other neurons and to stimulus onset is destroyed. Spike count
+is preserved except where end-of-window clipping merges spikes, so this too is
+a timing perturbation rather than a rate one.
 
-v3 correction: the clip is to the layer's measured support rather than to ``T - 1``.
-The zero-padded tail holds no hidden spikes, so jittering into it thins the
-population's spike density and mixes a rate insult into a timing-only probe.
+**This sweep takes no support-window correction, and that is deliberate** — it
+is the one place where retargeting to layer 2 must *not* change anything. A
+shift is a rigid translation of one neuron's whole spike train, so it preserves
+the population's instantaneous spike density exactly and never dilutes it into
+a region the layer does not occupy. Clipping targets to the measured support
+``[0, 90)`` would instead pile spikes up at the support edge and merge them,
+which *would* destroy per-neuron count — so the full-window clip below is the
+correct choice for this perturbation, not an oversight. Relocation and jitter
+confine a destination bin and do take the per-arm window; shift and deletion do
+not. See document 6 §4 step 3, first trap.
 
 What this script does, for every checkpoint listed in the training summary (the
 authoritative live-checkpoint list — read rather than globbed, so we evaluate
 exactly the models the milestone locked and reuse their recorded metadata):
 
-- loads the SGD-delay architecture and the checkpoint's weights, in eval mode;
-- sweeps ``SIGMA_VALUES`` on the 1st hidden layer, ``NUM_REPEATS`` times per sigma
-  for error bars, all inside ``torch.no_grad()``;
-- writes ``log/sparse_whole_delay_v3_jitter_eval.json`` with two sections:
-  ``per_setup``, one **seed-averaged** row per ``(k, floor)`` cell — the headline,
-  since the three seeds are replicates of one cell rather than three conditions — and
-  ``per_checkpoint``, the raw per-seed ``acc(sigma)`` sweeps it was computed from.
-  Both carry the training summary's design knobs (``ceiling_k``, ``floor_strength``,
-  ``seed``) and *measured* sparsity metrics, so the file is self-contained for the
-  analysis.
+- loads the no-delay architecture and the checkpoint's weights, in eval mode;
+- sweeps ``SIGMA_VALUES`` on the **2nd** hidden layer, ``NUM_REPEATS`` times
+  per sigma for error bars, all inside ``torch.no_grad()``;
+- writes ``log/sparse_whole_nodelay_v3L2_shift_eval.json`` with two sections:
+  ``per_setup``, one **seed-averaged** row per ``(k, floor)`` cell — the
+  headline, since the three seeds are replicates of one cell rather than three
+  conditions — and ``per_checkpoint``, the raw per-seed ``acc(sigma)`` sweeps
+  it was computed from. Both carry the training summary's design knobs
+  (``ceiling_k``, ``floor_strength``, ``seed``) and *measured* sparsity
+  metrics, plus ``target_layer``, so the file is self-contained for the
+  analysis and cannot be mistaken for a 1st-layer run.
 
-The downstream analysis turns each ``acc(sigma)`` curve into a chance-corrected,
-baseline-normalised ``temporal_score``. Plot it against the *measured* axes ``a``
-(``spikes_per_active_neuron``) and ``s`` (``silent_fraction``) separately — never
-against ``spikes_per_neuron`` alone, which is their product and moves with both, and
-never against the penalty knobs, whose map to achieved sparsity is nonlinear and
-seed-dependent (document 5 §8 rule 1). Clean accuracy across this grid is .707-.859,
-so raw accuracy drops are not comparable across cells; the normalised score is.
+The ``v3L2`` tag is load-bearing throughout (document 6 §5 point 2). The 1st-
+and 2nd-layer grids share dataset, arm, ``k``, floor and seed and differ only
+in which layer the penalties acted on, so without it this script would read the
+1st-layer summary and write over the 1st-layer results.
 
-Architecture: Input(700) -> 128 hidden -> 128 hidden -> 20 output (SRMALPHA), with
-learnable delays after each hidden layer.
+The downstream analysis turns each ``acc(sigma)`` curve into a
+chance-corrected, baseline-normalised ``temporal_score``. Plot it against the
+*measured* axes ``a`` (``spikes_per_active_neuron``) and ``s``
+(``silent_fraction``) separately — never against ``spikes_per_neuron`` alone,
+which is their product and moves with both, and never against the penalty
+knobs, whose map to achieved sparsity is nonlinear and seed-dependent (document
+5 §8 rule 1). Raw accuracy drops are not comparable across cells; the
+normalised score is.
+
+**Do not pre-fill a clean-accuracy range for this grid from the corner probe.**
+The probe's .541-.597 came from four models at 400 epochs, and document 6 is
+explicit that penalties calibrated at reduced epochs re-densify by the full
+1250-epoch run. Read the range off the training summary once the grid has run.
+
+One layer-2 reading note with no 1st-layer analogue: ``rho(a, s)`` at layer 2
+is **positive**. A reader carrying document 5's -0.943 across will misread the
+sign of the confound being broken. The design acceptance check is on ``|rho|``,
+so the threshold is unaffected, but the interpretation of a failure differs
+(document 6 §5 point 5).
+
+Architecture: Input(700) -> 128 hidden -> 128 hidden -> 20 output (SRMALPHA),
+with no learnable delays anywhere. Unchanged from v1 and from the 1st-layer v3
+grid — only the layer the penalties and this sweep act on moved, which is why
+these checkpoints load with ``strict=True``.
 Sweep (eval only): sigma in {0, 1, 3, 5, 10, 17, 25} time steps (ms).
 """
 
@@ -99,11 +146,11 @@ from torch.utils.data import Dataset, DataLoader
 # Directory of this script. Dataset, checkpoint, and log paths are anchored here so
 # the script can be launched from any working directory. The sparsity training is
 # shared across the perturbation experiments, so its checkpoints and summaries live
-# one level up in exp_sparse_network/; only this jitter eval's own output is local.
+# one level up in exp_sparse_network/; only this shift eval's own output is local.
 SCRIPT_DIR = Path(__file__).resolve().parent
 CKPT_DIR = SCRIPT_DIR / ".." / "sn_data"        # trained checkpoints read from here
 TRAIN_LOG_DIR = SCRIPT_DIR / ".." / "sn_log"    # training summary read from here
-LOG_DIR = SCRIPT_DIR / "log"                    # jitter eval results written here
+LOG_DIR = SCRIPT_DIR / "log"                    # shift eval results written here
 SHD_DATA_DIR = SCRIPT_DIR / ".." / "shd" / "shd_data"  # SHD .mat source
 
 # slayerSNN is provided by the workspace venv (pip-installed egg); a plain import
@@ -132,18 +179,30 @@ MAX_QUICK_CHECKPOINTS: int = 2
 
 # --- Milestone scope (matches the training script) ---
 DATASET_KEY: str = "whole"
-DELAY_TAG: str = "delay"      # this arm; tags the summary and results files
+DELAY_TAG: str = "nodelay"    # this arm; tags the summary and results files
 INPUT_DIM: int = 700          # SHD whole
 MAT_FILE: str = str(SHD_DATA_DIR / "shd_whole.mat")
 
-# Training generation to evaluate. "v3" selects the 24-model factorial grid trained
-# by sn_train_withDelay_v3.py; it matches that script's own VERSION_TAG, and it tags
-# both the summary read here and the results written below, so v3 sweeps can never
-# collide with v1's files in log/.
-VERSION_TAG: str = "v3"
+# Which hidden layer this sweep injects into. It matches the training scripts'
+# constant of the same name: the penalties acted on layer 2, so the perturbation
+# must too, or the sweep measures a layer the experiment never constrained.
+# There is no delay line anywhere in this arm, so layer 2 is simply what
+# ``fc2`` produces from layer 1's spikes.
+TARGET_LAYER: int = 2
 
-# The training summary enumerating this arm's live v3 checkpoints. Its keys are the
-# run tags (``sparse_whole_delay_v3_k{k}_floor{F}_seed{seed}``) and
+# Training generation to evaluate. "v3L2" selects the 24-model **2nd-layer**
+# factorial trained by sn_2ndLayer_train_noDelay_v3.py; it matches that script's own
+# VERSION_TAG, and it tags both the summary read here and the results written
+# below.
+#
+# This tag is load-bearing (document 6 §5 point 2). The 1st- and 2nd-layer grids
+# share dataset, arm, k, floor and seed and differ only by which layer the
+# penalties acted on, so without a distinct tag this script would read the
+# 1st-layer summary and write over the 1st-layer results.
+VERSION_TAG: str = "v3L2"
+
+# The training summary enumerating this arm's live v3L2 checkpoints. Its keys are
+# the run tags (``sparse_whole_nodelay_v3L2_k{k}_floor{F}_seed{seed}``) and
 # ``sn_data/{run_tag}.pt`` is the matching checkpoint. The 4-corner calibration probe
 # is kept separately as ..._train_summary_probe.json and is NOT evaluated here.
 TRAIN_SUMMARY_FILE: str = (
@@ -203,37 +262,14 @@ TEST_RANGE = (0.75, 0.9)
 HIDDEN_UNITS: int = 128
 NUM_CLASSES: int = 20
 BATCH_SIZE: int = 128
-SEED: int = 42                # base seed for the jitter repeats
-MAX_DELAY: int = 64           # recorded for parity with training; unused at eval
+SEED: int = 42                # base seed for the shift repeats
 
-# --- Jitter destination window (v3 correction) ---
-# shd_whole.mat holds 100 time bins and load_shd_data zero-pads them to the
-# simulator's 200, so the 1st hidden layer's spikes never occupy a bin beyond 87
-# (measured over all 27 checkpoints by v3_analysis/temporal_support.py). Clipping
-# jitter targets to T - 1 = 199 therefore lets the largest sigmas push spikes into
-# a region where no hidden spike ever naturally occurs, which thins the
-# population's instantaneous spike density — a *rate* insult riding on a probe
-# that is supposed to hold rate fixed and destroy only timing.
-#
-# Clipping to the support instead concentrates the overflow at the support edge.
-# That is the lesser distortion: the collision retry below preserves each neuron's
-# spike count exactly either way, so the edge pile-up costs alignment, not rate.
-#
-# Set to None to reproduce the uncorrected full-window behaviour exactly; the two
-# runs write to different files (see WINDOW_SUFFIX), so neither can overwrite the
-# other.
-SUPPORT_BINS: int | None = 88
-
-# Appended to the results filename. The corrected window is what a v3 run means, so
-# it takes the bare name and the full-window variant is the one that gets marked.
-WINDOW_SUFFIX: str = "_fullwindow" if SUPPORT_BINS is None else ""
-
-# --- Jitter sweep: sigma in time steps (ms). 0 = clean baseline. ---
-# Copied unchanged from the existing jitter scripts so this milestone's curves are
-# comparable to the earlier fixed-weight perturbation results.
+# --- Shift sweep: sigma in time steps (ms). 0 = clean baseline. ---
+# The same grid the jitter sweep uses, so the two timing perturbations share one
+# x-axis; it also matches the earlier fixed-weight perturbation results.
 SIGMA_VALUES: list[int] = [0, 1, 3, 5, 10, 17, 25]
 
-# --- Repeats per sigma, for error bars (the jitter draw is stochastic). ---
+# --- Repeats per sigma, for error bars (the shift draw is stochastic). ---
 NUM_REPEATS: int = 3
 
 
@@ -312,7 +348,7 @@ def build_test_loader(
 
     The split is a fixed fractional range, so the test set is identical to the one
     the training script held out — and identical across every checkpoint and both
-    arms — which is what makes the jitter curves comparable.
+    arms — which is what makes the shift curves comparable.
 
     Args:
         X: Full dataset features, shape (N, neurons, T).
@@ -329,83 +365,74 @@ def build_test_loader(
 
 
 @torch.no_grad()
-def jitter_hidden_batch(
+def shift_hidden_batch(
     hidden_spikes: torch.Tensor,
     sigma: float,
-    max_attempts: int = 50,
 ) -> torch.Tensor:
-    """Vectorised GPU-side per-spike Gaussian jitter (eval-only helper).
+    """Vectorised GPU-side per-neuron Gaussian shift (eval-only helper).
 
-    For each spike, draw an iid Gaussian offset ``~ N(0, sigma)``, shift the spike
-    by ``round(offset)`` and clip to ``[0, SUPPORT_BINS)``, the layer's measured
-    temporal support. Two spikes landing in the same bin are resolved by a
-    random-priority tiebreaker; the loser is retried with a
-    fresh offset for up to ``max_attempts`` outer iterations, and any spike still
-    unplaced falls back to its original bin. Per-neuron spike count is therefore
-    preserved and only timing is destroyed.
+    For each ``(sample, neuron)`` a single integer offset ``round(N(0, sigma))`` is
+    drawn and every spike of that neuron is moved by it, then clipped to
+    ``[0, T - 1]``. Spikes that collide after clipping are merged (logical OR).
+
+    This is the coarser sibling of the jitter perturbation. Jitter moves every spike
+    independently and so destroys a neuron's *internal* spike pattern; a shift
+    translates that pattern intact and destroys only its alignment relative to the
+    other neurons and to stimulus onset. A network reading absolute or cross-neuron
+    spike timing loses accuracy here; one reading each neuron's own inter-spike
+    structure, or just its rate, does not.
+
+    Spike count is preserved except where end-of-window clipping merges spikes,
+    which is why the shift grid stays small relative to ``T = 200``.
 
     Args:
         hidden_spikes: SLAYER-format tensor of shape (B, C, 1, 1, T).
-        sigma: Jitter std dev in time steps (ms). 0 means no jitter.
-        max_attempts: Outer retry budget per spike before fallback.
+        sigma: Per-neuron shift std dev in time steps (ms). 0 means no shift.
 
     Returns:
-        Jittered tensor with the same shape, dtype and device.
+        Shifted tensor with the same shape, dtype and device.
     """
     if sigma <= 0:
         return hidden_spikes
 
     B, C, H, W, T = hidden_spikes.shape
     x = hidden_spikes.view(B, C, T)
-    is_spike = x > 0.5
+    is_spike = (x > 0.5).to(x.dtype)
 
-    new_spikes = torch.zeros_like(is_spike)
-    unplaced = is_spike.clone()
-
+    # One integer offset per (sample, neuron); broadcast over the time axis.
+    offset = (torch.randn(B, C, 1, device=x.device) * sigma).round().long()
     t_idx = torch.arange(T, device=x.device).view(1, 1, T)
-    inf_tensor = torch.full_like(x, float("inf"))
+    target = (t_idx + offset).clamp(0, T - 1).expand(B, C, T).contiguous()
 
-    for _ in range(max_attempts):
-        if not unplaced.any():
-            break
+    # Scatter each source bin's spike onto its shifted target; summing then
+    # thresholding merges colliding spikes as a logical OR.
+    new_x = torch.zeros_like(x)
+    new_x.scatter_add_(-1, target, is_spike)
+    new_x = (new_x > 0.5).to(hidden_spikes.dtype)
 
-        offsets = torch.randn_like(x) * sigma
-        upper_bin = (T if SUPPORT_BINS is None else SUPPORT_BINS) - 1
-        target = (t_idx + offsets).round().long().clamp(0, upper_bin)
-
-        priority = torch.where(unplaced, torch.rand_like(x), inf_tensor)
-        min_priority = inf_tensor.clone()
-        min_priority.scatter_reduce_(
-            -1, target, priority, reduce="amin", include_self=True,
-        )
-
-        target_min = min_priority.gather(-1, target)
-        target_free = ~new_spikes.gather(-1, target)
-        wins = unplaced & (priority == target_min) & target_free
-
-        scatter_out = torch.zeros((B, C, T), device=x.device, dtype=torch.uint8)
-        scatter_out.scatter_add_(-1, target, wins.to(torch.uint8))
-        new_spikes = new_spikes | (scatter_out > 0)
-
-        unplaced = unplaced & ~wins
-
-    new_spikes = new_spikes | unplaced
-
-    return new_spikes.to(hidden_spikes.dtype).view(B, C, H, W, T)
+    return new_x.view(B, C, H, W, T)
 
 
 class SparseSHDNetwork(nn.Module):
-    """2-hidden-layer SLAYER SNN with learnable delays, for the sparse checkpoints.
+    """2-hidden-layer SLAYER SNN without delays, for the sparse checkpoints.
 
     The parameter set is identical to the training class of the same name in
-    [sn_train_withDelay_v3.py](../sn_train_withDelay_v3.py) — ``fc1``/``fc2``/``fc3``
-    weight-norm parameters plus ``delay1``/``delay2`` — so this class loads those
-    checkpoints directly. The training script's adaptive delay-clamping schedule is
-    deliberately absent: it shapes delays *during* training, and the loaded values
-    are used here exactly as saved.
+    [sn_2ndLayer_train_noDelay_v3.py](../sn_2ndLayer_train_noDelay_v3.py) —
+    ``fc1``/``fc2``/``fc3`` weight-norm parameters and nothing else — so this
+    class loads those checkpoints directly. It is also identical to v1's and to
+    the 1st-layer v3 grid's: only the layer the penalties target moved, never
+    the architecture.
 
-    ``forward_with_hidden_perturbation`` jitters the 1st hidden layer before
-    ``delay1`` and the readout. It is eval-only; nothing here is ever trained.
+    Spikes propagate straight from one dense layer to the next, so the only timing
+    machinery in the whole model is the SRM neurons' own membrane dynamics. That is
+    what this arm is for: whatever survives the sweep cannot be credited to a
+    learnable delay line, because there is none.
+
+    ``forward_with_hidden_perturbation`` injects into the **2nd** hidden layer,
+    the tensor both training penalties acted on, and passes the result to
+    ``fc3``. The forward pass is split into ``_first_hidden`` / ``_second_hidden``
+    / ``_output`` so that site is a named stage rather than an inline expression.
+    It is eval-only; nothing here is ever trained.
     """
 
     def __init__(
@@ -428,11 +455,6 @@ class SparseSHDNetwork(nn.Module):
             slayer.dense(hidden_units, num_classes), name="weight"
         )
 
-        # delay1 sits at the start of _second_hidden_and_output, i.e. immediately
-        # after the perturbation site; delay2 stays between the fc2 spike and fc3.
-        self.delay1 = slayer.delay(hidden_units)
-        self.delay2 = slayer.delay(hidden_units)
-
     def _prepare_input(self, x: torch.Tensor) -> torch.Tensor:
         """Ensure the input is 5-D NCHWT on the correct device."""
         if isinstance(x, np.ndarray):
@@ -445,49 +467,49 @@ class SparseSHDNetwork(nn.Module):
         """Input -> PSP -> fc1 -> spike -> 1st hidden spikes (strictly binary)."""
         return self.slayer.spike(self.fc1(self.slayer.psp(x)))
 
-    def _second_hidden_and_output(self, hidden1: torch.Tensor) -> torch.Tensor:
-        """hidden1 -> delay1 -> fc2 -> spike -> delay2 -> fc3 -> spike."""
-        x = self.delay1(hidden1)
-        x = self.slayer.spike(self.fc2(self.slayer.psp(x)))
-        x = self.delay2(x)
-        x = self.slayer.spike(self.fc3(self.slayer.psp(x)))
-        return x
+    def _second_hidden(self, hidden1: torch.Tensor) -> torch.Tensor:
+        """hidden1 -> fc2 -> spike -> 2nd hidden spikes (strictly binary)."""
+        return self.slayer.spike(self.fc2(self.slayer.psp(hidden1)))
+
+    def _output(self, hidden2: torch.Tensor) -> torch.Tensor:
+        """hidden2 -> fc3 -> spike (no delays anywhere)."""
+        return self.slayer.spike(self.fc3(self.slayer.psp(hidden2)))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Clean forward pass (equivalent to the sigma = 0 baseline)."""
         x = self._prepare_input(x)
-        hidden1 = self._first_hidden(x)
-        return self._second_hidden_and_output(hidden1)
+        hidden2 = self._second_hidden(self._first_hidden(x))
+        return self._output(hidden2)
 
     def forward_with_hidden_perturbation(
         self,
         x: torch.Tensor,
         sigma: float = 0.0,
     ) -> torch.Tensor:
-        """Eval-only: jitter the 1st hidden layer's spikes before the readout.
+        """Eval-only: shift the **2nd** hidden layer spikes before ``fc3``.
 
-        Must be called inside ``torch.no_grad()`` — ``jitter_hidden_batch`` is not
+        Must be called inside ``torch.no_grad()`` — ``shift_hidden_batch`` is not
         autograd-safe. ``sigma = 0`` reduces to the clean forward pass.
 
         Args:
             x: Input spike trains.
-            sigma: Jitter std dev in time steps (ms).
+            sigma: Shift std dev in time steps (ms).
 
         Returns:
             The output spike tensor.
         """
         x = self._prepare_input(x)
-        hidden1 = self._first_hidden(x)
+        hidden2 = self._second_hidden(self._first_hidden(x))
         if sigma > 0:
-            hidden1 = jitter_hidden_batch(hidden1, sigma)
-        return self._second_hidden_and_output(hidden1)
+            hidden2 = shift_hidden_batch(hidden2, sigma)
+        return self._output(hidden2)
 
 
 def load_checkpoint(
     checkpoint_path: Path,
     input_dim: int = INPUT_DIM,
 ) -> SparseSHDNetwork:
-    """Load a trained checkpoint into a fresh delay network in eval mode.
+    """Load a trained checkpoint into a fresh no-delay network in eval mode.
 
     Args:
         checkpoint_path: Path to the saved state_dict (.pt).
@@ -515,12 +537,12 @@ def test_at_sigma(
     test_loader: DataLoader,
     sigma: float,
 ) -> float:
-    """Return test accuracy with the 1st hidden layer jittered at ``sigma``.
+    """Return test accuracy with the 2nd hidden layer shifted at ``sigma``.
 
     Args:
         net: Loaded network in eval mode.
         test_loader: Test DataLoader.
-        sigma: Jitter std dev in time steps (ms); 0 is the clean baseline.
+        sigma: Shift std dev in time steps (ms); 0 is the clean baseline.
 
     Returns:
         Fraction of correctly classified test samples.
@@ -541,9 +563,9 @@ def test_with_repeats(
     sigma: float,
     num_repeats: int,
 ) -> dict:
-    """Repeat the jittered evaluation ``num_repeats`` times for error bars.
+    """Repeat the shifted evaluation ``num_repeats`` times for error bars.
 
-    Each repeat re-seeds torch (which seeds the CUDA generator the jitter draws
+    Each repeat re-seeds torch (which seeds the CUDA generator the shift draws
     from) so the perturbation differs run to run but the whole sweep is
     reproducible. ``sigma = 0`` involves no draw, so its repeats are identical and
     its std must come out at 0 — a useful check that no other randomness leaks into
@@ -552,7 +574,7 @@ def test_with_repeats(
     Args:
         net: Loaded network in eval mode.
         test_loader: Test DataLoader.
-        sigma: Jitter std dev in time steps (ms).
+        sigma: Shift std dev in time steps (ms).
         num_repeats: Number of repeats.
 
     Returns:
@@ -583,15 +605,17 @@ def load_train_summary() -> dict:
     if not summary_path.exists():
         raise FileNotFoundError(
             f"Training summary not found: {summary_path}. Run "
-            f"sn_train_withDelay_v3.py first — this script only evaluates existing "
-            f"checkpoints."
+            f"sn_2ndLayer_train_noDelay_v3.py first — this script only evaluates "
+            f"existing checkpoints. The 2nd-layer grids are calibrated but had "
+            f"not been launched as of document 6, so this is the expected "
+            f"failure until they are."
         )
     with open(summary_path) as fp:
         return json.load(fp)
 
 
-def run_jitter_sweep(test_loader: DataLoader) -> dict:
-    """Sweep eval-only 1st-layer jitter over every checkpoint and save the results.
+def run_shift_sweep(test_loader: DataLoader) -> dict:
+    """Sweep eval-only 2nd-layer shift over every checkpoint and save results.
 
     Args:
         test_loader: The shared (fixed-split) test DataLoader.
@@ -608,12 +632,11 @@ def run_jitter_sweep(test_loader: DataLoader) -> dict:
         run_tags = run_tags[:max_checkpoints]
 
     print(f"\n{'#' * 70}")
-    print("# v3 Phase 1 (eval-only jitter, 1st hidden layer)")
-    print(f"# arm: SGD-delay | dataset: SHD {DATASET_KEY} | grid: {VERSION_TAG} | "
+    print(f"# v3 Phase 1, layer {TARGET_LAYER} (eval-only shift)")
+    print(f"# arm: no-delay | dataset: SHD {DATASET_KEY} | grid: {VERSION_TAG} | "
           f"QUICK_TEST={QUICK_TEST}")
     print(f"# checkpoints: {len(run_tags)} | sigmas: {sigma_values} | "
-          f"repeats: {num_repeats} | window: "
-          f"{'full' if SUPPORT_BINS is None else f'[0,{SUPPORT_BINS})'}")
+          f"repeats: {num_repeats}")
     print(f"{'#' * 70}")
 
     results: dict[str, dict] = {}
@@ -633,7 +656,8 @@ def run_jitter_sweep(test_loader: DataLoader) -> dict:
             )
 
         results[run_tag] = {
-            "use_delay": True,
+            "use_delay": False,
+            "target_layer": TARGET_LAYER,
             # Copied verbatim rather than cast, so integer knobs (``seed``) stay
             # integers and a downstream join on them cannot go wrong.
             **{
@@ -644,20 +668,20 @@ def run_jitter_sweep(test_loader: DataLoader) -> dict:
             "sigma_sweep": sigma_sweep,
         }
 
-    # The per-setup average is the headline; the per-checkpoint rows it was computed
-    # from are kept beside it, because they are the raw measurement and because the
-    # across-seed spread cannot be recovered from a mean alone.
+    # The per-setup average is the headline; the per-checkpoint rows it was
+    # computed from are kept beside it, because they are the raw measurement and
+    # because the across-seed spread cannot be recovered from a mean alone.
     aggregated = aggregate_over_seeds(results, "sigma_sweep", sigma_values)
     payload = {"per_setup": aggregated, "per_checkpoint": results}
 
     results_path = (
         LOG_DIR
-        / f"sparse_{DATASET_KEY}_{DELAY_TAG}_{VERSION_TAG}_jitter_eval"
-          f"{RUN_SUFFIX}{WINDOW_SUFFIX}.json"
+        / f"sparse_{DATASET_KEY}_{DELAY_TAG}_{VERSION_TAG}_shift_eval"
+          f"{RUN_SUFFIX}.json"
     )
     with open(results_path, "w") as fp:
         json.dump(payload, fp, indent=2)
-    print(f"\nJitter sweep saved to {results_path} "
+    print(f"\nShift sweep saved to {results_path} "
           f"({len(results)} checkpoints -> {len(aggregated)} setups)")
 
     print_summary_table(aggregated, sigma_values)
@@ -752,7 +776,7 @@ def print_summary_table(aggregated: dict, sigma_values: list[int]) -> None:
     """Print one row per ``(k, floor)`` setup, averaged over its seeds.
 
     ``retention`` is the chance-corrected fraction of accuracy surviving the
-    strongest jitter; the analysis's ``temporal_score`` is ``1 - retention``. It is
+    strongest shift; the analysis's ``temporal_score`` is ``1 - retention``. It is
     printed here only for eyeballing — the scoring, the regression on ``a`` and ``s``
     and the plotting belong to the analysis step.
 
@@ -789,14 +813,14 @@ def print_summary_table(aggregated: dict, sigma_values: list[int]) -> None:
 
 
 def main() -> None:
-    """Load the shared test set once, then sweep jitter over the with-delay arm."""
+    """Load the shared test set once, then sweep shift over the no-delay arm."""
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
     # The test split is fixed, so one loader serves every checkpoint.
     X, Y = load_shd_data(MAT_FILE, target_T=SIM_PARAMS["tSample"])
     test_loader = build_test_loader(X, Y, batch_size=BATCH_SIZE)
 
-    run_jitter_sweep(test_loader)
+    run_shift_sweep(test_loader)
 
 
 if __name__ == "__main__":
