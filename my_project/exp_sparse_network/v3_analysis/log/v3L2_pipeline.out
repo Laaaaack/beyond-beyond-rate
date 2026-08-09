@@ -1,0 +1,394 @@
+### phase1_measure @ v3L2
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+Using device: cuda
+grid: v3L2 | sites: ['l2'] | relocation f=1 | deletion p_d=0.8 (no window, by design) | 3 repeats
+  site l2    injected at the 2nd hidden layer only
+
+=== delay: 30 checkpoints ===
+  relocation windows: l1 [0,88) | l2 [0,160)
+run_tag                                    site   clean   reloc     del   usage  control
+sparse_whole_delay_v3L2_k1_floor0_seed42     l2   0.876   0.836   0.617   0.049    0.313
+sparse_whole_delay_v3L2_k1_floor0_seed43     l2   0.880   0.833   0.635   0.057    0.296
+sparse_whole_delay_v3L2_k1_floor0_seed44     l2   0.866   0.770   0.560   0.118    0.376
+sparse_whole_delay_v3L2_k1_floor1_seed42     l2   0.893   0.848   0.661   0.054    0.275
+sparse_whole_delay_v3L2_k1_floor1_seed43     l2   0.894   0.855   0.647   0.047    0.293
+sparse_whole_delay_v3L2_k1_floor1_seed44     l2   0.898   0.851   0.646   0.056    0.298
+sparse_whole_delay_v3L2_k2_floor0_seed42     l2   0.894   0.855   0.636   0.046    0.306
+sparse_whole_delay_v3L2_k2_floor0_seed43     l2   0.866   0.770   0.584   0.118    0.346
+sparse_whole_delay_v3L2_k2_floor0_seed44     l2   0.874   0.792   0.560   0.100    0.382
+sparse_whole_delay_v3L2_k2_floor1_seed42     l2   0.888   0.848   0.649   0.047    0.285
+sparse_whole_delay_v3L2_k2_floor1_seed43     l2   0.898   0.843   0.649   0.064    0.293
+sparse_whole_delay_v3L2_k2_floor1_seed44     l2   0.910   0.859   0.654   0.059    0.297
+sparse_whole_delay_v3L2_k4_floor0_seed42     l2   0.892   0.815   0.639   0.091    0.300
+sparse_whole_delay_v3L2_k4_floor0_seed43     l2   0.881   0.801   0.589   0.096    0.352
+sparse_whole_delay_v3L2_k4_floor0_seed44     l2   0.873   0.798   0.590   0.092    0.344
+sparse_whole_delay_v3L2_k4_floor1_seed42     l2   0.898   0.827   0.629   0.084    0.317
+sparse_whole_delay_v3L2_k4_floor1_seed43     l2   0.898   0.814   0.626   0.099    0.321
+sparse_whole_delay_v3L2_k4_floor1_seed44     l2   0.906   0.849   0.667   0.067    0.279
+sparse_whole_delay_v3L2_k8_floor0_seed42     l2   0.900   0.799   0.596   0.119    0.357
+sparse_whole_delay_v3L2_k8_floor0_seed43     l2   0.892   0.789   0.615   0.122    0.329
+sparse_whole_delay_v3L2_k8_floor0_seed44     l2   0.876   0.722   0.551   0.186    0.393
+sparse_whole_delay_v3L2_k8_floor1_seed42     l2   0.904   0.823   0.644   0.096    0.305
+sparse_whole_delay_v3L2_k8_floor1_seed43     l2   0.906   0.806   0.640   0.118    0.311
+sparse_whole_delay_v3L2_k8_floor1_seed44     l2   0.887   0.814   0.618   0.088    0.321
+sparse_whole_delay_v3L2_k16_floor0_seed42    l2   0.893   0.727   0.611   0.197    0.335
+sparse_whole_delay_v3L2_k16_floor0_seed43    l2   0.879   0.743   0.599   0.164    0.338
+sparse_whole_delay_v3L2_k16_floor0_seed44    l2   0.882   0.666   0.539   0.259    0.413
+sparse_whole_delay_v3L2_k16_floor1_seed42    l2   0.890   0.734   0.628   0.186    0.312
+sparse_whole_delay_v3L2_k16_floor1_seed43    l2   0.894   0.792   0.631   0.121    0.312
+sparse_whole_delay_v3L2_k16_floor1_seed44    l2   0.893   0.764   0.629   0.153    0.313
+Written to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\phase1_measure_v3L2_delay.json
+
+=== nodelay: 24 checkpoints ===
+  relocation windows: l1 [0,88) | l2 [0,90)
+run_tag                                    site   clean   reloc     del   usage  control
+sparse_whole_nodelay_v3L2_k1_floor0_seed42   l2   0.610   0.580   0.291   0.053    0.570
+sparse_whole_nodelay_v3L2_k1_floor0_seed43   l2   0.609   0.603   0.329   0.010    0.501
+sparse_whole_nodelay_v3L2_k1_floor0_seed44   l2   0.585   0.569   0.318   0.029    0.499
+sparse_whole_nodelay_v3L2_k1_floor1_seed42   l2   0.619   0.604   0.380   0.027    0.420
+sparse_whole_nodelay_v3L2_k1_floor1_seed43   l2   0.616   0.580   0.346   0.063    0.477
+sparse_whole_nodelay_v3L2_k1_floor1_seed44   l2   0.625   0.591   0.364   0.060    0.454
+sparse_whole_nodelay_v3L2_k2_floor0_seed42   l2   0.609   0.591   0.336   0.033    0.488
+sparse_whole_nodelay_v3L2_k2_floor0_seed43   l2   0.607   0.587   0.317   0.036    0.521
+sparse_whole_nodelay_v3L2_k2_floor0_seed44   l2   0.593   0.591   0.343   0.004    0.460
+sparse_whole_nodelay_v3L2_k2_floor1_seed42   l2   0.645   0.611   0.380   0.056    0.446
+sparse_whole_nodelay_v3L2_k2_floor1_seed43   l2   0.632   0.596   0.375   0.061    0.441
+sparse_whole_nodelay_v3L2_k2_floor1_seed44   l2   0.608   0.567   0.347   0.073    0.468
+sparse_whole_nodelay_v3L2_k4_floor0_seed42   l2   0.597   0.584   0.324   0.022    0.500
+sparse_whole_nodelay_v3L2_k4_floor0_seed43   l2   0.614   0.578   0.302   0.063    0.554
+sparse_whole_nodelay_v3L2_k4_floor0_seed44   l2   0.597   0.562   0.305   0.065    0.533
+sparse_whole_nodelay_v3L2_k4_floor1_seed42   l2   0.615   0.581   0.367   0.059    0.438
+sparse_whole_nodelay_v3L2_k4_floor1_seed43   l2   0.611   0.583   0.356   0.050    0.455
+sparse_whole_nodelay_v3L2_k4_floor1_seed44   l2   0.644   0.599   0.368   0.076    0.465
+sparse_whole_nodelay_v3L2_k8_floor0_seed42   l2   0.593   0.570   0.295   0.043    0.549
+sparse_whole_nodelay_v3L2_k8_floor0_seed43   l2   0.605   0.564   0.302   0.073    0.545
+sparse_whole_nodelay_v3L2_k8_floor0_seed44   l2   0.582   0.559   0.297   0.044    0.537
+sparse_whole_nodelay_v3L2_k8_floor1_seed42   l2   0.598   0.568   0.360   0.055    0.434
+sparse_whole_nodelay_v3L2_k8_floor1_seed43   l2   0.606   0.570   0.348   0.065    0.464
+sparse_whole_nodelay_v3L2_k8_floor1_seed44   l2   0.617   0.573   0.349   0.079    0.473
+Written to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\phase1_measure_v3L2_nodelay.json
+### hidden_channel_decode @ v3L2
+Using device: cuda | QUICK_TEST=False
+grid: v3L2 | layers: [2] | views: ['l2']
+
+=== delay: 30 checkpoints ===
+  windows: l2 [0,160)
+run_tag                                      view  sp/neu  sp/act  silent   COUNT   IDENT    FULL    SHUF  TIMING   frac
+sparse_whole_delay_v3L2_k1_floor0_seed42       l2    2.20    4.28  48.63%   0.900   0.766   0.911   0.876  +0.035   0.04
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k1_floor0_seed43       l2    2.45    4.01  38.81%   0.899   0.778   0.894   0.875  +0.019   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k1_floor0_seed44       l2    2.50    4.98  49.74%   0.880   0.685   0.876   0.857  +0.019   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k1_floor1_seed42       l2    2.72    3.19  14.68%   0.902   0.727   0.906   0.894  +0.013   0.01
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k1_floor1_seed43       l2    2.93    3.34  12.08%   0.904   0.744   0.919   0.898  +0.021   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k1_floor1_seed44       l2    2.68    3.15  14.84%   0.908   0.743   0.912   0.894  +0.017   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k2_floor0_seed42       l2    2.76    4.22  34.63%   0.895   0.749   0.889   0.882  +0.007   0.01
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k2_floor0_seed43       l2    2.76    4.82  42.63%   0.868   0.709   0.885   0.858  +0.027   0.03
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k2_floor0_seed44       l2    2.46    4.78  48.50%   0.885   0.649   0.897   0.866  +0.031   0.04
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k2_floor1_seed42       l2    3.02    3.38  10.72%   0.904   0.730   0.910   0.895  +0.015   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k2_floor1_seed43       l2    3.18    3.55  10.46%   0.900   0.697   0.907   0.886  +0.021   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k2_floor1_seed44       l2    3.17    3.52   9.84%   0.910   0.695   0.910   0.893  +0.017   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k4_floor0_seed42       l2    3.15    5.26  39.97%   0.894   0.702   0.901   0.886  +0.015   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k4_floor0_seed43       l2    3.54    5.51  35.73%   0.896   0.630   0.892   0.864  +0.028   0.03
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k4_floor0_seed44       l2    3.18    5.69  44.04%   0.889   0.566   0.893   0.875  +0.018   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k4_floor1_seed42       l2    3.84    4.08   5.95%   0.902   0.617   0.910   0.892  +0.017   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k4_floor1_seed43       l2    3.86    4.13   6.49%   0.904   0.634   0.904   0.891  +0.013   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k4_floor1_seed44       l2    4.02    4.24   5.12%   0.912   0.621   0.916   0.904  +0.012   0.01
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k8_floor0_seed42       l2    4.30    6.50  33.93%   0.902   0.603   0.896   0.888  +0.009   0.01
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k8_floor0_seed43       l2    5.03    7.14  29.57%   0.902   0.442   0.900   0.884  +0.015   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k8_floor0_seed44       l2    4.09    6.94  41.08%   0.876   0.539   0.880   0.865  +0.015   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k8_floor1_seed42       l2    5.60    5.74   2.41%   0.910   0.423   0.901   0.894  +0.007   0.01
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k8_floor1_seed43       l2    5.58    5.70   2.21%   0.906   0.381   0.908   0.896  +0.013   0.01
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k8_floor1_seed44       l2    5.74    5.85   1.78%   0.890   0.410   0.904   0.875  +0.029   0.03
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k16_floor0_seed42      l2    7.40    9.93  25.49%   0.884   0.401   0.886   0.868  +0.019   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k16_floor0_seed43      l2    7.83   10.27  23.76%   0.896   0.357   0.904   0.878  +0.026   0.03
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k16_floor0_seed44      l2    7.39   11.04  33.06%   0.884   0.249   0.884   0.865  +0.019   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k16_floor1_seed42      l2    9.35    9.42   0.78%   0.899   0.239   0.904   0.876  +0.028   0.03
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k16_floor1_seed43      l2    9.31    9.40   0.86%   0.896   0.267   0.909   0.888  +0.021   0.02
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_delay_v3L2_k16_floor1_seed44      l2    9.40    9.44   0.40%   0.890   0.161   0.896   0.870  +0.026   0.03
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+Written to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\hidden_channel_decode_v3L2_delay.json
+
+=== nodelay: 24 checkpoints ===
+  windows: l2 [0,90)
+run_tag                                      view  sp/neu  sp/act  silent   COUNT   IDENT    FULL    SHUF  TIMING   frac
+sparse_whole_nodelay_v3L2_k1_floor0_seed42     l2    1.37    3.98  65.52%   0.735   0.368   0.824   0.705  +0.119   0.15
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k1_floor0_seed43     l2    1.18    3.58  67.17%   0.762   0.511   0.839   0.717  +0.122   0.15
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k1_floor0_seed44     l2    1.32    3.69  64.23%   0.725   0.489   0.827   0.714  +0.113   0.15
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k1_floor1_seed42     l2    2.28    2.67  14.75%   0.706   0.427   0.809   0.662  +0.147   0.19
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k1_floor1_seed43     l2    2.32    2.72  14.55%   0.668   0.359   0.802   0.648  +0.154   0.20
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k1_floor1_seed44     l2    2.40    2.78  13.61%   0.693   0.437   0.826   0.662  +0.164   0.21
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k2_floor0_seed42     l2    1.39    3.76  63.08%   0.706   0.383   0.835   0.676  +0.159   0.20
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k2_floor0_seed43     l2    1.38    3.94  64.88%   0.779   0.492   0.832   0.726  +0.106   0.14
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k2_floor0_seed44     l2    1.46    3.79  61.40%   0.724   0.472   0.821   0.694  +0.127   0.16
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k2_floor1_seed42     l2    2.65    2.98  11.18%   0.726   0.395   0.824   0.693  +0.130   0.17
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k2_floor1_seed43     l2    2.70    3.02  10.43%   0.709   0.389   0.828   0.685  +0.142   0.18
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k2_floor1_seed44     l2    2.68    3.00  10.81%   0.671   0.373   0.806   0.636  +0.170   0.23
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k4_floor0_seed42     l2    1.92    4.50  57.39%   0.736   0.353   0.842   0.697  +0.145   0.18
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k4_floor0_seed43     l2    1.76    4.51  60.95%   0.758   0.357   0.856   0.701  +0.156   0.19
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k4_floor0_seed44     l2    1.85    4.50  58.95%   0.749   0.398   0.842   0.729  +0.113   0.14
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k4_floor1_seed42     l2    3.37    3.60   6.45%   0.700   0.316   0.828   0.666  +0.162   0.21
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k4_floor1_seed43     l2    3.45    3.67   6.09%   0.693   0.288   0.821   0.663  +0.158   0.20
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k4_floor1_seed44     l2    3.43    3.67   6.61%   0.701   0.305   0.831   0.683  +0.148   0.19
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k8_floor0_seed42     l2    2.58    5.65  54.26%   0.747   0.354   0.832   0.709  +0.124   0.16
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k8_floor0_seed43     l2    2.53    5.41  53.17%   0.755   0.332   0.846   0.707  +0.139   0.17
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k8_floor0_seed44     l2    2.36    5.43  56.65%   0.733   0.331   0.832   0.677  +0.154   0.20
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k8_floor1_seed42     l2    4.72    4.89   3.36%   0.737   0.259   0.836   0.702  +0.134   0.17
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k8_floor1_seed43     l2    4.85    5.00   2.84%   0.717   0.232   0.814   0.675  +0.138   0.18
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+sparse_whole_nodelay_v3L2_k8_floor1_seed44     l2    4.92    5.07   2.93%   0.711   0.240   0.820   0.689  +0.131   0.17
+Written to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\hidden_channel_decode_v3L2_nodelay.json
+### phase1_regress @ v3L2
+
+==========================================================================
+  v3 PHASE 1 [v3L2] — DELAY ARM  (n = 30)
+  axes from the 'l2' decode view | usage sites ['l2'] | availability views ['l2']
+  primary: usage at 'l2', availability at 'l2'
+==========================================================================
+
+--- design acceptance check (this gates everything below) ---
+  rho(a, s) = -0.084 (p = 0.6595), threshold |rho| <= 0.5
+  PASS — the factorial decorrelated the axes   [v1 observational: +0.829 no-delay, +0.427 delay (layer 2)]
+  a spans 3.15–11.04 (3.50x) | s spans 0.4%–49.7% | clean acc 0.866–0.910
+
+--- usage[l2] ~ log(a) + s + deletion control[l2]   (perturbed at the 2nd hidden layer only) ---
+  n = 30, df = 26, R^2 = 0.872 (adj 0.857)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0873    0.0125   +6.97    0.0000   [+0.0616,+0.1131]  +0.638   1.70
+  s                         -0.0598    0.0290   -2.06    0.0495   [-0.1194,-0.0001]  -0.198   1.86
+  control_deletion          +0.7215    0.1726   +4.18    0.0003   [+0.3667,+1.0763]  +0.470   2.56
+
+--- usage[l2] ~ log(a) + s   (control omitted) ---
+  n = 30, df = 27, R^2 = 0.785 (adj 0.769)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.1209    0.0122   +9.90    0.0000   [+0.0958,+0.1459]  +0.883   1.00
+  s                         +0.0227    0.0270   +0.84    0.4080   [-0.0327,+0.0780]  +0.075   1.00
+
+--- control_deletion[l2] ~ log(a) + s   (general-robustness covariate) ---
+  n = 30, df = 27, R^2 = 0.609 (adj 0.580)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0465    0.0107   +4.33    0.0002   [+0.0245,+0.0685]  +0.521   1.00
+  s                         +0.1143    0.0237   +4.82    0.0000   [+0.0656,+0.1629]  +0.580   1.00
+
+--- timing_fraction[l2] ~ log(a) + s   (perturbed at the 2nd hidden layer only) ---
+  n = 30, df = 27, R^2 = 0.091 (adj 0.024)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0048    0.0039   +1.21    0.2364   [-0.0033,+0.0129]  +0.222   1.00
+  s                         +0.0097    0.0087   +1.12    0.2747   [-0.0082,+0.0276]  +0.205   1.00
+
+--- arm decision, re-measured on this grid (document 7 §5 step 2) ---
+  readout-efficiency gap = decode_full - clean_acc  (layer 1 Phase 0: +.300 no-delay, -.013 delay)
+    l2    +0.011 +- 0.010  [-0.007, +0.035]  positive on 83% of checkpoints
+
+  timing probe vs deletion control, same predictors (indistinguishable => general robustness, not timing)
+    site    b_a usage  b_a control  difference  b_s usage  b_s control
+    l2        +0.1209      +0.0465     +0.0744    +0.0227      +0.1143
+
+--- controlled contrast: floor ON vs OFF at matched a (|d log a| <= 0.2) ---
+  floor ON                               floor OFF                               dlogA   s_on   s_off   dusage
+  sparse_whole_delay_v3L2_k1_floor1_seed43 sparse_whole_delay_v3L2_k1_floor0_seed43  0.184  12.1%   38.8%   -0.010
+  sparse_whole_delay_v3L2_k2_floor1_seed44 sparse_whole_delay_v3L2_k2_floor0_seed42  0.181   9.8%   34.6%   +0.013
+  sparse_whole_delay_v3L2_k2_floor1_seed43 sparse_whole_delay_v3L2_k1_floor0_seed42  0.188  10.5%   48.6%   +0.015
+  sparse_whole_delay_v3L2_k4_floor1_seed42 sparse_whole_delay_v3L2_k2_floor0_seed44  0.157   6.0%   48.5%   -0.016
+  sparse_whole_delay_v3L2_k4_floor1_seed43 sparse_whole_delay_v3L2_k2_floor0_seed43  0.154   6.5%   42.6%   -0.019
+  sparse_whole_delay_v3L2_k4_floor1_seed44 sparse_whole_delay_v3L2_k1_floor0_seed44  0.161   5.1%   49.7%   -0.051
+  sparse_whole_delay_v3L2_k8_floor1_seed43 sparse_whole_delay_v3L2_k4_floor0_seed44  0.002   2.2%   44.0%   +0.026
+  sparse_whole_delay_v3L2_k8_floor1_seed42 sparse_whole_delay_v3L2_k4_floor0_seed43  0.041   2.4%   35.7%   -0.000
+  sparse_whole_delay_v3L2_k8_floor1_seed44 sparse_whole_delay_v3L2_k8_floor0_seed42  0.107   1.8%   33.9%   -0.031
+  sparse_whole_delay_v3L2_k16_floor1_seed43 sparse_whole_delay_v3L2_k16_floor0_seed42  0.055   0.9%   25.5%   -0.076
+  sparse_whole_delay_v3L2_k16_floor1_seed42 sparse_whole_delay_v3L2_k16_floor0_seed43  0.086   0.8%   23.8%   +0.021
+  sparse_whole_delay_v3L2_k16_floor1_seed44 sparse_whole_delay_v3L2_k16_floor0_seed44  0.156   0.4%   33.1%   -0.106
+  mean delta usage = -0.0195 (se 0.0118, t = -1.66, p = 0.1257, 12 pairs)
+  H2 predicts delta > 0: removing silence should RAISE timing reliance.
+
+==========================================================================
+  VERDICT (delay, usage at 'l2'): H1' REFUTED on its own terms — b_a > 0 with s fixed by construction, so the prediction ran backwards even after the confound was broken. The strongest available negative.
+==========================================================================
+
+Figure -> D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\fig\phase1_regress_v3L2_delay.png
+
+==========================================================================
+  v3 PHASE 1 [v3L2] — NODELAY ARM  (n = 24)
+  axes from the 'l2' decode view | usage sites ['l2'] | availability views ['l2']
+  primary: usage at 'l2', availability at 'l2'
+==========================================================================
+
+--- design acceptance check (this gates everything below) ---
+  rho(a, s) = +0.054 (p = 0.8024), threshold |rho| <= 0.5
+  PASS — the factorial decorrelated the axes   [v1 observational: +0.829 no-delay, +0.427 delay (layer 2)]
+  a spans 2.67–5.65 (2.11x) | s spans 2.8%–67.2% | clean acc 0.582–0.645
+
+--- usage[l2] ~ log(a) + s + deletion control[l2]   (perturbed at the 2nd hidden layer only) ---
+  n = 24, df = 20, R^2 = 0.798 (adj 0.768)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     -0.0072    0.0112   -0.64    0.5270   [-0.0307,+0.0162]  -0.081   1.55
+  s                         -0.1101    0.0125   -8.81    0.0000   [-0.1362,-0.0840]  -1.436   2.63
+  control_deletion          +0.5540    0.0895   +6.19    0.0000   [+0.3673,+0.7408]  +1.157   3.46
+
+--- usage[l2] ~ log(a) + s   (control omitted) ---
+  n = 24, df = 21, R^2 = 0.411 (adj 0.355)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0290    0.0160   +1.81    0.0845   [-0.0043,+0.0622]  +0.323   1.13
+  s                         -0.0518    0.0137   -3.79    0.0011   [-0.0802,-0.0234]  -0.676   1.13
+
+--- control_deletion[l2] ~ log(a) + s   (general-robustness covariate) ---
+  n = 24, df = 21, R^2 = 0.711 (adj 0.684)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0653    0.0234   +2.79    0.0109   [+0.0167,+0.1140]  +0.349   1.13
+  s                         +0.1052    0.0200   +5.26    0.0000   [+0.0636,+0.1468]  +0.657   1.13
+
+--- timing_fraction[l2] ~ log(a) + s   (perturbed at the 2nd hidden layer only) ---
+  n = 24, df = 21, R^2 = 0.323 (adj 0.259)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     -0.0227    0.0200   -1.14    0.2686   [-0.0642,+0.0188]  -0.217   1.13
+  s                         -0.0407    0.0171   -2.38    0.0266   [-0.0762,-0.0052]  -0.456   1.13
+
+--- arm decision, re-measured on this grid (document 7 §5 step 2) ---
+  readout-efficiency gap = decode_full - clean_acc  (layer 1 Phase 0: +.300 no-delay, -.013 delay)
+    l2    +0.218 +- 0.022  [+0.179, +0.249]  positive on 100% of checkpoints
+
+  timing probe vs deletion control, same predictors (indistinguishable => general robustness, not timing)
+    site    b_a usage  b_a control  difference  b_s usage  b_s control
+    l2        +0.0290      +0.0653     -0.0364    -0.0518      +0.1052
+
+--- controlled contrast: floor ON vs OFF at matched a (|d log a| <= 0.2) ---
+  floor ON                               floor OFF                               dlogA   s_on   s_off   dusage
+  sparse_whole_nodelay_v3L2_k2_floor1_seed42 sparse_whole_nodelay_v3L2_k1_floor0_seed43  0.183  11.2%   67.2%   +0.047
+  sparse_whole_nodelay_v3L2_k2_floor1_seed43 sparse_whole_nodelay_v3L2_k1_floor0_seed44  0.200  10.4%   64.2%   +0.032
+  sparse_whole_nodelay_v3L2_k4_floor1_seed42 sparse_whole_nodelay_v3L2_k2_floor0_seed42  0.045   6.4%   63.1%   +0.025
+  sparse_whole_nodelay_v3L2_k4_floor1_seed43 sparse_whole_nodelay_v3L2_k2_floor0_seed44  0.033   6.1%   61.4%   +0.046
+  sparse_whole_nodelay_v3L2_k4_floor1_seed44 sparse_whole_nodelay_v3L2_k2_floor0_seed43  0.070   6.6%   64.9%   +0.040
+  sparse_whole_nodelay_v3L2_k8_floor1_seed42 sparse_whole_nodelay_v3L2_k4_floor0_seed43  0.080   3.4%   60.9%   -0.008
+  sparse_whole_nodelay_v3L2_k8_floor1_seed43 sparse_whole_nodelay_v3L2_k8_floor0_seed43  0.079   2.8%   53.2%   -0.008
+  sparse_whole_nodelay_v3L2_k8_floor1_seed44 sparse_whole_nodelay_v3L2_k8_floor0_seed44  0.069   2.9%   56.6%   +0.034
+  mean delta usage = +0.0260 (se 0.0078, t = +3.34, p = 0.0124, 8 pairs)
+  H2 predicts delta > 0: removing silence should RAISE timing reliance.
+
+==========================================================================
+  VERDICT (nodelay, usage at 'l2'): H2 CONFIRMED — b_a is null while b_s carries the effect. 'Sparsity' was never the operative variable; selectivity was.
+==========================================================================
+
+Figure -> D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\fig\phase1_regress_v3L2_nodelay.png
+
+==========================================================================
+  ARM DECISION — the two criteria, side by side
+==========================================================================
+
+  1. readout-efficiency gap at 'l2' (smaller is better — a large gap means the readout, not the code, is what the perturbation is measuring)
+       delay     +0.011
+       nodelay   +0.218
+     -> favours delay
+
+  2. |b_a(usage) - b_a(control)| at 'l2' (larger is better — the timing probe has to be distinguishable from a pure rate insult)
+       delay     +0.0744
+       nodelay   -0.0364
+     -> favours delay
+
+  Both were measured at layer 1 only in document 5 and are NOT inherited here (document 7 §5 step 2).
+  Record the decision in the progress document; it is not made by this script.
+
+Results -> D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\phase1_regress_v3L2.json
+### v3L2 PIPELINE COMPLETE

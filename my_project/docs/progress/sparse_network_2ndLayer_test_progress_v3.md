@@ -1,9 +1,22 @@
-# 2nd-layer v3 — the same dissociation factorial, one layer deeper (calibration)
+# 2nd-layer v3 — the same dissociation factorial, one layer deeper
 
-**Status (2026-07-30): CALIBRATION COMPLETE IN BOTH ARMS. Both training scripts
-implemented and verified; corner probe run in both arms (8 models, 400 ep, ~4.7 h) and
-every acceptance criterion passes. All three inherited constants transfer unchanged.
-Both grids are ready to launch; neither has been.**
+**Status (2026-08-09): BOTH GRIDS TRAINED AND SWEPT. 54 models at 1250 epochs (24
+no-delay, 30 delay, 3 seeds each), all four eval-only perturbations run over both arms,
+and the design acceptance check passes on the real grid: ρ(`a`, `s`) = +0.310 (n = 24)
+and −0.052 (n = 30), against observational baselines of +0.829 and +0.427. Accuracy
+figures are in
+[result_visualization/2ndLayer/results_visualization.ipynb](../../exp_sparse_network/result_visualization/2ndLayer/results_visualization.ipynb).**
+
+**UPDATE 2026-08-09: the analysis is now run (§4 step 4).** Availability, usage and the
+Phase 1 regression were measured at layer 2 with the retargeted scripts, as part of
+document 7's three-way comparison. **β_a = −0.007 (p=.53) no-delay and +0.087 (p<.0001)
+delay** — the latter the largest standardised **β_a** of any grid here (β\* = +0.638)
+and running **against** H1′, which predicted β_a < 0. **Primary arm: delay**, on a
+readout gap of +0.011 against the no-delay arm's +0.218. Read alongside the both-layer
+grid, β_a is significant in 3 of 4 single-layer cells and 0 of 2 both-layer cells — the
+compensation §1 argues about, appearing in a coefficient
+([document 7 §6j](sparse_network_bothLayer_test_progress.md)). What remains is the
+layer-2 **results document**.
 
 The 1st-layer v3 factorial finished on 2026-07-29 with a null: `a` and `s` were
 decorrelated by construction (ρ = −0.053), and H1′ still gained no support — β_a's point
@@ -20,8 +33,8 @@ in the no-delay arm it is comfortably past the |ρ| ≤ 0.5 acceptance threshold
 factorial is as necessary here as it was at layer 1, and it is a **different** confound
 being broken. **Owner:** _(you)_
 
-**This is document 6 of 6. It is a sibling of document 5, not a successor —
-read that one first.**
+**This is document 6 of 7. It is a sibling of documents 5 and 7, not a successor —
+read document 5 first.**
 
 | # | Document | What it is |
 |---|---|---|
@@ -30,13 +43,22 @@ read that one first.**
 | 3 | [sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md) | v1 results — four perturbations, two arms, the diagnosis |
 | 4 | [sparse_network_test_progress_v2.md](sparse_network_test_progress_v2.md) | v2 execution log |
 | 5 | [sparse_network_test_progress_v3.md](sparse_network_test_progress_v3.md) | **v3 at layer 1** — design, Phase 0, Phase 1 result. Everything here assumes it |
-| 6 | **this file** | v3 at layer 2 — calibration, design deltas, status |
+| 6 | **this file** | v3 at layer 2 — calibration, design deltas, execution, sweeps |
+| 7 | [sparse_network_bothLayer_test_progress.md](sparse_network_bothLayer_test_progress.md) | v3 at **both** layers — a third question, not a rephrasing of this one |
+
+Layer 1's *results* are reported separately in
+[sparse_network_1stLayer_results_v3.md](sparse_network_1stLayer_results_v3.md) — the
+regressions, the H1′ refutation on relocation and jitter, and the two caveats that
+qualify it. That document is what this experiment's layer-2 numbers have to be read
+against, and its layer-2 counterpart does not exist yet (§4 step 4).
 
 Everything in document 5 that is not about *which layer* carries over unchanged: the
 two-variable decomposition of sparsity (§3b), the H1′/H2 restatement (§3c), the
 capacity-matched decoder (§3a), the mechanism of the two penalties (§4b), and the
 reading table for the outcome (§5). This document records only what had to be
-**re-measured, re-decided, or is newly at risk** because the target moved.
+**re-measured, re-decided, or is newly at risk** because the target moved — plus this
+experiment's own execution log (§4), which now includes what the grids and the sweeps
+came back with.
 
 ---
 
@@ -213,9 +235,10 @@ here that is a judgement call rather than a measurement, and it is a one-line re
 | `FLOOR_STRENGTH` | 1.0 | inherited → **validated at layer 2, unchanged** (§4) |
 | `WARMUP_EPOCHS` | 20 | inherited → **validated at layer 2, unchanged** (§4) |
 
-Both scripts still ship with `QUICK_TEST = True`, which is now a *safety* default rather
-than an outstanding task — flipping it to `False` is the deliberate act of launching a
-28–38 h grid, and should not happen by accident on a re-run.
+Both scripts now ship with `QUICK_TEST = False` and `SEEDS = [42, 43, 44]`, because both
+grids have been run (§4 step 2). A re-run of either script as committed retrains the
+whole grid — 24 or 30 models — and overwrites its checkpoints. Set `QUICK_TEST = True`
+first if what is wanted is a probe.
 
 The two paragraphs below record why two of the three were suspect *before* the probe.
 Both concerns were tested and neither materialised; they are kept because they name the
@@ -234,7 +257,10 @@ failure signatures to watch for if the grid is ever re-tuned.
 
 ---
 
-## 4. What has to happen next
+## 4. Execution — what has happened, and what has not
+
+Steps 1–3 are done and each carries its result inline. Step 4 is open and is the only
+thing standing between this grid and an answer.
 
 ### Step 1 — corner probe, both arms (~4.8 h total)
 
@@ -337,14 +363,104 @@ measured. Revisit only if β_a comes back underpowered on the real grid.
 
 | arm | models | est. cost |
 |---|---|---|
-| no-delay | 4 `k` × 2 floor × 2 seeds = 16 | **~28 h** |
-| delay | 5 `k` × 2 floor × 2 seeds = 20 | **~38 h** |
+| no-delay | 4 `k` × 2 floor × **3** seeds = **24** | ~42 h |
+| delay | 5 `k` × 2 floor × **3** seeds = **30** | ~57 h |
 
-Costs are now **measured, not scaled from layer 1**: the probe ran 34.0 min/model
-(no-delay) and 36.3 min/model (delay) at 400 epochs on the local RTX 2050, i.e. ~1.77 h
-and ~1.89 h per model at 1250. The delay figure comes in well under the ~46 h quoted
-before the probe, which was scaled from document 5's layer-1 rate of 2.3 h/model. Both
-are upper bounds — early stopping (patience 300) may cut individual runs short.
+**Three seeds, not two.** The plan above said 2 seeds; both scripts were run with
+`SEEDS = [42, 43, 44]` to match layer 1's three, because the whole point is a
+cross-layer comparison of β_a and a grid with fewer seeds would have had a different
+standard error for no reason other than saving GPU time. Costs are scaled from the
+probe's measured throughput (34.0 and 36.3 min/model at 400 ep on the local RTX 2050,
+i.e. ~1.77 and ~1.89 h/model at 1250) and are upper bounds.
+
+#### Grid RESULT — both arms, 54 models @ 1250 ep — **COMPLETE, 2026-08-07**
+
+Trained under commit `85c9b34` (2026-08-07). Every one of the 54 runs went the full 1250
+epochs; early stopping (patience 300) never fired. Per-model wall times are not
+recoverable — the local training logs all carry a single sync timestamp — so the cost
+column above stays an estimate.
+
+Cells are seed means (3 seeds); `acc` carries its across-seed sd. `spn` is
+`spikes_per_neuron`, `ovk` the fraction of pairs still above the ceiling.
+
+**No-delay** (natural sp/neuron **5.53**, non-sparse baseline acc **.584**):
+
+| cell | clean acc | `a` | `s` | spn | ovk |
+|---|---|---|---|---|---|
+| k1 floor0 | .602 ± .011 | 3.75 | **65.6%** | 1.29 | 25.8% |
+| k1 **floor1** | .622 ± .006 | 2.72 | **14.3%** | 2.33 | 58.6% |
+| k2 floor0 | .601 ± .008 | 3.83 | **63.1%** | 1.41 | 20.7% |
+| k2 **floor1** | .630 ± .015 | 3.00 | **10.8%** | 2.68 | 43.0% |
+| k4 floor0 | .603 ± .008 | 4.50 | **59.1%** | 1.84 | 15.4% |
+| k4 **floor1** | .626 ± .016 | 3.65 | **6.4%** | 3.41 | 25.6% |
+| k8 floor0 | .593 ± .010 | 5.50 | **54.7%** | 2.49 | 8.8% |
+| k8 **floor1** | .607 ± .009 | 4.98 | **3.0%** | 4.83 | 11.4% |
+
+**Delay** (natural sp/neuron **23.93**, non-sparse baseline acc **.890**):
+
+| cell | clean acc | `a` | `s` | spn | ovk |
+|---|---|---|---|---|---|
+| k1 floor0 | .874 ± .007 | 4.42 | **45.7%** | 2.39 | 40.4% |
+| k1 **floor1** | .895 ± .003 | 3.22 | **13.9%** | 2.78 | 59.5% |
+| k2 floor0 | .878 ± .011 | 4.60 | **41.9%** | 2.66 | 35.2% |
+| k2 **floor1** | .897 ± .009 | 3.48 | **10.3%** | 3.12 | 47.0% |
+| k4 floor0 | .881 ± .006 | 5.48 | **39.9%** | 3.29 | 29.5% |
+| k4 **floor1** | .901 ± .003 | 4.15 | **5.9%** | 3.91 | 32.7% |
+| k8 floor0 | .890 ± .011 | 6.86 | **34.9%** | 4.47 | 19.0% |
+| k8 **floor1** | .900 ± .010 | 5.76 | **2.1%** | 5.64 | 18.1% |
+| k16 floor0 | .884 ± .006 | 10.41 | **27.4%** | 7.54 | 9.4% |
+| k16 **floor1** | .892 ± .003 | 9.42 | **0.7%** | 9.36 | 7.4% |
+
+**Against the five criteria — all pass, in both arms, on the real grid:**
+
+| # | criterion | no-delay | delay |
+|---|---|---|---|
+| 1 | `s` constant across `k` within a column | **PASS** — 10.9 / 11.3 pts drift | **PASS** — 18.3 / 13.2 pts |
+| 2 | `s` separated ≥ 20 pts at matched `k` | **PASS** — **+51.3…+52.7** | **PASS** — **+26.8…+34.1** |
+| 3 | firing not inflated past natural | **PASS** — max 4.83 vs 5.53 | **PASS** — max 9.36 vs 23.93 |
+| 4 | accuracy above chance | **PASS** — .593–.630 | **PASS** — .874–.901 |
+| 5 | `k=1`, floor=0 survives (layer-2 specific) | **PASS** — 65.6% silent, acc .602 | **PASS** — 45.7% silent, acc .874 |
+
+**Design acceptance — PASS in both arms.** ρ(`a`, `s`) = **+0.310** (n = 24, p = .14) in
+the no-delay arm and **−0.052** (n = 30, p = .78) in the delay arm, per checkpoint,
+against the observational baselines of **+0.829** and **+0.427**. The no-delay confound
+is the one that mattered — it was the arm past the threshold — and the factorial cut it
+from +0.83 to +0.31. The delay arm is decorrelated to three decimal places. Per setup
+(seed-averaged) the figures are +0.312 and −0.065, i.e. the same picture.
+
+**Five things the grid settles:**
+
+1. **The row axis is the widest this experiment has had.** `a` spans **2.72 → 5.50**
+   (2.02×) in the no-delay arm and **3.22 → 10.41** (**3.23×**) in the delay arm, against
+   the layer-1 delay grid's 2.18× on all 16 of its models. Within the floor-on column
+   alone the delay span is 2.92×, comfortably past the probe's projected 2.63×. Since
+   β_a's power was document 5's binding limitation, this is the most consequential number
+   here — and it is what the `k = 16` row was bought for.
+2. **`a` did not re-densify; `s` did.** Document 5's warning was that penalties
+   calibrated at 400 epochs come back weaker at 1250. On `a` that did not happen —
+   matched cells moved by ~0.1 (no-delay k1 floor-on 2.72 → 2.72, k8 floor-on 4.86 →
+   4.98). On `s` it happened hard, and only in the floor-**off** column: delay k1 floor0
+   fell 73.1% → 45.7% and k16 floor0 55.2% → 27.4%. The floor-on column barely moved
+   (16.5% → 13.9%). Longer training de-silences the *unconstrained* column, so the
+   probe's +53.8…+59.6-point separation over-states the real grid's +26.8…+34.1. Still a
+   pass, with less margin than advertised.
+3. **Constraining layer 2 costs no accuracy — it buys some.** Every no-delay cell
+   (.593–.630) sits **above** the non-sparse baseline's .584 and above the top of v1's
+   .49–.59 range. In the delay arm, .874–.901 straddles the baseline's .890, with 5 of 10
+   cells above it. The probe called this its most surprising result; the full grid
+   confirms it at 1250 epochs and 3 seeds.
+4. **The ceiling still leaks, as predicted, and still does not compress the axis.**
+   `over_k` runs to 58.6% (no-delay) and 59.5% (delay) in the floor-on `k = 1` cells,
+   against layer 1's 34.2%. The leak is real and `a` settles ~2.7× above target — but the
+   axis it produced is wider than layer 1's, so the §4 decision not to raise
+   `CEILING_STRENGTH` stands.
+5. **Document 7's checkpoint-selection hazard does not touch this grid — audited, not
+   assumed.** Best-model selection here runs on the *task* validation loss with no
+   `SETTLE_EPOCHS` guard, which is exactly the failure that silently affected 2 of the 16
+   cells in the completed 1st-layer delay grid. Across all 54 training logs,
+   `argmin(val_loss)` lands at epoch **1104–1250** (median 1219 / 1226), i.e. long after
+   both penalties have bound. No cell is at risk. Re-run this audit if either script is
+   ever run at a shorter epoch budget.
 
 Which arm is primary is **an open question here, not an inherited one.** Document 5's
 delay-arm decision rested on two Phase 0 measurements of the *dependent* variable — the
@@ -355,28 +471,137 @@ different quantity there: at layer 2 the readout is `fc3` alone, not `fc2`+`fc3`
 the arm before re-measuring would be inheriting a constant across a layer boundary, which
 is the mistake this whole calibration exists to avoid.
 
-### Step 3 — retarget the measurement layer (not yet started)
+### Step 3 — retarget the measurement layer — **perturbations DONE, analysis NOT**
 
-This is the largest piece of outstanding work and it is **not** optional: the grids are
-uninterpretable without it. Every measurement script is currently hardwired to layer 1.
+Every measurement script was hardwired to layer 1. Half of them have been moved.
 
-| what | files | change needed |
+| what | files | status |
 |---|---|---|
-| perturbation injection site | 12 eval scripts under `{jitter,shift,shd,deletion}/` | inject at `hidden2`, not `hidden1` |
-| perturbation window | same 12, `SUPPORT_BINS = 88` | `90` (no-delay) / **`160`** (delay) |
-| availability decode | `v3_analysis/hidden_channel_decode.py`, `SUPPORT_BINS = 90` | probe layer 2; window per arm |
-| usage + deletion control | `v3_analysis/phase1_measure.py`, `SUPPORT_BINS = 88` | same |
+| perturbation injection site | 8 new `*_2ndLayer_evalOnly_{noDelay,withDelay}_v3.py` under `{shd,jitter,shift,deletion}/` | **DONE** — inject at `hidden2` |
+| perturbation window | same 8 | **DONE** — `SUPPORT_BINS = 90` / **`160`**, per arm |
+| availability decode | `v3_analysis/hidden_channel_decode.py`, `SUPPORT_BINS = 90` | **not started** — still layer 1 |
+| usage + deletion control | `v3_analysis/phase1_measure.py`, `SUPPORT_BINS = 88` | **not started** — still layer 1 |
 
-Two traps carried over from document 5 §4 Phase 0 step 3, both still live:
+The eight new eval scripts are forks, not edits, so the layer-1 scripts and their results
+are untouched. Both traps carried over from document 5 §4 Phase 0 step 3 were handled,
+and both are worth re-checking in any further fork:
 
 - **The window correction is not uniform across perturbations.** Relocation and jitter
-  choose a destination bin and must respect the support; **shift and deletion must be
-  left alone.** Clipping a rigid translation would pile spikes at the edge and merge
-  them, destroying per-neuron count — a rate insult that does not currently exist.
+  confine destinations to `[0, SUPPORT_BINS)`; **shift and deletion were deliberately
+  left alone** and clip to the full `[0, T-1]`. Clipping a rigid translation would pile
+  spikes at the edge and merge them, destroying per-neuron count — a rate insult that
+  does not currently exist. The shift scripts carry that reasoning in their module
+  docstring so the "missing" constant is not read as an oversight.
 - **`delay1` moves from downstream to upstream of the probe site.** A layer-1 probe
   correctly ignores `delay1`; a layer-2 probe **must apply it**. Getting this wrong
   silently measures the wrong tensor rather than raising an error.
   `layer2_baseline.py` already does it correctly and is the reference.
+
+#### Sweep RESULT — 8 sweeps, both arms, all 54 checkpoints — **COMPLETE, 2026-08-07**
+
+Four eval-only perturbations × two arms, 3 repeats per grid point, seed-averaged into
+`{shd,jitter,shift,deletion}/log/sparse_whole_{arm}_v3L2_{stem}_eval.json`. Each file
+carries `per_setup` (seed means and sds) and `per_checkpoint` (per-seed rows, tagged
+`target_layer: 2`). Accuracy figures, the manipulation check and the numbers as a table
+are in
+[result_visualization/2ndLayer/results_visualization.ipynb](../../exp_sparse_network/result_visualization/2ndLayer/results_visualization.ipynb).
+What the sweeps show, descriptively, is directly below; the analysis that
+settles anything is step 4.
+
+#### What the sweeps show, descriptively
+
+**This subsection is not the Phase 1 analysis and must not be quoted as it.** It is the
+across-cell correlation of a single summary number against the two design axes, with no
+deletion control in the model, no standardised coefficients, and no inference beyond a
+Pearson r on 8 or 10 cells. It is here because the grid is decorrelated (ρ(`a`, `s`) =
++0.31 / −0.05), so unlike v1 these correlations at least *point* at one axis rather than
+at a fused one. The real answer needs §4 step 4.
+
+`retention` is the chance-corrected fraction of accuracy surviving the **strongest** grid
+point of each sweep, computed per seed against that seed's own clean accuracy; the
+analysis's usage score is `1 − retention`. Lower retention = more damage.
+
+| arm | cell range | relocation | jitter | shift | deletion |
+|---|---|---|---|---|---|
+| no-delay | best → worst | .937 – .978 | .915 – .964 | .563 – .734 | .455 – .551 |
+| delay | best → worst | .791 – .948 | .843 – .970 | .733 – .935 | .641 – .714 |
+
+Correlating each cell's retention against `log(a)` and against `s`:
+
+| arm | | relocation | jitter | shift | deletion |
+|---|---|---|---|---|---|
+| **no-delay** (n = 8) | r(log `a`) | −0.25 (p=.56) | +0.02 (p=.97) | **−0.94** (p<.001) | −0.72 (p=.04) |
+| | r(`s`) | +0.62 (p=.10) | **+0.84** (p=.009) | −0.50 (p=.21) | **−0.84** (p=.009) |
+| **delay** (n = 10) | r(log `a`) | **−0.96** (p<.0001) | **−0.97** (p<.0001) | **−0.98** (p<.0001) | −0.66 (p=.04) |
+| | r(`s`) | −0.02 (p=.97) | +0.03 (p=.93) | −0.09 (p=.81) | −0.63 (p=.05) |
+
+**Four readings, all provisional:**
+
+1. **The sign is layer 1's sign.** Retention *falls* as `a` rises, i.e. usage rises with
+   `a`, i.e. β_a > 0 — the direction **opposite** to H1′, which wants sparser codes to
+   rely more on timing. Layer 1 refuted H1′ on relocation and jitter with the same sign.
+   If the regression holds this up, the answer to "is the null a fact about layer 1?" is
+   no.
+2. **The delay arm is where the signal is.** All three timing probes track `log(a)` at
+   −0.96…−0.98 and carry essentially nothing on `s`. The no-delay arm is the opposite
+   picture: relocation and jitter barely bite at all (retention .92–.98 across the whole
+   grid — there is almost no dynamic range to explain), and what varies loads on `s`.
+3. **The deletion control does not explain the delay arm the way it explained layer 1.**
+   In the delay arm the timing probes track `a` *more* tightly (−0.96…−0.98) than the
+   pure rate insult does (−0.66). At layer 1, Phase 0 found the control and the timing
+   probe indistinguishable in the no-delay arm (+0.936 vs +0.939). That is the single
+   most encouraging number here — and it is exactly the comparison that needs
+   `phase1_measure.py` at layer 2 to be made properly, since the control belongs *in* the
+   model, not beside it.
+4. **The floor-on / floor-off contrast at matched `k` is confounded and is not read
+   here.** The floor also lowers `a` (e.g. delay `k=1`: 4.42 → 3.22), so the column
+   contrast mixes both axes. The controlled version — matched `a`, floor on vs off — is a
+   checklist item, not something to eyeball off this table.
+
+### Step 4 — the analysis — **RUN 2026-08-09**
+
+All four items below were run as part of document 7 §6j, which needed the layer-2 leg to
+complete its three-way β_a comparison. The three analysis scripts now carry a `GRID` knob
+selecting the constrained layer set, so `v3`, `v3L2` and `v3L12` are measured by **one**
+script rather than three forks — which is what makes the comparison a comparison. See
+[document 7 §6g](sparse_network_bothLayer_test_progress.md) for the retarget itself and
+the verifications behind it.
+
+Artifacts: `v3_analysis/log/{hidden_channel_decode_v3L2,phase1_measure_v3L2}_{arm}.json`,
+`phase1_regress_v3L2.json`, `v3L2_pipeline.out`, and two figures under `v3_analysis/fig/`.
+
+**1–3. Availability, usage and the regression.** 54 models (24 no-delay, 30 delay),
+relocation confined to layer 2's per-arm window (`[0, 90)` / `[0, 160)`), deletion
+unclipped, `delay1` applied because layer 2 is downstream of it.
+
+| | no-delay (n=24) | delay (n=30) |
+|---|---|---|
+| ρ(`a`, `s`) — acceptance | **+0.054** (p=.80) PASS | **−0.084** (p=.66) PASS |
+| achieved `a` span | 2.11× | **3.50×** — the widest of any grid |
+| **β_a** (usage ~ log a + s + control) | −0.007 (p=.53) | **+0.087 (p<.0001)**, β\* **+0.638** |
+| β_s | −0.110 (p<.0001) | −0.060 (p=.050) |
+| matched floor-on vs floor-off | +0.026 (p=.012, 8 pairs) | −0.020 (p=.13, 12 pairs) |
+| verdict | **H2 CONFIRMED** | **H1′ REFUTED** — β_a > 0 |
+
+The delay arm's β_a is the **largest standardised β_a of any grid in this project**
+(+0.638) on the widest axis (3.50×), so the layer-2 effect is neither marginal nor
+underpowered — and it runs *against* H1′, which predicted β_a < 0.
+
+**The arm decision, re-measured at layer 2.** The readout gap is **+0.011** in the delay
+arm (positive on 83% of checkpoints) against **+0.218** in the no-delay arm (100%) — the
+same asymmetry document 5 found at layer 1 (+.300 / −.013) and document 7 at the network
+level (+0.285 / +0.076). **Delay is primary here too**, on evidence measured at layer 2
+rather than inherited across a layer boundary.
+
+**4. The comparison this experiment exists for — and it is bigger than layer 1 vs
+layer 2.** With the both-layer grid also in hand, β_a is significant in **3 of the 4
+single-layer cells and 0 of the 2 both-layer cells**, and the both-layer intervals
+*exclude* the single-layer point estimates in 3 of 4 comparisons. The anti-H1′
+coefficient exists only while **one** layer is constrained and vanishes when the network
+is — which is the layer-2 compensation this document's §1 argued about, appearing in a
+coefficient. Full table and reading in
+[document 7 §6j](sparse_network_bothLayer_test_progress.md).
+
 
 ---
 
@@ -386,8 +611,9 @@ Inherits document 1 §7, document 4 §7 and document 5 §8 in full. New to the 2
 experiment:
 
 1. **Never inherit a constant across a layer boundary.** Every one of the four that was
-   checked turned out to differ, two of them by ~2×, and one (`ρ(a, s)`) changed *sign*.
-   The three that have not yet been checked are flagged as such in both scripts.
+   *measured* turned out to differ, two of them by ~2×, and one (`ρ(a, s)`) changed
+   *sign*. The three that were inherited survived the probe unchanged — but that was
+   established by testing them at layer 2, not by assuming they carried.
 2. **The `v3L2` tag is load-bearing.** The two grids differ only by target layer;
    without it the layer-2 run overwrites the completed layer-1 delay grid, whose
    re-training costs ~37 h.
@@ -403,7 +629,24 @@ experiment:
    is on |ρ|, so the threshold is unaffected — but the *interpretation* of a failure
    differs.
 6. **The arm decision is not inherited** (§4 step 2). It rested on layer-1 measurements
-   of the dependent variable that have no layer-2 counterpart yet.
+   of the dependent variable that have no layer-2 counterpart yet, and §4 step 3's
+   descriptive correlations are not a substitute for them.
+7. **The probe over-states the floor separation.** Longer training de-silences the
+   floor-**off** column while leaving the floor-on column alone, so the real grid
+   separates by +27…+34 points in the delay arm where the 400-epoch probe promised +54…
+   +57 (§4 step 2, finding 2). Calibrate `FLOOR_STRENGTH` against a *full-length* run
+   before believing any margin measured at reduced epochs — the same lesson document 5
+   learned for the ceiling, on the other axis.
+8. **Best-model selection has no `SETTLE_EPOCHS` guard in either 2nd-layer script.** It
+   happens not to bite — all 54 runs selected at epoch 1104–1250 — but that is a measured
+   fact about this grid at 1250 epochs, not a property of the scripts. Any shorter run
+   re-opens document 7's hazard: a checkpoint saved before the penalty bound makes every
+   sparsity statistic wrong in the direction of "the penalty isn't working". Audit
+   `argmin(val_loss)` against run length before trusting a cell.
+9. **§4 step 3's correlations are descriptive.** Pearson r on 8–10 cells, no deletion control in the model, one
+   summary statistic per sweep. It agrees with layer 1's sign, which is suggestive and
+   nothing more. The claim "H1′ fails at layer 2 too" is not licensed until §4 step 4 has
+   run.
 
 ---
 
@@ -439,14 +682,44 @@ experiment:
       `k=1`/floor=0 settled at 71–73% silent, not 100%, with acc .541 / .830
 - [x] Probe — `k = 16` row justified on measurement: floor-on span 2.63× against ~2.06×
       that `k = 8` alone would have given, and against layer 1's 2.18× on its full grid
-- [x] Grid costs re-estimated from measured throughput: **~28 h** / **~38 h**
-- [ ] Re-measure the dependent variable at layer 2 (readout gap, deletion control vs
-      timing probe) and **decide the primary arm** on it
-- [ ] Retarget the 12 eval scripts + 2 analysis scripts to layer 2 at the per-arm window,
-      leaving shift and deletion's windows alone
-- [ ] Grid: no-delay 16 models (~29 h) and/or delay 20 models (~46 h) at 1250 epochs
-- [ ] Design acceptance check on the real grid: |ρ(`a`, `s`)| < 0.5, against the layer-2
-      observational baselines **+0.829** / **+0.427**
-- [ ] Regressions and the controlled floor-on vs floor-off contrast at matched `a`,
-      then read against document 5 §5
-- [ ] Compare the layer-1 and layer-2 β_a directly — the point of running this at all
+- [x] Grid costs re-estimated from measured throughput: **~28 h** / **~38 h** (at 2 seeds;
+      the grids were run at 3, so ~42 h / ~57 h)
+- [x] **Both grids trained at 1250 epochs, 3 seeds** — no-delay 24 models, delay 30
+      models, `QUICK_TEST = False`, commit `85c9b34` (2026-08-07). No run early-stopped
+- [x] **Design acceptance check on the real grid — PASS in both arms**: ρ(`a`, `s`) =
+      **+0.310** (n = 24) and **−0.052** (n = 30), against the observational baselines
+      **+0.829** / **+0.427**
+- [x] All five probe criteria re-checked on the full grid — pass in both arms; floor
+      separation **+51…+53** (no-delay) and **+27…+34** (delay) points
+- [x] Row axis measured on the full grid: `a` = 2.72–5.50 (**2.02×**, no-delay) and
+      3.22–10.41 (**3.23×**, delay) — wider than layer 1's 2.18×, so the `k = 16` row paid
+- [x] Checkpoint-selection audit against document 7's hazard — `argmin(val_loss)` at
+      epoch **1104–1250** across all 54 runs, so no cell was saved before its penalty bound
+- [x] **8 perturbation eval scripts retargeted to layer 2** at the per-arm window
+      (`90` / `160`), shift and deletion deliberately left unclipped
+- [x] **All four perturbations swept over both grids** (2026-08-07) — 8 result files,
+      `per_setup` + `per_checkpoint`, every row tagged `target_layer: 2`
+- [x] Accuracy figures, manipulation check and value table plotted
+      ([results_visualization.ipynb](../../exp_sparse_network/result_visualization/2ndLayer/results_visualization.ipynb))
+- [x] **Retargeted `hidden_channel_decode.py` (availability) and `phase1_measure.py`
+      (usage + deletion control) to layer 2** at the per-arm window (`90` / `160`),
+      deletion left unclipped, `delay1` applied because layer 2 sits downstream of it.
+      Both now carry a `GRID` knob, so one script serves all three grids — see
+      [document 7 §6g](sparse_network_bothLayer_test_progress.md) for the retarget and
+      its verifications
+- [x] **Dependent variable re-measured at layer 2 and the primary arm decided: DELAY** —
+      readout gap **+0.011** (delay, positive on 83%) against **+0.218** (no-delay, 100%),
+      the same asymmetry document 5 found at layer 1
+- [x] **Phase 1 regression run at layer 2** (§4 step 4): acceptance passes in both arms
+      (+0.054 / −0.084); **β_a = −0.007 (p=.53) no-delay** and **+0.087 (p<.0001),
+      β\* = +0.638 delay** — the largest standardised β_a of any grid in this project,
+      on the widest achieved `a` axis (3.50×), and it runs **against** H1′.
+      Matched floor contrast +0.026 (p=.012) / −0.020 (p=.13)
+- [x] **β_a compared across layer 1, layer 2 and both** — significant in **3 of 4
+      single-layer cells, 0 of 2 both-layer cells**, with the both-layer intervals
+      excluding the single-layer estimates in 3 of 4 comparisons. The anti-H1′ signal
+      exists only while one layer is constrained; §1's compensation argument, in a
+      coefficient. Table in
+      [document 7 §6j](sparse_network_bothLayer_test_progress.md)
+- [ ] Write the layer-2 results document, the counterpart of
+      [sparse_network_1stLayer_results_v3.md](sparse_network_1stLayer_results_v3.md)

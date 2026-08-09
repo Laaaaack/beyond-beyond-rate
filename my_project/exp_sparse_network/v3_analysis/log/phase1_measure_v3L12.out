@@ -1,0 +1,161 @@
+D:\IC_2025\IRP\workspace\venv\Lib\site-packages\torch\nn\utils\weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+Using device: cuda
+grid: v3L12 | sites: ['l1', 'l2', 'both'] | relocation f=1 | deletion p_d=0.8 (no window, by design) | 3 repeats
+  site l1    injected at the 1st hidden layer only
+  site l2    injected at the 2nd hidden layer only
+  site both  injected at both layers -- layer 2 is perturbed after being computed from an already-perturbed layer 1
+
+=== delay: 24 checkpoints ===
+  relocation windows: l1 [0,88) | l2 [0,160)
+run_tag                                    site   clean   reloc     del   usage  control
+sparse_whole_delay_v3L12_k1_floor0_seed42    l1   0.736   0.375   0.262   0.527    0.691
+sparse_whole_delay_v3L12_k1_floor0_seed42    l2   0.736   0.667   0.428   0.101    0.449
+sparse_whole_delay_v3L12_k1_floor0_seed42  both   0.736   0.394   0.165   0.499    0.833
+sparse_whole_delay_v3L12_k1_floor0_seed43    l1   0.749   0.378   0.281   0.531    0.670
+sparse_whole_delay_v3L12_k1_floor0_seed43    l2   0.749   0.647   0.421   0.147    0.470
+sparse_whole_delay_v3L12_k1_floor0_seed43  both   0.749   0.370   0.158   0.543    0.846
+sparse_whole_delay_v3L12_k1_floor0_seed44    l1   0.734   0.437   0.272   0.435    0.676
+sparse_whole_delay_v3L12_k1_floor0_seed44    l2   0.734   0.652   0.431   0.120    0.443
+sparse_whole_delay_v3L12_k1_floor0_seed44  both   0.734   0.448   0.169   0.418    0.825
+sparse_whole_delay_v3L12_k1_floor1_seed42    l1   0.809   0.361   0.240   0.591    0.750
+sparse_whole_delay_v3L12_k1_floor1_seed42    l2   0.809   0.719   0.499   0.118    0.409
+sparse_whole_delay_v3L12_k1_floor1_seed42  both   0.809   0.379   0.146   0.567    0.874
+sparse_whole_delay_v3L12_k1_floor1_seed43    l1   0.772   0.324   0.233   0.620    0.746
+sparse_whole_delay_v3L12_k1_floor1_seed43    l2   0.772   0.699   0.473   0.101    0.414
+sparse_whole_delay_v3L12_k1_floor1_seed43  both   0.772   0.336   0.130   0.604    0.890
+sparse_whole_delay_v3L12_k1_floor1_seed44    l1   0.770   0.335   0.242   0.604    0.733
+sparse_whole_delay_v3L12_k1_floor1_seed44    l2   0.770   0.710   0.491   0.084    0.387
+sparse_whole_delay_v3L12_k1_floor1_seed44  both   0.770   0.372   0.150   0.553    0.861
+sparse_whole_delay_v3L12_k2_floor0_seed42    l1   0.774   0.376   0.259   0.550    0.711
+sparse_whole_delay_v3L12_k2_floor0_seed42    l2   0.774   0.644   0.447   0.180    0.451
+sparse_whole_delay_v3L12_k2_floor0_seed42  both   0.774   0.386   0.161   0.535    0.846
+sparse_whole_delay_v3L12_k2_floor0_seed43    l1   0.774   0.405   0.266   0.509    0.701
+sparse_whole_delay_v3L12_k2_floor0_seed43    l2   0.774   0.664   0.430   0.152    0.475
+sparse_whole_delay_v3L12_k2_floor0_seed43  both   0.774   0.420   0.151   0.490    0.860
+sparse_whole_delay_v3L12_k2_floor0_seed44    l1   0.792   0.395   0.291   0.534    0.674
+sparse_whole_delay_v3L12_k2_floor0_seed44    l2   0.792   0.671   0.446   0.162    0.465
+sparse_whole_delay_v3L12_k2_floor0_seed44  both   0.792   0.420   0.159   0.501    0.853
+sparse_whole_delay_v3L12_k2_floor1_seed42    l1   0.779   0.319   0.249   0.631    0.727
+sparse_whole_delay_v3L12_k2_floor1_seed42    l2   0.779   0.670   0.484   0.150    0.405
+sparse_whole_delay_v3L12_k2_floor1_seed42  both   0.779   0.329   0.149   0.617    0.865
+sparse_whole_delay_v3L12_k2_floor1_seed43    l1   0.774   0.346   0.262   0.591    0.707
+sparse_whole_delay_v3L12_k2_floor1_seed43    l2   0.774   0.685   0.456   0.122    0.439
+sparse_whole_delay_v3L12_k2_floor1_seed43  both   0.774   0.346   0.139   0.591    0.877
+sparse_whole_delay_v3L12_k2_floor1_seed44    l1   0.791   0.346   0.252   0.601    0.727
+sparse_whole_delay_v3L12_k2_floor1_seed44    l2   0.791   0.709   0.485   0.111    0.413
+sparse_whole_delay_v3L12_k2_floor1_seed44  both   0.791   0.360   0.133   0.582    0.888
+sparse_whole_delay_v3L12_k4_floor0_seed42    l1   0.794   0.384   0.257   0.552    0.722
+sparse_whole_delay_v3L12_k4_floor0_seed42    l2   0.794   0.633   0.458   0.216    0.452
+sparse_whole_delay_v3L12_k4_floor0_seed42  both   0.794   0.400   0.161   0.530    0.850
+sparse_whole_delay_v3L12_k4_floor0_seed43    l1   0.808   0.400   0.269   0.538    0.711
+sparse_whole_delay_v3L12_k4_floor0_seed43    l2   0.808   0.648   0.450   0.210    0.471
+sparse_whole_delay_v3L12_k4_floor0_seed43  both   0.808   0.390   0.167   0.551    0.846
+sparse_whole_delay_v3L12_k4_floor0_seed44    l1   0.798   0.418   0.325   0.507    0.632
+sparse_whole_delay_v3L12_k4_floor0_seed44    l2   0.798   0.656   0.452   0.189    0.463
+sparse_whole_delay_v3L12_k4_floor0_seed44  both   0.798   0.447   0.168   0.469    0.842
+sparse_whole_delay_v3L12_k4_floor1_seed42    l1   0.808   0.367   0.277   0.582    0.701
+sparse_whole_delay_v3L12_k4_floor1_seed42    l2   0.808   0.664   0.493   0.191    0.416
+sparse_whole_delay_v3L12_k4_floor1_seed42  both   0.808   0.348   0.142   0.607    0.878
+sparse_whole_delay_v3L12_k4_floor1_seed43    l1   0.803   0.336   0.241   0.620    0.746
+sparse_whole_delay_v3L12_k4_floor1_seed43    l2   0.803   0.689   0.518   0.151    0.378
+sparse_whole_delay_v3L12_k4_floor1_seed43  both   0.803   0.366   0.145   0.581    0.874
+sparse_whole_delay_v3L12_k4_floor1_seed44    l1   0.812   0.353   0.255   0.602    0.731
+sparse_whole_delay_v3L12_k4_floor1_seed44    l2   0.812   0.684   0.492   0.167    0.420
+sparse_whole_delay_v3L12_k4_floor1_seed44  both   0.812   0.387   0.145   0.558    0.876
+sparse_whole_delay_v3L12_k8_floor0_seed42    l1   0.834   0.388   0.248   0.568    0.747
+sparse_whole_delay_v3L12_k8_floor0_seed42    l2   0.834   0.603   0.475   0.294    0.458
+sparse_whole_delay_v3L12_k8_floor0_seed42  both   0.834   0.373   0.157   0.588    0.863
+sparse_whole_delay_v3L12_k8_floor0_seed43    l1   0.823   0.400   0.304   0.548    0.671
+sparse_whole_delay_v3L12_k8_floor0_seed43    l2   0.823   0.627   0.454   0.253    0.477
+sparse_whole_delay_v3L12_k8_floor0_seed43  both   0.823   0.398   0.164   0.550    0.853
+sparse_whole_delay_v3L12_k8_floor0_seed44    l1   0.826   0.407   0.284   0.540    0.699
+sparse_whole_delay_v3L12_k8_floor0_seed44    l2   0.826   0.646   0.451   0.231    0.483
+sparse_whole_delay_v3L12_k8_floor0_seed44  both   0.826   0.395   0.162   0.556    0.856
+sparse_whole_delay_v3L12_k8_floor1_seed42    l1   0.836   0.369   0.313   0.594    0.665
+sparse_whole_delay_v3L12_k8_floor1_seed42    l2   0.836   0.670   0.515   0.211    0.408
+sparse_whole_delay_v3L12_k8_floor1_seed42  both   0.836   0.372   0.158   0.591    0.862
+sparse_whole_delay_v3L12_k8_floor1_seed43    l1   0.847   0.378   0.292   0.589    0.696
+sparse_whole_delay_v3L12_k8_floor1_seed43    l2   0.847   0.692   0.540   0.194    0.386
+sparse_whole_delay_v3L12_k8_floor1_seed43  both   0.847   0.384   0.148   0.581    0.877
+sparse_whole_delay_v3L12_k8_floor1_seed44    l1   0.842   0.367   0.324   0.599    0.654
+sparse_whole_delay_v3L12_k8_floor1_seed44    l2   0.842   0.647   0.509   0.247    0.421
+sparse_whole_delay_v3L12_k8_floor1_seed44  both   0.842   0.392   0.162   0.569    0.859
+Written to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\phase1_measure_v3L12_delay.json
+
+=== nodelay: 24 checkpoints ===
+  relocation windows: l1 [0,88) | l2 [0,90)
+run_tag                                    site   clean   reloc     del   usage  control
+sparse_whole_nodelay_v3L12_k1_floor0_seed42   l1   0.466   0.383   0.235   0.199    0.556
+sparse_whole_nodelay_v3L12_k1_floor0_seed42   l2   0.466   0.468   0.260  -0.006    0.494
+sparse_whole_nodelay_v3L12_k1_floor0_seed42 both   0.466   0.367   0.136   0.237    0.792
+sparse_whole_nodelay_v3L12_k1_floor0_seed43   l1   0.481   0.397   0.252   0.195    0.532
+sparse_whole_nodelay_v3L12_k1_floor0_seed43   l2   0.481   0.456   0.255   0.058    0.525
+sparse_whole_nodelay_v3L12_k1_floor0_seed43 both   0.481   0.386   0.146   0.220    0.778
+sparse_whole_nodelay_v3L12_k1_floor0_seed44   l1   0.495   0.381   0.249   0.257    0.552
+sparse_whole_nodelay_v3L12_k1_floor0_seed44   l2   0.495   0.498   0.274  -0.006    0.496
+sparse_whole_nodelay_v3L12_k1_floor0_seed44 both   0.495   0.384   0.144   0.249    0.788
+sparse_whole_nodelay_v3L12_k1_floor1_seed42   l1   0.537   0.363   0.233   0.358    0.624
+sparse_whole_nodelay_v3L12_k1_floor1_seed42   l2   0.537   0.552   0.316  -0.031    0.455
+sparse_whole_nodelay_v3L12_k1_floor1_seed42 both   0.537   0.377   0.135   0.330    0.826
+sparse_whole_nodelay_v3L12_k1_floor1_seed43   l1   0.535   0.358   0.230   0.365    0.630
+sparse_whole_nodelay_v3L12_k1_floor1_seed43   l2   0.535   0.518   0.307   0.035    0.470
+sparse_whole_nodelay_v3L12_k1_floor1_seed43 both   0.535   0.382   0.128   0.315    0.840
+sparse_whole_nodelay_v3L12_k1_floor1_seed44   l1   0.506   0.344   0.228   0.354    0.610
+sparse_whole_nodelay_v3L12_k1_floor1_seed44   l2   0.506   0.495   0.303   0.024    0.446
+sparse_whole_nodelay_v3L12_k1_floor1_seed44 both   0.506   0.342   0.128   0.360    0.828
+sparse_whole_nodelay_v3L12_k2_floor0_seed42   l1   0.508   0.381   0.255   0.279    0.552
+sparse_whole_nodelay_v3L12_k2_floor0_seed42   l2   0.508   0.511   0.277  -0.005    0.505
+sparse_whole_nodelay_v3L12_k2_floor0_seed42 both   0.508   0.375   0.149   0.291    0.784
+sparse_whole_nodelay_v3L12_k2_floor0_seed43   l1   0.513   0.366   0.260   0.317    0.547
+sparse_whole_nodelay_v3L12_k2_floor0_seed43   l2   0.513   0.489   0.275   0.051    0.513
+sparse_whole_nodelay_v3L12_k2_floor0_seed43 both   0.513   0.366   0.148   0.318    0.788
+sparse_whole_nodelay_v3L12_k2_floor0_seed44   l1   0.478   0.388   0.271   0.209    0.482
+sparse_whole_nodelay_v3L12_k2_floor0_seed44   l2   0.478   0.478   0.283   0.000    0.455
+sparse_whole_nodelay_v3L12_k2_floor0_seed44 both   0.478   0.403   0.146   0.173    0.776
+sparse_whole_nodelay_v3L12_k2_floor1_seed42   l1   0.535   0.350   0.224   0.382    0.641
+sparse_whole_nodelay_v3L12_k2_floor1_seed42   l2   0.535   0.529   0.319   0.013    0.446
+sparse_whole_nodelay_v3L12_k2_floor1_seed42 both   0.535   0.367   0.122   0.347    0.852
+sparse_whole_nodelay_v3L12_k2_floor1_seed43   l1   0.526   0.370   0.230   0.329    0.623
+sparse_whole_nodelay_v3L12_k2_floor1_seed43   l2   0.526   0.528   0.299  -0.004    0.478
+sparse_whole_nodelay_v3L12_k2_floor1_seed43 both   0.526   0.389   0.132   0.287    0.827
+sparse_whole_nodelay_v3L12_k2_floor1_seed44   l1   0.539   0.358   0.220   0.370    0.652
+sparse_whole_nodelay_v3L12_k2_floor1_seed44   l2   0.539   0.513   0.300   0.054    0.489
+sparse_whole_nodelay_v3L12_k2_floor1_seed44 both   0.539   0.371   0.127   0.343    0.842
+sparse_whole_nodelay_v3L12_k4_floor0_seed42   l1   0.537   0.427   0.269   0.226    0.551
+sparse_whole_nodelay_v3L12_k4_floor0_seed42   l2   0.537   0.534   0.295   0.005    0.496
+sparse_whole_nodelay_v3L12_k4_floor0_seed42 both   0.537   0.437   0.149   0.206    0.798
+sparse_whole_nodelay_v3L12_k4_floor0_seed43   l1   0.512   0.383   0.251   0.278    0.564
+sparse_whole_nodelay_v3L12_k4_floor0_seed43   l2   0.512   0.507   0.273   0.009    0.518
+sparse_whole_nodelay_v3L12_k4_floor0_seed43 both   0.512   0.398   0.134   0.247    0.819
+sparse_whole_nodelay_v3L12_k4_floor0_seed44   l1   0.502   0.414   0.271   0.196    0.511
+sparse_whole_nodelay_v3L12_k4_floor0_seed44   l2   0.502   0.508   0.285  -0.013    0.480
+sparse_whole_nodelay_v3L12_k4_floor0_seed44 both   0.502   0.410   0.148   0.205    0.783
+sparse_whole_nodelay_v3L12_k4_floor1_seed42   l1   0.580   0.383   0.227   0.371    0.666
+sparse_whole_nodelay_v3L12_k4_floor1_seed42   l2   0.580   0.565   0.340   0.029    0.452
+sparse_whole_nodelay_v3L12_k4_floor1_seed42 both   0.580   0.410   0.128   0.321    0.852
+sparse_whole_nodelay_v3L12_k4_floor1_seed43   l1   0.572   0.362   0.230   0.402    0.655
+sparse_whole_nodelay_v3L12_k4_floor1_seed43   l2   0.572   0.569   0.330   0.007    0.465
+sparse_whole_nodelay_v3L12_k4_floor1_seed43 both   0.572   0.385   0.127   0.358    0.852
+sparse_whole_nodelay_v3L12_k4_floor1_seed44   l1   0.557   0.370   0.238   0.369    0.630
+sparse_whole_nodelay_v3L12_k4_floor1_seed44   l2   0.557   0.570   0.322  -0.025    0.463
+sparse_whole_nodelay_v3L12_k4_floor1_seed44 both   0.557   0.372   0.134   0.364    0.834
+sparse_whole_nodelay_v3L12_k8_floor0_seed42   l1   0.545   0.432   0.259   0.229    0.579
+sparse_whole_nodelay_v3L12_k8_floor0_seed42   l2   0.545   0.526   0.284   0.038    0.528
+sparse_whole_nodelay_v3L12_k8_floor0_seed42 both   0.545   0.452   0.136   0.188    0.825
+sparse_whole_nodelay_v3L12_k8_floor0_seed43   l1   0.536   0.389   0.257   0.301    0.575
+sparse_whole_nodelay_v3L12_k8_floor0_seed43   l2   0.536   0.531   0.271   0.011    0.544
+sparse_whole_nodelay_v3L12_k8_floor0_seed43 both   0.536   0.392   0.134   0.296    0.827
+sparse_whole_nodelay_v3L12_k8_floor0_seed44   l1   0.526   0.355   0.258   0.360    0.563
+sparse_whole_nodelay_v3L12_k8_floor0_seed44   l2   0.526   0.532   0.270  -0.013    0.539
+sparse_whole_nodelay_v3L12_k8_floor0_seed44 both   0.526   0.375   0.138   0.317    0.816
+sparse_whole_nodelay_v3L12_k8_floor1_seed42   l1   0.556   0.357   0.238   0.394    0.629
+sparse_whole_nodelay_v3L12_k8_floor1_seed42   l2   0.556   0.531   0.322   0.050    0.463
+sparse_whole_nodelay_v3L12_k8_floor1_seed42 both   0.556   0.375   0.135   0.359    0.832
+sparse_whole_nodelay_v3L12_k8_floor1_seed43   l1   0.578   0.342   0.228   0.446    0.662
+sparse_whole_nodelay_v3L12_k8_floor1_seed43   l2   0.578   0.546   0.313   0.061    0.502
+sparse_whole_nodelay_v3L12_k8_floor1_seed43 both   0.578   0.357   0.130   0.419    0.848
+sparse_whole_nodelay_v3L12_k8_floor1_seed44   l1   0.566   0.378   0.226   0.364    0.660
+sparse_whole_nodelay_v3L12_k8_floor1_seed44   l2   0.566   0.541   0.325   0.048    0.467
+sparse_whole_nodelay_v3L12_k8_floor1_seed44 both   0.566   0.385   0.125   0.350    0.855
+Written to D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\phase1_measure_v3L12_nodelay.json

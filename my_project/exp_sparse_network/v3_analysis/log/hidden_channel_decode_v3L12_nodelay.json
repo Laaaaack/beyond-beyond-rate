@@ -1,0 +1,1394 @@
+{
+  "sparse_whole_nodelay_v3L12_k1_floor0_seed42": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 0.37455639243125916,
+      "spikes_per_active_neuron": 1.869474556331123,
+      "silent_fraction": 0.7996461673346693,
+      "decode_count": 0.6092184368737475,
+      "decode_identity": 0.5217100868403474,
+      "decode_full": 0.758183032732131,
+      "decode_shuffled": 0.5571142284569138,
+      "timing_information": 0.20106880427521712,
+      "timing_fraction": 0.2839220864971938,
+      "peak_potential_silent_median": 0.7747357487678528,
+      "peak_potential_active_median": 14.717422485351562
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 0.9684316515922546,
+      "spikes_per_active_neuron": 2.2992107367394152,
+      "silent_fraction": 0.5787982214428857,
+      "decode_count": 0.6005344021376086,
+      "decode_identity": 0.46292585170340683,
+      "decode_full": 0.7481629926519706,
+      "decode_shuffled": 0.5671342685370742,
+      "timing_information": 0.18102872411489646,
+      "timing_fraction": 0.25929292446060376,
+      "peak_potential_silent_median": 0.5398411750793457,
+      "peak_potential_active_median": 20.401960372924805
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 0.6714940071105957,
+      "spikes_per_active_neuron": 2.1606884242905777,
+      "silent_fraction": 0.6892221943887775,
+      "decode_count": 0.6165664662658651,
+      "decode_identity": 0.5497661990647963,
+      "decode_full": 0.7735470941883767,
+      "decode_shuffled": 0.593186372745491,
+      "timing_information": 0.18036072144288573,
+      "timing_fraction": 0.2492729538845035,
+      "peak_potential_silent_median": 0.5789908170700073,
+      "peak_potential_active_median": 18.250123977661133
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k1_floor0_seed43": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 0.36704137921333313,
+      "spikes_per_active_neuron": 1.93190498336333,
+      "silent_fraction": 0.8100106462925851,
+      "decode_count": 0.627254509018036,
+      "decode_identity": 0.5263861055444222,
+      "decode_full": 0.7548430193720775,
+      "decode_shuffled": 0.5531062124248497,
+      "timing_information": 0.20173680694722784,
+      "timing_fraction": 0.28621523006207655,
+      "peak_potential_silent_median": 0.6534423828125,
+      "peak_potential_active_median": 15.4913330078125
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 0.9821256995201111,
+      "spikes_per_active_neuron": 2.379754654011705,
+      "silent_fraction": 0.5872995991983968,
+      "decode_count": 0.593186372745491,
+      "decode_identity": 0.4876419505678023,
+      "decode_full": 0.760187040748163,
+      "decode_shuffled": 0.5644622578490314,
+      "timing_information": 0.19572478289913164,
+      "timing_fraction": 0.27559610591167766,
+      "peak_potential_silent_median": 0.7700793147087097,
+      "peak_potential_active_median": 19.953248977661133
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 0.6745835542678833,
+      "spikes_per_active_neuron": 2.23857647892964,
+      "silent_fraction": 0.698655122745491,
+      "decode_count": 0.6412825651302605,
+      "decode_identity": 0.5731462925851704,
+      "decode_full": 0.7842351369405478,
+      "decode_shuffled": 0.5858383433533734,
+      "timing_information": 0.19839679358717444,
+      "timing_fraction": 0.2702087977073194,
+      "peak_potential_silent_median": 0.73954838514328,
+      "peak_potential_active_median": 18.115909576416016
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k1_floor0_seed44": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 0.4324638843536377,
+      "spikes_per_active_neuron": 2.0248503277778047,
+      "silent_fraction": 0.7864218019372078,
+      "decode_count": 0.6205744822979292,
+      "decode_identity": 0.5250501002004008,
+      "decode_full": 0.758183032732131,
+      "decode_shuffled": 0.56312625250501,
+      "timing_information": 0.19505678022712092,
+      "timing_fraction": 0.27543272178465317,
+      "peak_potential_silent_median": 1.113024353981018,
+      "peak_potential_active_median": 14.87744140625
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.0616493225097656,
+      "spikes_per_active_neuron": 2.5206492358841612,
+      "silent_fraction": 0.5788190965263861,
+      "decode_count": 0.6012024048096193,
+      "decode_identity": 0.45557782231128924,
+      "decode_full": 0.7381429525718103,
+      "decode_shuffled": 0.5831663326653307,
+      "timing_information": 0.1549766199064796,
+      "timing_fraction": 0.22520992088530795,
+      "peak_potential_silent_median": 0.5180239081382751,
+      "peak_potential_active_median": 21.17626953125
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 0.7470566034317017,
+      "spikes_per_active_neuron": 2.3538271499328935,
+      "silent_fraction": 0.6826204492317969,
+      "decode_count": 0.6285905143620575,
+      "decode_identity": 0.5831663326653307,
+      "decode_full": 0.7695390781563126,
+      "decode_shuffled": 0.5991983967935872,
+      "timing_information": 0.1703406813627254,
+      "timing_fraction": 0.23673583066425283,
+      "peak_potential_silent_median": 0.6303117275238037,
+      "peak_potential_active_median": 18.711240768432617
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k1_floor1_seed42": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.3807928562164307,
+      "spikes_per_active_neuron": 1.7970170200956816,
+      "silent_fraction": 0.23161948897795592,
+      "decode_count": 0.6539746158984636,
+      "decode_identity": 0.5103540414161657,
+      "decode_full": 0.8136272545090181,
+      "decode_shuffled": 0.6098864395457582,
+      "timing_information": 0.2037408149632599,
+      "timing_fraction": 0.26680663080085737,
+      "peak_potential_silent_median": 7.226877689361572,
+      "peak_potential_active_median": 13.488348007202148
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 2.1347851753234863,
+      "spikes_per_active_neuron": 2.4558815352436323,
+      "silent_fraction": 0.13074586673346694,
+      "decode_count": 0.6205744822979292,
+      "decode_identity": 0.4408817635270541,
+      "decode_full": 0.7742150968603875,
+      "decode_shuffled": 0.6052104208416834,
+      "timing_information": 0.16900467601870406,
+      "timing_fraction": 0.23336254208366,
+      "peak_potential_silent_median": 7.190375328063965,
+      "peak_potential_active_median": 19.626222610473633
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 1.7577890157699585,
+      "spikes_per_active_neuron": 2.1467413649319553,
+      "silent_fraction": 0.18118267785571143,
+      "decode_count": 0.6613226452905812,
+      "decode_identity": 0.5811623246492986,
+      "decode_full": 0.811623246492986,
+      "decode_shuffled": 0.6472945891783567,
+      "timing_information": 0.1643286573146293,
+      "timing_fraction": 0.21576108406788588,
+      "peak_potential_silent_median": 7.212468147277832,
+      "peak_potential_active_median": 16.323869705200195
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k1_floor1_seed43": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.4354907274246216,
+      "spikes_per_active_neuron": 1.8033369909276622,
+      "silent_fraction": 0.2039808784235137,
+      "decode_count": 0.6526386105544422,
+      "decode_identity": 0.4923179692718771,
+      "decode_full": 0.8062792251169004,
+      "decode_shuffled": 0.6032064128256514,
+      "timing_information": 0.20307281229124907,
+      "timing_fraction": 0.2685156560526431,
+      "peak_potential_silent_median": 7.185428619384766,
+      "peak_potential_active_median": 13.076871871948242
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 2.2004737854003906,
+      "spikes_per_active_neuron": 2.508214964744157,
+      "silent_fraction": 0.1226933032732131,
+      "decode_count": 0.633934535738143,
+      "decode_identity": 0.4134936539746159,
+      "decode_full": 0.7762191048764195,
+      "decode_shuffled": 0.6005344021376086,
+      "timing_information": 0.17568470273881098,
+      "timing_fraction": 0.24191693878489634,
+      "peak_potential_silent_median": 7.088674545288086,
+      "peak_potential_active_median": 20.94210433959961
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 1.8179823160171509,
+      "spikes_per_active_neuron": 2.1728969888967073,
+      "silent_fraction": 0.1633370908483634,
+      "decode_count": 0.6706746826987308,
+      "decode_identity": 0.5511022044088176,
+      "decode_full": 0.8162992651970608,
+      "decode_shuffled": 0.6392785571142284,
+      "timing_information": 0.17702070808283232,
+      "timing_fraction": 0.2310072789085996,
+      "peak_potential_silent_median": 7.149426460266113,
+      "peak_potential_active_median": 16.427549362182617
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k1_floor1_seed44": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.3568334579467773,
+      "spikes_per_active_neuron": 1.7673477980662484,
+      "silent_fraction": 0.23227705410821645,
+      "decode_count": 0.6112224448897795,
+      "decode_identity": 0.46092184368737477,
+      "decode_full": 0.7935871743486974,
+      "decode_shuffled": 0.552438209752839,
+      "timing_information": 0.24114896459585844,
+      "timing_fraction": 0.3243049005075687,
+      "peak_potential_silent_median": 7.314681053161621,
+      "peak_potential_active_median": 13.332797050476074
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 2.2156083583831787,
+      "spikes_per_active_neuron": 2.519291774172202,
+      "silent_fraction": 0.1205431696726787,
+      "decode_count": 0.5778223112892451,
+      "decode_identity": 0.3807615230460922,
+      "decode_full": 0.7461589846359385,
+      "decode_shuffled": 0.5511022044088176,
+      "timing_information": 0.19505678022712092,
+      "timing_fraction": 0.2801899918437845,
+      "peak_potential_silent_median": 7.184157371520996,
+      "peak_potential_active_median": 20.401323318481445
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 1.786220908164978,
+      "spikes_per_active_neuron": 2.1688232625888895,
+      "silent_fraction": 0.17641011189044756,
+      "decode_count": 0.6212424849699398,
+      "decode_identity": 0.509686038744155,
+      "decode_full": 0.7855711422845691,
+      "decode_shuffled": 0.6018704074816299,
+      "timing_information": 0.18370073480293925,
+      "timing_fraction": 0.24973890932207243,
+      "peak_potential_silent_median": 7.2763214111328125,
+      "peak_potential_active_median": 16.521453857421875
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k2_floor0_seed42": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 0.6484375,
+      "spikes_per_active_neuron": 2.2950792419372714,
+      "silent_fraction": 0.7174661823647295,
+      "decode_count": 0.6499665998663995,
+      "decode_identity": 0.5404141616566466,
+      "decode_full": 0.7922511690046761,
+      "decode_shuffled": 0.5838343353373413,
+      "timing_information": 0.20841683366733477,
+      "timing_fraction": 0.2807901723439681,
+      "peak_potential_silent_median": 1.4622210264205933,
+      "peak_potential_active_median": 16.928707122802734
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.2718353271484375,
+      "spikes_per_active_neuron": 2.7818820835449865,
+      "silent_fraction": 0.542814796259185,
+      "decode_count": 0.6606546426185704,
+      "decode_identity": 0.4422177688710755,
+      "decode_full": 0.7628590514362057,
+      "decode_shuffled": 0.6072144288577155,
+      "timing_information": 0.1556446225784902,
+      "timing_fraction": 0.21833856533758128,
+      "peak_potential_silent_median": 0.6001002788543701,
+      "peak_potential_active_median": 23.515625
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 0.9601364135742188,
+      "spikes_per_active_neuron": 2.5959489639406454,
+      "silent_fraction": 0.6301404893119572,
+      "decode_count": 0.6753507014028056,
+      "decode_identity": 0.5731462925851704,
+      "decode_full": 0.7989311957247829,
+      "decode_shuffled": 0.635938543754175,
+      "timing_information": 0.16299265197060786,
+      "timing_fraction": 0.21763367970387548,
+      "peak_potential_silent_median": 0.761642336845398,
+      "peak_potential_active_median": 20.457088470458984
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k2_floor0_seed43": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 0.6179442405700684,
+      "spikes_per_active_neuron": 2.16155832711576,
+      "silent_fraction": 0.714120950233801,
+      "decode_count": 0.6646626586506346,
+      "decode_identity": 0.5410821643286573,
+      "decode_full": 0.7849031396125584,
+      "decode_shuffled": 0.58249832999332,
+      "timing_information": 0.20240480961923846,
+      "timing_fraction": 0.27541698859246466,
+      "peak_potential_silent_median": 1.0662649869918823,
+      "peak_potential_active_median": 16.8504638671875
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.3522566556930542,
+      "spikes_per_active_neuron": 2.8690348266855668,
+      "silent_fraction": 0.5286719271877087,
+      "decode_count": 0.627254509018036,
+      "decode_identity": 0.4529058116232465,
+      "decode_full": 0.7722110888443554,
+      "decode_shuffled": 0.612558450233801,
+      "timing_information": 0.15965263861055445,
+      "timing_fraction": 0.22106090736715536,
+      "peak_potential_silent_median": 0.5481520891189575,
+      "peak_potential_active_median": 24.207630157470703
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 0.9851003885269165,
+      "spikes_per_active_neuron": 2.6019311207015314,
+      "silent_fraction": 0.6213964387107549,
+      "decode_count": 0.6713426853707415,
+      "decode_identity": 0.5905143620574482,
+      "decode_full": 0.7969271877087508,
+      "decode_shuffled": 0.6279225116900468,
+      "timing_information": 0.16900467601870406,
+      "timing_fraction": 0.2262666010821446,
+      "peak_potential_silent_median": 0.6203910112380981,
+      "peak_potential_active_median": 20.71137046813965
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k2_floor0_seed44": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 0.605982780456543,
+      "spikes_per_active_neuron": 2.098949701920807,
+      "silent_fraction": 0.7112923764195057,
+      "decode_count": 0.6619906479625919,
+      "decode_identity": 0.5664662658650634,
+      "decode_full": 0.7889111556446226,
+      "decode_shuffled": 0.5865063460253841,
+      "timing_information": 0.20240480961923846,
+      "timing_fraction": 0.27392306649188625,
+      "peak_potential_silent_median": 0.6897529363632202,
+      "peak_potential_active_median": 16.057239532470703
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.3674118518829346,
+      "spikes_per_active_neuron": 2.9287533467137665,
+      "silent_fraction": 0.5331078824315297,
+      "decode_count": 0.633934535738143,
+      "decode_identity": 0.43286573146292584,
+      "decode_full": 0.7715430861723447,
+      "decode_shuffled": 0.5871743486973948,
+      "timing_information": 0.18436873747494986,
+      "timing_fraction": 0.2555200666574087,
+      "peak_potential_silent_median": 0.7136693000793457,
+      "peak_potential_active_median": 25.693117141723633
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 0.9866973757743835,
+      "spikes_per_active_neuron": 2.6116932604397456,
+      "silent_fraction": 0.6222001294255177,
+      "decode_count": 0.6713426853707415,
+      "decode_identity": 0.6052104208416834,
+      "decode_full": 0.8049432197728791,
+      "decode_shuffled": 0.6118904475617902,
+      "timing_information": 0.19305277221108885,
+      "timing_fraction": 0.25571826748661686,
+      "peak_potential_silent_median": 0.708984375,
+      "peak_potential_active_median": 21.27423667907715
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k2_floor1_seed42": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.7639654874801636,
+      "spikes_per_active_neuron": 2.082600699012311,
+      "silent_fraction": 0.15299870574482297,
+      "decode_count": 0.6586506346025384,
+      "decode_identity": 0.4642618570474282,
+      "decode_full": 0.8176352705410822,
+      "decode_shuffled": 0.5858383433533734,
+      "timing_information": 0.23179692718770883,
+      "timing_fraction": 0.3019623199756343,
+      "peak_potential_silent_median": 6.996955394744873,
+      "peak_potential_active_median": 13.924102783203125
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 2.6634361743927,
+      "spikes_per_active_neuron": 2.9067416916363285,
+      "silent_fraction": 0.08370386606546426,
+      "decode_count": 0.6025384101536406,
+      "decode_identity": 0.3760855043420174,
+      "decode_full": 0.7621910487641951,
+      "decode_shuffled": 0.5851703406813628,
+      "timing_information": 0.17702070808283232,
+      "timing_fraction": 0.24855789523050228,
+      "peak_potential_silent_median": 6.848570823669434,
+      "peak_potential_active_median": 23.615707397460938
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 2.213700771331787,
+      "spikes_per_active_neuron": 2.5108648557430047,
+      "silent_fraction": 0.11835128590514363,
+      "decode_count": 0.6593186372745491,
+      "decode_identity": 0.531062124248497,
+      "decode_full": 0.8016032064128257,
+      "decode_shuffled": 0.625250501002004,
+      "timing_information": 0.1763527054108217,
+      "timing_fraction": 0.23463538194907355,
+      "peak_potential_silent_median": 6.9472975730896,
+      "peak_potential_active_median": 18.017879486083984
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k2_floor1_seed43": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.7436070442199707,
+      "spikes_per_active_neuron": 2.042132009322783,
+      "silent_fraction": 0.14618299098196394,
+      "decode_count": 0.6599866399465598,
+      "decode_identity": 0.4729458917835671,
+      "decode_full": 0.8162992651970608,
+      "decode_shuffled": 0.5951903807615231,
+      "timing_information": 0.22110888443553767,
+      "timing_fraction": 0.2885411672405526,
+      "peak_potential_silent_median": 6.981085777282715,
+      "peak_potential_active_median": 13.645387649536133
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 2.6632328033447266,
+      "spikes_per_active_neuron": 2.8942554593366823,
+      "silent_fraction": 0.07982110053440214,
+      "decode_count": 0.6192384769539078,
+      "decode_identity": 0.3680694722778891,
+      "decode_full": 0.7735470941883767,
+      "decode_shuffled": 0.5958583834335337,
+      "timing_information": 0.17768871075484305,
+      "timing_fraction": 0.2455800212343628,
+      "peak_potential_silent_median": 7.045194625854492,
+      "peak_potential_active_median": 23.076446533203125
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 2.2034199237823486,
+      "spikes_per_active_neuron": 2.4841319117424296,
+      "silent_fraction": 0.11300204575818304,
+      "decode_count": 0.6773547094188377,
+      "decode_identity": 0.518370073480294,
+      "decode_full": 0.8076152304609219,
+      "decode_shuffled": 0.627254509018036,
+      "timing_information": 0.18036072144288584,
+      "timing_fraction": 0.23806374818145756,
+      "peak_potential_silent_median": 7.0035247802734375,
+      "peak_potential_active_median": 17.475868225097656
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k2_floor1_seed44": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.6979374885559082,
+      "spikes_per_active_neuron": 1.9885946971568125,
+      "silent_fraction": 0.1461621158984636,
+      "decode_count": 0.6693386773547094,
+      "decode_identity": 0.4849699398797595,
+      "decode_full": 0.8076152304609219,
+      "decode_shuffled": 0.605878423513694,
+      "timing_information": 0.20173680694722784,
+      "timing_fraction": 0.26627871092888955,
+      "peak_potential_silent_median": 7.172012805938721,
+      "peak_potential_active_median": 13.456217765808105
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 2.5350232124328613,
+      "spikes_per_active_neuron": 2.772994587454246,
+      "silent_fraction": 0.08581746826987308,
+      "decode_count": 0.633934535738143,
+      "decode_identity": 0.38744154976619904,
+      "decode_full": 0.7735470941883767,
+      "decode_shuffled": 0.5991983967935872,
+      "timing_information": 0.17434869739478953,
+      "timing_fraction": 0.2409638554216867,
+      "peak_potential_silent_median": 7.130365371704102,
+      "peak_potential_active_median": 22.584903717041016
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 2.1164803504943848,
+      "spikes_per_active_neuron": 2.3941808946802334,
+      "silent_fraction": 0.11598979208416833,
+      "decode_count": 0.6860387441549766,
+      "decode_identity": 0.5377421509686039,
+      "decode_full": 0.8042752171008684,
+      "decode_shuffled": 0.6386105544422178,
+      "timing_information": 0.16566466265865054,
+      "timing_fraction": 0.21963423814373634,
+      "peak_potential_silent_median": 7.156772136688232,
+      "peak_potential_active_median": 17.1727237701416
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k4_floor0_seed42": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.086313247680664,
+      "spikes_per_active_neuron": 2.7900570901479527,
+      "silent_fraction": 0.6106483800935204,
+      "decode_count": 0.7020708082832331,
+      "decode_identity": 0.571810287241149,
+      "decode_full": 0.8256513026052105,
+      "decode_shuffled": 0.6406145624582499,
+      "timing_information": 0.1850367401469606,
+      "timing_fraction": 0.23855660336735132,
+      "peak_potential_silent_median": 1.2539632320404053,
+      "peak_potential_active_median": 21.12113380432129
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.7423075437545776,
+      "spikes_per_active_neuron": 3.5374508863820333,
+      "silent_fraction": 0.5074680611222445,
+      "decode_count": 0.663994655978624,
+      "decode_identity": 0.3927855711422846,
+      "decode_full": 0.7915831663326653,
+      "decode_shuffled": 0.6279225116900468,
+      "timing_information": 0.16366065464261859,
+      "timing_fraction": 0.22069089762644692,
+      "peak_potential_silent_median": 0.4086902141571045,
+      "peak_potential_active_median": 30.578235626220703
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 1.414310336112976,
+      "spikes_per_active_neuron": 3.2074763658430023,
+      "silent_fraction": 0.5590582206078825,
+      "decode_count": 0.7020708082832331,
+      "decode_identity": 0.5978623914495658,
+      "decode_full": 0.8296593186372746,
+      "decode_shuffled": 0.6673346693386774,
+      "timing_information": 0.16232464929859725,
+      "timing_fraction": 0.2081994602236217,
+      "peak_potential_silent_median": 0.48892658948898315,
+      "peak_potential_active_median": 25.406112670898438
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k4_floor0_seed43": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.0120292901992798,
+      "spikes_per_active_neuron": 2.6156409510625336,
+      "silent_fraction": 0.6130855460921844,
+      "decode_count": 0.6947227788911156,
+      "decode_identity": 0.5357381429525718,
+      "decode_full": 0.8189712758851035,
+      "decode_shuffled": 0.6165664662658651,
+      "timing_information": 0.20240480961923846,
+      "timing_fraction": 0.26321504582374144,
+      "peak_potential_silent_median": 0.380859375,
+      "peak_potential_active_median": 17.988418579101562
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.8162835836410522,
+      "spikes_per_active_neuron": 3.710528228188751,
+      "silent_fraction": 0.5105053857715431,
+      "decode_count": 0.6646626586506346,
+      "decode_identity": 0.3847695390781563,
+      "decode_full": 0.7882431529726119,
+      "decode_shuffled": 0.6158984635938544,
+      "timing_information": 0.17234468937875758,
+      "timing_fraction": 0.23345247251504328,
+      "peak_potential_silent_median": 0.39654970169067383,
+      "peak_potential_active_median": 31.60903549194336
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 1.414156436920166,
+      "spikes_per_active_neuron": 3.2271606680826337,
+      "silent_fraction": 0.5617954659318637,
+      "decode_count": 0.6987307949231797,
+      "decode_identity": 0.5591182364729459,
+      "decode_full": 0.8196392785571143,
+      "decode_shuffled": 0.6392785571142284,
+      "timing_information": 0.18036072144288584,
+      "timing_fraction": 0.23434448639500075,
+      "peak_potential_silent_median": 0.39477747678756714,
+      "peak_potential_active_median": 23.976945877075195
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k4_floor0_seed44": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 0.8746033906936646,
+      "spikes_per_active_neuron": 2.362390799424263,
+      "silent_fraction": 0.6297803941215765,
+      "decode_count": 0.6633266533066132,
+      "decode_identity": 0.5317301269205077,
+      "decode_full": 0.8016032064128257,
+      "decode_shuffled": 0.6052104208416834,
+      "timing_information": 0.19639278557114226,
+      "timing_fraction": 0.26129849353419543,
+      "peak_potential_silent_median": 1.830361008644104,
+      "peak_potential_active_median": 17.723573684692383
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.9018244743347168,
+      "spikes_per_active_neuron": 3.381178137430493,
+      "silent_fraction": 0.4375260938543754,
+      "decode_count": 0.6566466265865063,
+      "decode_identity": 0.46292585170340683,
+      "decode_full": 0.8089512358049432,
+      "decode_shuffled": 0.6118904475617902,
+      "timing_information": 0.19706078824315298,
+      "timing_fraction": 0.2596488139770277,
+      "peak_potential_silent_median": 0.4460819959640503,
+      "peak_potential_active_median": 26.140625
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 1.388213872909546,
+      "spikes_per_active_neuron": 2.9767846672310787,
+      "silent_fraction": 0.533653243987976,
+      "decode_count": 0.6773547094188377,
+      "decode_identity": 0.5951903807615231,
+      "decode_full": 0.8183032732130928,
+      "decode_shuffled": 0.6366065464261857,
+      "timing_information": 0.18169672678690707,
+      "timing_fraction": 0.23649089249228353,
+      "peak_potential_silent_median": 0.6704808473587036,
+      "peak_potential_active_median": 21.964183807373047
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k4_floor1_seed42": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 2.4402084350585938,
+      "spikes_per_active_neuron": 2.7008091140734116,
+      "silent_fraction": 0.09648985470941884,
+      "decode_count": 0.6833667334669339,
+      "decode_identity": 0.46626586506346024,
+      "decode_full": 0.8390113560454242,
+      "decode_shuffled": 0.6199064796259185,
+      "timing_information": 0.2191048764195057,
+      "timing_fraction": 0.27769546628285996,
+      "peak_potential_silent_median": 6.855161666870117,
+      "peak_potential_active_median": 15.57977294921875
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 3.438695192337036,
+      "spikes_per_active_neuron": 3.6097878640409653,
+      "silent_fraction": 0.04739687708750835,
+      "decode_count": 0.665998663994656,
+      "decode_identity": 0.3152972611890448,
+      "decode_full": 0.7962591850367402,
+      "decode_shuffled": 0.635938543754175,
+      "timing_information": 0.16032064128256518,
+      "timing_fraction": 0.21483238598218687,
+      "peak_potential_silent_median": 6.021364688873291,
+      "peak_potential_active_median": 31.094099044799805
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 2.9394519329071045,
+      "spikes_per_active_neuron": 3.167319563156645,
+      "silent_fraction": 0.07194336589846359,
+      "decode_count": 0.6973947895791583,
+      "decode_identity": 0.5130260521042084,
+      "decode_full": 0.8323313293253173,
+      "decode_shuffled": 0.6713426853707415,
+      "timing_information": 0.1609886439545758,
+      "timing_fraction": 0.20578064295777654,
+      "peak_potential_silent_median": 6.643160820007324,
+      "peak_potential_active_median": 22.353515625
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k4_floor1_seed43": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 2.458223819732666,
+      "spikes_per_active_neuron": 2.6879423387462595,
+      "silent_fraction": 0.0854625918503674,
+      "decode_count": 0.7307949231796927,
+      "decode_identity": 0.4649298597194389,
+      "decode_full": 0.8209752839011356,
+      "decode_shuffled": 0.644622578490314,
+      "timing_information": 0.1763527054108216,
+      "timing_fraction": 0.22873976519516523,
+      "peak_potential_silent_median": 6.9953813552856445,
+      "peak_potential_active_median": 15.293310165405273
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 3.4571800231933594,
+      "spikes_per_active_neuron": 3.628635791261154,
+      "silent_fraction": 0.04725075150300601,
+      "decode_count": 0.6947227788911156,
+      "decode_identity": 0.31596526386105545,
+      "decode_full": 0.8002672010688042,
+      "decode_shuffled": 0.6499665998663995,
+      "timing_information": 0.15030060120240474,
+      "timing_fraction": 0.20032943061924047,
+      "peak_potential_silent_median": 6.090793609619141,
+      "peak_potential_active_median": 31.47781753540039
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 2.9577019214630127,
+      "spikes_per_active_neuron": 3.167914161368895,
+      "silent_fraction": 0.06635667167668671,
+      "decode_count": 0.7488309953239813,
+      "decode_identity": 0.5150300601202404,
+      "decode_full": 0.8229792919171677,
+      "decode_shuffled": 0.6933867735470942,
+      "timing_information": 0.12959251837007346,
+      "timing_fraction": 0.16765328609082658,
+      "peak_potential_silent_median": 6.707035541534424,
+      "peak_potential_active_median": 22.16980743408203
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k4_floor1_seed44": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 2.385406255722046,
+      "spikes_per_active_neuron": 2.67227532416096,
+      "silent_fraction": 0.1073501169004676,
+      "decode_count": 0.7074148296593187,
+      "decode_identity": 0.4482297929191717,
+      "decode_full": 0.832999331997328,
+      "decode_shuffled": 0.6406145624582499,
+      "timing_information": 0.19238476953907813,
+      "timing_fraction": 0.24570234185044573,
+      "peak_potential_silent_median": 6.977326393127441,
+      "peak_potential_active_median": 15.901029586791992
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 3.449644088745117,
+      "spikes_per_active_neuron": 3.6170607545348727,
+      "silent_fraction": 0.04628527889111556,
+      "decode_count": 0.6653306613226453,
+      "decode_identity": 0.33734134936539745,
+      "decode_full": 0.7889111556446226,
+      "decode_shuffled": 0.6319305277221109,
+      "timing_information": 0.15698062792251166,
+      "timing_fraction": 0.21244858292275007,
+      "peak_potential_silent_median": 6.156251907348633,
+      "peak_potential_active_median": 31.157699584960938
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 2.917525053024292,
+      "spikes_per_active_neuron": 3.1602913599777427,
+      "silent_fraction": 0.07681769789579158,
+      "decode_count": 0.7140948563794255,
+      "decode_identity": 0.49031396125584503,
+      "decode_full": 0.824315297261189,
+      "decode_shuffled": 0.6753507014028056,
+      "timing_information": 0.1489645958583834,
+      "timing_fraction": 0.1923823491351421,
+      "peak_potential_silent_median": 6.764900207519531,
+      "peak_potential_active_median": 22.443397521972656
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k8_floor0_seed42": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.7566800117492676,
+      "spikes_per_active_neuron": 3.485890010991246,
+      "silent_fraction": 0.496059827989312,
+      "decode_count": 0.7207748830995324,
+      "decode_identity": 0.5384101536406145,
+      "decode_full": 0.8537074148296593,
+      "decode_shuffled": 0.6459585838343354,
+      "timing_information": 0.20774883099532393,
+      "timing_fraction": 0.258488135311474,
+      "peak_potential_silent_median": 1.837957739830017,
+      "peak_potential_active_median": 24.190778732299805
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 2.6563544273376465,
+      "spikes_per_active_neuron": 5.520367987817562,
+      "silent_fraction": 0.518808450233801,
+      "decode_count": 0.6847027388109552,
+      "decode_identity": 0.27521710086840345,
+      "decode_full": 0.8122912491649966,
+      "decode_shuffled": 0.644622578490314,
+      "timing_information": 0.1676686706746826,
+      "timing_fraction": 0.21995355562371283,
+      "peak_potential_silent_median": 0.40144607424736023,
+      "peak_potential_active_median": 46.97681427001953
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 2.206517219543457,
+      "spikes_per_active_neuron": 4.479638957445307,
+      "silent_fraction": 0.5074341391115564,
+      "decode_count": 0.7241148964595858,
+      "decode_identity": 0.5604542418169672,
+      "decode_full": 0.8470273881095525,
+      "decode_shuffled": 0.6773547094188377,
+      "timing_information": 0.16967267869071478,
+      "timing_fraction": 0.21288186732598588,
+      "peak_potential_silent_median": 0.5185217261314392,
+      "peak_potential_active_median": 34.08233642578125
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k8_floor0_seed43": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.6346547603607178,
+      "spikes_per_active_neuron": 3.437133836950283,
+      "silent_fraction": 0.5244134101536406,
+      "decode_count": 0.7247828991315965,
+      "decode_identity": 0.4969939879759519,
+      "decode_full": 0.8403473613894455,
+      "decode_shuffled": 0.6372745490981964,
+      "timing_information": 0.20307281229124918,
+      "timing_fraction": 0.25694121624477034,
+      "peak_potential_silent_median": 0.3430860638618469,
+      "peak_potential_active_median": 22.63843536376953
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 2.607950210571289,
+      "spikes_per_active_neuron": 5.160475722593927,
+      "silent_fraction": 0.49462988476953906,
+      "decode_count": 0.6733466933867736,
+      "decode_identity": 0.3239812959251837,
+      "decode_full": 0.7989311957247829,
+      "decode_shuffled": 0.6199064796259185,
+      "timing_information": 0.1790247160988644,
+      "timing_fraction": 0.23904027115015833,
+      "peak_potential_silent_median": 0.3428671360015869,
+      "peak_potential_active_median": 42.52727508544922
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 2.121302604675293,
+      "spikes_per_active_neuron": 4.3249668281928315,
+      "silent_fraction": 0.5095216474615899,
+      "decode_count": 0.7181028724114896,
+      "decode_identity": 0.5290581162324649,
+      "decode_full": 0.8376753507014028,
+      "decode_shuffled": 0.6586506346025384,
+      "timing_information": 0.1790247160988644,
+      "timing_fraction": 0.22728236441504476,
+      "peak_potential_silent_median": 0.3428955078125,
+      "peak_potential_active_median": 30.714200973510742
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k8_floor0_seed44": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 1.7704471349716187,
+      "spikes_per_active_neuron": 3.5007378023746654,
+      "silent_fraction": 0.49426457080828323,
+      "decode_count": 0.7100868403473614,
+      "decode_identity": 0.541750167000668,
+      "decode_full": 0.8396793587174348,
+      "decode_shuffled": 0.6499665998663995,
+      "timing_information": 0.18971275885103533,
+      "timing_fraction": 0.24024024024024018,
+      "peak_potential_silent_median": 0.439697265625,
+      "peak_potential_active_median": 22.15003204345703
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 2.6898536682128906,
+      "spikes_per_active_neuron": 5.27606715619082,
+      "silent_fraction": 0.4901782732130929,
+      "decode_count": 0.6800267201068805,
+      "decode_identity": 0.301937207748831,
+      "decode_full": 0.7875751503006012,
+      "decode_shuffled": 0.6352705410821643,
+      "timing_information": 0.15230460921843691,
+      "timing_fraction": 0.2064936829235159,
+      "peak_potential_silent_median": 0.5026232004165649,
+      "peak_potential_active_median": 45.40922546386719
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 2.2301504611968994,
+      "spikes_per_active_neuron": 4.391974293259454,
+      "silent_fraction": 0.492221422010688,
+      "decode_count": 0.717434869739479,
+      "decode_identity": 0.5604542418169672,
+      "decode_full": 0.8289913159652639,
+      "decode_shuffled": 0.6746826987307949,
+      "timing_information": 0.15430861723446898,
+      "timing_fraction": 0.19808772456373544,
+      "peak_potential_silent_median": 0.4962467849254608,
+      "peak_potential_active_median": 32.39920425415039
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k8_floor1_seed42": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 3.6431875228881836,
+      "spikes_per_active_neuron": 3.886066691080729,
+      "silent_fraction": 0.0625,
+      "decode_count": 0.7080828323313293,
+      "decode_identity": 0.39011356045424184,
+      "decode_full": 0.8450233800935204,
+      "decode_shuffled": 0.6506346025384101,
+      "timing_information": 0.1943887775551103,
+      "timing_fraction": 0.24450699491660727,
+      "peak_potential_silent_median": 7.119845867156982,
+      "peak_potential_active_median": 20.339099884033203
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 5.034156799316406,
+      "spikes_per_active_neuron": 5.137296301614284,
+      "silent_fraction": 0.020076611556446227,
+      "decode_count": 0.6833667334669339,
+      "decode_identity": 0.23647294589178355,
+      "decode_full": 0.8142952571810287,
+      "decode_shuffled": 0.6412825651302605,
+      "timing_information": 0.1730126920507682,
+      "timing_fraction": 0.22636892015907006,
+      "peak_potential_silent_median": 5.605422019958496,
+      "peak_potential_active_median": 45.39617156982422
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 4.338672161102295,
+      "spikes_per_active_neuron": 4.525523353112075,
+      "silent_fraction": 0.041288305778223115,
+      "decode_count": 0.7181028724114896,
+      "decode_identity": 0.42150968603874417,
+      "decode_full": 0.8370073480293921,
+      "decode_shuffled": 0.6713426853707415,
+      "timing_information": 0.16566466265865065,
+      "timing_fraction": 0.2104995119466961,
+      "peak_potential_silent_median": 6.896274566650391,
+      "peak_potential_active_median": 31.470378875732422
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k8_floor1_seed43": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 3.5947675704956055,
+      "spikes_per_active_neuron": 3.8484938948843515,
+      "silent_fraction": 0.06592873246492986,
+      "decode_count": 0.6967267869071476,
+      "decode_identity": 0.3907815631262525,
+      "decode_full": 0.8450233800935204,
+      "decode_shuffled": 0.6305945223780896,
+      "timing_information": 0.21442885771543085,
+      "timing_fraction": 0.26971390160904085,
+      "peak_potential_silent_median": 6.988461017608643,
+      "peak_potential_active_median": 19.80577850341797
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 4.985815525054932,
+      "spikes_per_active_neuron": 5.094639205051784,
+      "silent_fraction": 0.021360429191716768,
+      "decode_count": 0.6860387441549766,
+      "decode_identity": 0.2518370073480294,
+      "decode_full": 0.7989311957247829,
+      "decode_shuffled": 0.6432865731462926,
+      "timing_information": 0.15564462257849032,
+      "timing_fraction": 0.20782232529099587,
+      "peak_potential_silent_median": 5.692086696624756,
+      "peak_potential_active_median": 45.44770050048828
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 4.2902913093566895,
+      "spikes_per_active_neuron": 4.486084590886324,
+      "silent_fraction": 0.043644580828323315,
+      "decode_count": 0.7167668670674683,
+      "decode_identity": 0.4422177688710755,
+      "decode_full": 0.8256513026052105,
+      "decode_shuffled": 0.6733466933867736,
+      "timing_information": 0.15230460921843691,
+      "timing_fraction": 0.19635705981139392,
+      "peak_potential_silent_median": 6.766201972961426,
+      "peak_potential_active_median": 31.276586532592773
+    }
+  },
+  "sparse_whole_nodelay_v3L12_k8_floor1_seed44": {
+    "grid": "v3L12",
+    "layers": [
+      1,
+      2
+    ],
+    "views": [
+      "l1",
+      "l2",
+      "net"
+    ],
+    "support_bins": {
+      "l1": 90,
+      "l2": 90
+    },
+    "l1": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 3.5286824703216553,
+      "spikes_per_active_neuron": 3.789664949182571,
+      "silent_fraction": 0.06886690046760187,
+      "decode_count": 0.6993987975951904,
+      "decode_identity": 0.3974615898463594,
+      "decode_full": 0.8483633934535738,
+      "decode_shuffled": 0.6158984635938544,
+      "timing_information": 0.23246492985971945,
+      "timing_fraction": 0.2911768397272309,
+      "peak_potential_silent_median": 7.013487339019775,
+      "peak_potential_active_median": 20.276636123657227
+    },
+    "l2": {
+      "n_neurons": 128,
+      "spikes_per_neuron": 4.95327091217041,
+      "spikes_per_active_neuron": 5.068925888714433,
+      "silent_fraction": 0.022816466265865063,
+      "decode_count": 0.6700066800267201,
+      "decode_identity": 0.27521710086840345,
+      "decode_full": 0.8169672678690715,
+      "decode_shuffled": 0.6419505678022712,
+      "timing_information": 0.17501670006680026,
+      "timing_fraction": 0.2281931803335801,
+      "peak_potential_silent_median": 5.381427764892578,
+      "peak_potential_active_median": 45.56016540527344
+    },
+    "net": {
+      "n_neurons": 256,
+      "spikes_per_neuron": 4.240976810455322,
+      "spikes_per_active_neuron": 4.444730750154278,
+      "silent_fraction": 0.045841683366733464,
+      "decode_count": 0.7034068136272545,
+      "decode_identity": 0.44288577154308617,
+      "decode_full": 0.8463593854375417,
+      "decode_shuffled": 0.6546426185704742,
+      "timing_information": 0.1917167668670675,
+      "timing_fraction": 0.2407415174264984,
+      "peak_potential_silent_median": 6.722521781921387,
+      "peak_potential_active_median": 31.389301300048828
+    }
+  }
+}

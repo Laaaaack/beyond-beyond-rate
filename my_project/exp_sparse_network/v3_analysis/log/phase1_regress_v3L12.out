@@ -1,0 +1,261 @@
+
+==========================================================================
+  v3 PHASE 1 [v3L12] — DELAY ARM  (n = 24)
+  axes from the 'net' decode view | usage sites ['l1', 'l2', 'both'] | availability views ['l1', 'l2', 'net']
+  primary: usage at 'both', availability at 'net'
+==========================================================================
+
+--- design acceptance check (this gates everything below) ---
+  rho(a, s) = -0.064 (p = 0.7652), threshold |rho| <= 0.5
+  PASS — the factorial decorrelated the axes   [v1 observational: -0.879 no-delay, +0.042 delay (network)]
+  a spans 2.91–7.92 (2.72x) | s spans 3.4%–57.3% | clean acc 0.734–0.847
+
+--- usage[l1] ~ log(a) + s + deletion control[l1]   (perturbed at the 1st hidden layer only) ---
+  n = 24, df = 20, R^2 = 0.782 (adj 0.749)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     -0.0101    0.0170   -0.59    0.5603   [-0.0455,+0.0254]  -0.070   1.27
+  s                         -0.1845    0.0274   -6.74    0.0000   [-0.2416,-0.1273]  -0.762   1.18
+  control_deletion          +0.3111    0.1783   +1.74    0.0963   [-0.0608,+0.6830]  +0.220   1.46
+
+--- usage[l1] ~ log(a) + s   (control omitted) ---
+  n = 24, df = 21, R^2 = 0.749 (adj 0.725)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     -0.0235    0.0159   -1.48    0.1535   [-0.0565,+0.0095]  -0.162   1.01
+  s                         -0.2026    0.0265   -7.63    0.0000   [-0.2578,-0.1474]  -0.837   1.01
+
+--- usage[l2] ~ log(a) + s + deletion control[l2]   (perturbed at the 2nd hidden layer only) ---
+  n = 24, df = 20, R^2 = 0.869 (adj 0.850)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.1365    0.0168   +8.14    0.0000   [+0.1015,+0.1715]  +0.788   1.44
+  s                         -0.1139    0.0429   -2.66    0.0152   [-0.2034,-0.0245]  -0.394   3.36
+  control_deletion          +0.6572    0.2755   +2.39    0.0270   [+0.0826,+1.2318]  +0.383   3.95
+
+--- usage[l2] ~ log(a) + s   (control omitted) ---
+  n = 24, df = 21, R^2 = 0.832 (adj 0.816)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.1584    0.0155  +10.20    0.0000   [+0.1261,+0.1907]  +0.915   1.01
+  s                         -0.0283    0.0260   -1.09    0.2886   [-0.0822,+0.0257]  -0.098   1.01
+
+--- usage[both] ~ log(a) + s + deletion control[both]   (perturbed at both layers -- layer 2 after an already-perturbed layer 1) ---
+  n = 24, df = 20, R^2 = 0.686 (adj 0.639)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0207    0.0202   +1.03    0.3167   [-0.0214,+0.0628]  +0.137   1.13
+  s                         -0.0886    0.0552   -1.61    0.1241   [-0.2037,+0.0265]  -0.350   3.03
+  control_deletion          +1.5440    0.6475   +2.38    0.0271   [+0.1934,+2.8947]  +0.537   3.23
+
+--- usage[both] ~ log(a) + s   (control omitted) ---
+  n = 24, df = 21, R^2 = 0.597 (adj 0.559)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0047    0.0211   +0.23    0.8239   [-0.0390,+0.0485]  +0.031   1.01
+  s                         -0.1961    0.0352   -5.57    0.0000   [-0.2693,-0.1229]  -0.775   1.01
+
+--- control_deletion[l1] ~ log(a) + s   (general-robustness covariate) ---
+  n = 24, df = 21, R^2 = 0.316 (adj 0.251)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     -0.0432    0.0186   -2.33    0.0299   [-0.0818,-0.0046]  -0.422   1.01
+  s                         -0.0582    0.0310   -1.88    0.0746   [-0.1227,+0.0063]  -0.340   1.01
+
+--- control_deletion[l2] ~ log(a) + s   (general-robustness covariate) ---
+  n = 24, df = 21, R^2 = 0.747 (adj 0.723)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0334    0.0111   +3.00    0.0068   [+0.0102,+0.0565]  +0.330   1.01
+  s                         +0.1304    0.0186   +7.01    0.0000   [+0.0917,+0.1690]  +0.772   1.01
+
+--- control_deletion[both] ~ log(a) + s   (general-robustness covariate) ---
+  n = 24, df = 21, R^2 = 0.690 (adj 0.661)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     -0.0103    0.0064   -1.61    0.1216   [-0.0237,+0.0030]  -0.197   1.01
+  s                         -0.0696    0.0107   -6.49    0.0000   [-0.0919,-0.0473]  -0.791   1.01
+
+--- timing_fraction[l1] ~ log(a) + s   (perturbed at the 1st hidden layer only) ---
+  n = 24, df = 21, R^2 = 0.402 (adj 0.345)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     -0.0213    0.0094   -2.25    0.0350   [-0.0409,-0.0017]  -0.382   1.01
+  s                         -0.0444    0.0158   -2.82    0.0103   [-0.0772,-0.0116]  -0.477   1.01
+
+--- timing_fraction[l2] ~ log(a) + s   (perturbed at the 2nd hidden layer only) ---
+  n = 24, df = 21, R^2 = 0.588 (adj 0.548)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     -0.0073    0.0063   -1.15    0.2626   [-0.0205,+0.0059]  -0.162   1.01
+  s                         +0.0575    0.0106   +5.42    0.0000   [+0.0354,+0.0795]  +0.762   1.01
+
+--- timing_fraction[net] ~ log(a) + s   (decoded from both layers' features concatenated) ---
+  n = 24, df = 21, R^2 = 0.527 (adj 0.482)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0031    0.0073   +0.42    0.6755   [-0.0121,+0.0183]  +0.064   1.01
+  s                         +0.0584    0.0122   +4.77    0.0001   [+0.0330,+0.0839]  +0.718   1.01
+
+--- arm decision, re-measured on this grid (document 7 §5 step 2) ---
+  readout-efficiency gap = decode_full - clean_acc  (layer 1 Phase 0: +.300 no-delay, -.013 delay)
+    l1    +0.042 +- 0.023  [+0.002, +0.094]  positive on 100% of checkpoints
+    l2    +0.070 +- 0.022  [+0.038, +0.124]  positive on 100% of checkpoints
+    net   +0.076 +- 0.023  [+0.039, +0.128]  positive on 100% of checkpoints
+
+  timing probe vs deletion control, same predictors (indistinguishable => general robustness, not timing)
+    site    b_a usage  b_a control  difference  b_s usage  b_s control
+    l1        -0.0235      -0.0432     +0.0197    -0.2026      -0.0582
+    l2        +0.1584      +0.0334     +0.1251    -0.0283      +0.1304
+    both      +0.0047      -0.0103     +0.0151    -0.1961      -0.0696
+
+--- controlled contrast: floor ON vs OFF at matched a (|d log a| <= 0.2) ---
+  floor ON                               floor OFF                               dlogA   s_on   s_off   dusage
+  sparse_whole_delay_v3L12_k2_floor1_seed42 sparse_whole_delay_v3L12_k1_floor0_seed42  0.174  11.2%   51.1%   +0.118
+  sparse_whole_delay_v3L12_k2_floor1_seed44 sparse_whole_delay_v3L12_k1_floor0_seed44  0.197  11.3%   54.6%   +0.164
+  sparse_whole_delay_v3L12_k4_floor1_seed44 sparse_whole_delay_v3L12_k2_floor0_seed44  0.011   6.1%   51.1%   +0.057
+  sparse_whole_delay_v3L12_k4_floor1_seed42 sparse_whole_delay_v3L12_k1_floor0_seed43  0.011   6.7%   57.3%   +0.064
+  sparse_whole_delay_v3L12_k4_floor1_seed43 sparse_whole_delay_v3L12_k2_floor0_seed43  0.053   6.4%   42.2%   +0.091
+  sparse_whole_delay_v3L12_k8_floor1_seed42 sparse_whole_delay_v3L12_k4_floor0_seed43  0.172   3.7%   38.1%   +0.039
+  sparse_whole_delay_v3L12_k8_floor1_seed44 sparse_whole_delay_v3L12_k8_floor0_seed42  0.167   3.5%   24.9%   -0.019
+  sparse_whole_delay_v3L12_k8_floor1_seed43 sparse_whole_delay_v3L12_k8_floor0_seed43  0.134   3.4%   38.2%   +0.031
+  mean delta usage = +0.0681 (se 0.0198, t = +3.43, p = 0.0109, 8 pairs)
+  H2 predicts delta > 0: removing silence should RAISE timing reliance.
+
+==========================================================================
+  VERDICT (delay, usage at 'both'): INCONCLUSIVE but directional, and NOT symmetric between the hypotheses. Neither coefficient clears alpha = 0.05 at n = 24 (df = 20). b_a = +0.0207 [-0.0214, +0.0628], p = 0.317 — point estimate runs AGAINST H1' (H1' predicts b_a < 0). b_s = -0.0886 [-0.2037, +0.0265], p = 0.124 — H2's direction. Largest standardised effect: control_deletion (beta* = +0.537). Availability remains flat (b_a p = 0.675), a third independent replication of it. Read as: H1' gained no support even with its confound removed, the residual signal is selectivity and general robustness, and the design is underpowered to separate a modest H2 effect from none.
+  b_a at every site: l1 -0.0101 (p = 0.560), l2 +0.1365 (p = 0.000), both +0.0207 (p = 0.317)
+  This grid moves both layers' activity together by construction, so every b_a above is a NETWORK-level coefficient (document 7 §6 point 1).
+==========================================================================
+
+Figure -> D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\fig\phase1_regress_v3L12_delay.png
+
+==========================================================================
+  v3 PHASE 1 [v3L12] — NODELAY ARM  (n = 24)
+  axes from the 'net' decode view | usage sites ['l1', 'l2', 'both'] | availability views ['l1', 'l2', 'net']
+  primary: usage at 'both', availability at 'net'
+==========================================================================
+
+--- design acceptance check (this gates everything below) ---
+  rho(a, s) = -0.422 (p = 0.0401), threshold |rho| <= 0.5
+  PASS — the factorial decorrelated the axes   [v1 observational: -0.879 no-delay, +0.042 delay (network)]
+  a spans 2.15–4.53 (2.11x) | s spans 4.1%–69.9% | clean acc 0.466–0.580
+
+--- usage[l1] ~ log(a) + s + deletion control[l1]   (perturbed at the 1st hidden layer only) ---
+  n = 24, df = 20, R^2 = 0.790 (adj 0.759)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0252    0.0289   +0.87    0.3929   [-0.0350,+0.0855]  +0.091   1.04
+  s                         -0.1195    0.0759   -1.57    0.1310   [-0.2778,+0.0388]  -0.411   6.51
+  control_deletion          +0.6742    0.3723   +1.81    0.0852   [-0.1024,+1.4508]  +0.473   6.50
+
+--- usage[l1] ~ log(a) + s   (control omitted) ---
+  n = 24, df = 21, R^2 = 0.756 (adj 0.733)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0270    0.0304   +0.89    0.3855   [-0.0363,+0.0902]  +0.097   1.04
+  s                         -0.2455    0.0319   -7.69    0.0000   [-0.3119,-0.1791]  -0.845   1.04
+
+--- usage[l2] ~ log(a) + s + deletion control[l2]   (perturbed at the 2nd hidden layer only) ---
+  n = 24, df = 20, R^2 = 0.160 (adj 0.035)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     -0.0009    0.0267   -0.03    0.9738   [-0.0566,+0.0548]  -0.009   1.64
+  s                         -0.0524    0.0336   -1.56    0.1346   [-0.1226,+0.0177]  -0.491   2.36
+  control_deletion          +0.4032    0.3033   +1.33    0.1987   [-0.2294,+1.0358]  +0.437   2.58
+
+--- usage[l2] ~ log(a) + s   (control omitted) ---
+  n = 24, df = 21, R^2 = 0.086 (adj -0.001)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0206    0.0216   +0.95    0.3522   [-0.0244,+0.0656]  +0.202   1.04
+  s                         -0.0190    0.0227   -0.84    0.4128   [-0.0662,+0.0283]  -0.178   1.04
+
+--- usage[both] ~ log(a) + s + deletion control[both]   (perturbed at both layers -- layer 2 after an already-perturbed layer 1) ---
+  n = 24, df = 20, R^2 = 0.626 (adj 0.569)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     -0.0005    0.0369   -0.01    0.9890   [-0.0775,+0.0764]  -0.002   1.24
+  s                         -0.1683    0.0801   -2.10    0.0485   [-0.3355,-0.0012]  -0.662   5.31
+  control_deletion          +0.3520    0.8171   +0.43    0.6712   [-1.3523,+2.0564]  +0.142   5.82
+
+--- usage[both] ~ log(a) + s   (control omitted) ---
+  n = 24, df = 21, R^2 = 0.622 (adj 0.586)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0059    0.0331   +0.18    0.8610   [-0.0630,+0.0747]  +0.024   1.04
+  s                         -0.1993    0.0348   -5.73    0.0000   [-0.2716,-0.1270]  -0.784   1.04
+
+--- control_deletion[l1] ~ log(a) + s   (general-robustness covariate) ---
+  n = 24, df = 21, R^2 = 0.846 (adj 0.832)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0025    0.0169   +0.15    0.8819   [-0.0327,+0.0378]  +0.013   1.04
+  s                         -0.1869    0.0178  -10.52    0.0000   [-0.2238,-0.1499]  -0.917   1.04
+
+--- control_deletion[l2] ~ log(a) + s   (general-robustness covariate) ---
+  n = 24, df = 21, R^2 = 0.612 (adj 0.575)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0533    0.0153   +3.48    0.0022   [+0.0215,+0.0851]  +0.482   1.04
+  s                         +0.0830    0.0161   +5.17    0.0000   [+0.0496,+0.1163]  +0.716   1.04
+
+--- control_deletion[both] ~ log(a) + s   (general-robustness covariate) ---
+  n = 24, df = 21, R^2 = 0.828 (adj 0.812)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     +0.0181    0.0090   +2.01    0.0574   [-0.0006,+0.0369]  +0.185   1.04
+  s                         -0.0879    0.0095   -9.29    0.0000   [-0.1076,-0.0683]  -0.856   1.04
+
+--- timing_fraction[l1] ~ log(a) + s   (perturbed at the 1st hidden layer only) ---
+  n = 24, df = 21, R^2 = 0.257 (adj 0.186)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     -0.0411    0.0153   -2.69    0.0136   [-0.0728,-0.0094]  -0.516   1.04
+  s                         -0.0095    0.0160   -0.59    0.5591   [-0.0428,+0.0238]  -0.114   1.04
+
+--- timing_fraction[l2] ~ log(a) + s   (perturbed at the 2nd hidden layer only) ---
+  n = 24, df = 21, R^2 = 0.345 (adj 0.283)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     -0.0430    0.0141   -3.04    0.0063   [-0.0724,-0.0136]  -0.547   1.04
+  s                         +0.0111    0.0148   +0.75    0.4643   [-0.0198,+0.0419]  +0.134   1.04
+
+--- timing_fraction[net] ~ log(a) + s   (decoded from both layers' features concatenated) ---
+  n = 24, df = 21, R^2 = 0.362 (adj 0.302)
+  term                         beta        se       t         p              95% CI   beta*    VIF
+  log_a                     -0.0351    0.0150   -2.33    0.0298   [-0.0663,-0.0038]  -0.414   1.04
+  s                         +0.0324    0.0158   +2.05    0.0528   [-0.0004,+0.0652]  +0.365   1.04
+
+--- arm decision, re-measured on this grid (document 7 §5 step 2) ---
+  readout-efficiency gap = decode_full - clean_acc  (layer 1 Phase 0: +.300 no-delay, -.013 delay)
+    l1    +0.284 +- 0.017  [+0.248, +0.313]  positive on 100% of checkpoints
+    l2    +0.253 +- 0.023  [+0.216, +0.307]  positive on 100% of checkpoints
+    net   +0.285 +- 0.021  [+0.248, +0.327]  positive on 100% of checkpoints
+
+  timing probe vs deletion control, same predictors (indistinguishable => general robustness, not timing)
+    site    b_a usage  b_a control  difference  b_s usage  b_s control
+    l1        +0.0270      +0.0025     +0.0244    -0.2455      -0.1869
+    l2        +0.0206      +0.0533     -0.0327    -0.0190      +0.0830
+    both      +0.0059      +0.0181     -0.0123    -0.1993      -0.0879
+
+--- controlled contrast: floor ON vs OFF at matched a (|d log a| <= 0.2) ---
+  floor ON                               floor OFF                               dlogA   s_on   s_off   dusage
+  sparse_whole_nodelay_v3L12_k1_floor1_seed42 sparse_whole_nodelay_v3L12_k1_floor0_seed42  0.006  18.1%   68.9%   +0.093
+  sparse_whole_nodelay_v3L12_k1_floor1_seed44 sparse_whole_nodelay_v3L12_k1_floor0_seed43  0.032  17.6%   69.9%   +0.140
+  sparse_whole_nodelay_v3L12_k1_floor1_seed43 sparse_whole_nodelay_v3L12_k1_floor0_seed44  0.080  16.3%   68.3%   +0.066
+  sparse_whole_nodelay_v3L12_k2_floor1_seed44 sparse_whole_nodelay_v3L12_k2_floor0_seed42  0.081  11.6%   63.0%   +0.051
+  sparse_whole_nodelay_v3L12_k2_floor1_seed43 sparse_whole_nodelay_v3L12_k2_floor0_seed43  0.046  11.3%   62.1%   -0.030
+  sparse_whole_nodelay_v3L12_k2_floor1_seed42 sparse_whole_nodelay_v3L12_k2_floor0_seed44  0.039  11.8%   62.2%   +0.173
+  sparse_whole_nodelay_v3L12_k4_floor1_seed44 sparse_whole_nodelay_v3L12_k4_floor0_seed42  0.015   7.7%   55.9%   +0.158
+  sparse_whole_nodelay_v3L12_k4_floor1_seed42 sparse_whole_nodelay_v3L12_k4_floor0_seed43  0.019   7.2%   56.2%   +0.074
+  sparse_whole_nodelay_v3L12_k4_floor1_seed43 sparse_whole_nodelay_v3L12_k4_floor0_seed44  0.062   6.6%   53.4%   +0.153
+  sparse_whole_nodelay_v3L12_k8_floor1_seed44 sparse_whole_nodelay_v3L12_k8_floor0_seed42  0.008   4.6%   50.7%   +0.162
+  sparse_whole_nodelay_v3L12_k8_floor1_seed43 sparse_whole_nodelay_v3L12_k8_floor0_seed44  0.021   4.4%   49.2%   +0.102
+  sparse_whole_nodelay_v3L12_k8_floor1_seed42 sparse_whole_nodelay_v3L12_k8_floor0_seed43  0.045   4.1%   51.0%   +0.063
+  mean delta usage = +0.1004 (se 0.0173, t = +5.79, p = 0.0001, 12 pairs)
+  H2 predicts delta > 0: removing silence should RAISE timing reliance.
+
+==========================================================================
+  VERDICT (nodelay, usage at 'both'): H2 CONFIRMED — b_a is null while b_s carries the effect. 'Sparsity' was never the operative variable; selectivity was.
+  b_a at every site: l1 +0.0252 (p = 0.393), l2 -0.0009 (p = 0.974), both -0.0005 (p = 0.989)
+  This grid moves both layers' activity together by construction, so every b_a above is a NETWORK-level coefficient (document 7 §6 point 1).
+==========================================================================
+
+Figure -> D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\fig\phase1_regress_v3L12_nodelay.png
+
+==========================================================================
+  ARM DECISION — the two criteria, side by side
+==========================================================================
+
+  1. readout-efficiency gap at 'net' (smaller is better — a large gap means the readout, not the code, is what the perturbation is measuring)
+       delay     +0.076
+       nodelay   +0.285
+     -> favours delay
+
+  2. |b_a(usage) - b_a(control)| at 'both' (larger is better — the timing probe has to be distinguishable from a pure rate insult)
+       delay     +0.0151
+       nodelay   -0.0123
+     -> favours delay
+
+  Both were measured at layer 1 only in document 5 and are NOT inherited here (document 7 §5 step 2).
+  Record the decision in the progress document; it is not made by this script.
+
+Results -> D:\IC_2025\IRP\workspace\my_project\exp_sparse_network\v3_analysis\log\phase1_regress_v3L12.json

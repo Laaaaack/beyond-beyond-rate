@@ -38,8 +38,35 @@ without them:
    are in different units, so raw magnitudes cannot be compared; "which axis carries
    the effect" is a question about the standardised ones.
 
-Writes ``v3_analysis/log/phase1_regress.json`` and
-``v3_analysis/fig/phase1_regress.png``.
+Which grid, which layers, and what a coefficient off it means
+--------------------------------------------------------------
+``GRID`` selects the training generation, and each constrained a different set of
+hidden layers — so both dependent variables have to be read at the sites that
+generation's measurement scripts wrote::
+
+    "v3"     1st-layer factorial (document 5)    axes l1    usage at l1
+    "v3L2"   2nd-layer factorial (document 6)    axes l2    usage at l2
+    "v3L12"  both-layer factorial (document 7)   axes net   usage at l1, l2, both
+
+For the both-layer grid the design axes are the **network** ones, because that is
+what the two knobs manipulate and what the acceptance check was passed on
+(rho(a_net, s_net) = -0.199 no-delay, +0.040 delay, against v1's -0.879 / +0.042).
+Two consequences, both of which belong beside any number this script prints:
+
+- **A coefficient from that grid is a network-level one and cannot be attributed
+  to a layer.** rho(a1, a2) is +0.973 / +0.893 there, and both knobs move both
+  layers by construction, so the design cannot separate them. Attribution is what
+  the two single-layer grids are for (document 7 §6 point 1).
+- **The dependent variable is reported at every site, not pooled.** The sweeps
+  found the three sites do not reduce to one another — relocation and jitter
+  saturate (``both`` ~ ``l1``) while deletion compounds hard (document 7 §6e) — so
+  ``PRIMARY_SITE`` names one for the verdict and the others are fitted and printed
+  beside it rather than dropped.
+
+Writes ``v3_analysis/log/phase1_regress_{tag}.json`` and
+``v3_analysis/fig/phase1_regress_{tag}{arm}.png``. The tag is load-bearing: the
+three grids share dataset, arm, ``k``, floor and seed, so without it this script
+would overwrite the completed 1st-layer result (document 7 §6 point 4).
 """
 
 import json
@@ -63,8 +90,59 @@ TRAIN_LOG_DIR = EXP_DIR / "sn_log"
 LOG_DIR = SCRIPT_DIR / "log"
 FIG_DIR = SCRIPT_DIR / "fig"
 
-VERSION_TAG: str = "v3_"
+# Which training generation to analyse. Must match the GRID the two measurement
+# scripts were run at, since it selects their output files as well as this one's.
+GRID: str = "v3L12"
+VERSION_TAG: str = f"{GRID}_" if GRID else ""
 ARMS: tuple[str, ...] = ("delay", "nodelay")
+
+# The decode view supplying the design axes ``a`` and ``s``. For the both-layer grid
+# that is the pooled ``net`` view: the network axes are the ones the two knobs
+# manipulate and the ones the acceptance check was passed on.
+GRID_AXES_VIEW: dict[str, str] = {"": "l1", "v3": "l1", "v3L2": "l2", "v3L12": "net"}
+
+# The perturbation sites supplying ``usage`` and the deletion control, and the decode
+# views supplying ``availability``. Both must match what the measurement scripts wrote.
+GRID_SITES: dict[str, tuple[str, ...]] = {
+    "": ("l1",), "v3": ("l1",), "v3L2": ("l2",), "v3L12": ("l1", "l2", "both"),
+}
+GRID_VIEWS: dict[str, tuple[str, ...]] = {
+    "": ("l1",), "v3": ("l1",), "v3L2": ("l2",), "v3L12": ("l1", "l2", "net"),
+}
+
+AXES_VIEW: str = GRID_AXES_VIEW[GRID]
+SITES: tuple[str, ...] = GRID_SITES[GRID]
+VIEWS: tuple[str, ...] = GRID_VIEWS[GRID]
+
+# The site and view the verdict is worded on. Every other site and view is fitted and
+# printed beside them — this names a primary, it does not discard the rest.
+#
+# ``both`` is primary for the both-layer grid because it is the insult matched to the
+# manipulation: the grid constrained both layers, so the probe that destroys timing at
+# both is the one asking whether *this network's* code moved toward timing. Read it
+# knowing that relocation saturates — ``both`` came back within .03 of ``l1`` on every
+# sweep — so the two should agree, and a disagreement is a finding rather than noise.
+PRIMARY_SITE: str = SITES[-1]
+PRIMARY_VIEW: str = VIEWS[-1]
+
+# v1's observational rho(a, s) on the axes each grid manipulates, printed beside the
+# acceptance check so the achieved number has something to be read against. Quoting
+# layer 1's -0.943 next to a network-wide axis would understate what was broken.
+OBSERVATIONAL_RHO: dict[str, str] = {
+    "": "-0.943 no-delay, -0.455 delay (layer 1)",
+    "v3": "-0.943 no-delay, -0.455 delay (layer 1)",
+    "v3L2": "+0.829 no-delay, +0.427 delay (layer 2)",
+    "v3L12": "-0.879 no-delay, +0.042 delay (network)",
+}
+
+# One line per injection site, so a printed model never has to be decoded from a
+# field name alone.
+SITE_DESCRIPTIONS: dict[str, str] = {
+    "l1": "perturbed at the 1st hidden layer only",
+    "l2": "perturbed at the 2nd hidden layer only",
+    "both": "perturbed at both layers -- layer 2 after an already-perturbed layer 1",
+    "net": "decoded from both layers' features concatenated",
+}
 
 # The design acceptance threshold on the factorial itself (document 5 §4b).
 MAX_AXIS_CORRELATION: float = 0.5
@@ -259,6 +337,79 @@ def matched_floor_contrast(rows: list[dict]) -> dict:
             "p": p_value, "n_pairs": len(deltas)}
 
 
+def report_arm_decision(rows: list[dict], usage_fits: dict,
+                        control_fits: dict) -> dict:
+    """Print the two measurements the primary-arm decision rests on.
+
+    Document 5 chose the delay arm on two Phase 0 findings that no factorial can fix,
+    both measured **at layer 1 only**. Carrying that decision across a layer boundary
+    is the mistake this calibration exists to avoid (document 7 §5 step 2), so both
+    are re-measured here on the grid's own checkpoints:
+
+    1. **The readout-efficiency gap**, ``decode_full - clean_acc``. A large positive
+       gap means a linear decoder reading the hidden layer beats the network's own
+       readout, so a perturbation experiment there measures the readout's inefficiency
+       as much as the code's structure. Layer 1 gave +.300 in the no-delay arm against
+       -.013 in the delay arm, which is what decided it.
+    2. **Whether the deletion control is distinguishable from the timing probe.** In
+       the no-delay arm at layer 1 a pure rate insult and a pure timing insult tracked
+       sparsity identically (+0.936 against +0.939), so nothing there could be called
+       a timing effect. Here the factorial lets that be asked properly: fit the control
+       against the same two axes as usage and compare the coefficients. If ``b_a`` is
+       the same for both, the usage trend is general robustness.
+
+    Both sides of measurement 2 must carry the **same** predictors, so the usage models
+    passed here are the ones fitted *without* the deletion control: comparing a
+    control-partialled coefficient against the control's own would not be like for like.
+
+    Args:
+        rows: The arm's joined table.
+        usage_fits: ``usage ~ log(a) + s`` models keyed by injection site.
+        control_fits: ``control ~ log(a) + s`` models keyed by injection site.
+
+    Returns:
+        Dict of both measurements, for the results file.
+    """
+    print("\n--- arm decision, re-measured on this grid (document 7 §5 step 2) ---")
+
+    gaps = {}
+    print("  readout-efficiency gap = decode_full - clean_acc  "
+          "(layer 1 Phase 0: +.300 no-delay, -.013 delay)")
+    for view in VIEWS:
+        gap = np.array([row[f"decode_full_{view}"] - row["clean_acc"]
+                        for row in rows])
+        gaps[view] = {"mean": float(gap.mean()), "std": float(gap.std()),
+                      "min": float(gap.min()), "max": float(gap.max()),
+                      "fraction_positive": float((gap > 0).mean())}
+        print(f"    {view:<5} {gap.mean():+.3f} +- {gap.std():.3f}  "
+              f"[{gap.min():+.3f}, {gap.max():+.3f}]  "
+              f"positive on {(gap > 0).mean():.0%} of checkpoints")
+
+    separations = {}
+    print("\n  timing probe vs deletion control, same predictors "
+          "(indistinguishable => general robustness, not timing)")
+    print(f"    {'site':<6} {'b_a usage':>10} {'b_a control':>12} {'difference':>11} "
+          f"{'b_s usage':>10} {'b_s control':>12}")
+    for site in SITES:
+        usage_terms = usage_fits[site]["raw"]["terms"]
+        control_terms = control_fits[site]["raw"]["terms"]
+        separations[site] = {
+            "beta_a_usage": usage_terms["log_a"]["coefficient"],
+            "beta_a_control": control_terms["log_a"]["coefficient"],
+            "beta_a_difference": (usage_terms["log_a"]["coefficient"]
+                                  - control_terms["log_a"]["coefficient"]),
+            "beta_s_usage": usage_terms["s"]["coefficient"],
+            "beta_s_control": control_terms["s"]["coefficient"],
+        }
+        print(f"    {site:<6} {usage_terms['log_a']['coefficient']:>+10.4f} "
+              f"{control_terms['log_a']['coefficient']:>+12.4f} "
+              f"{separations[site]['beta_a_difference']:>+11.4f} "
+              f"{usage_terms['s']['coefficient']:>+10.4f} "
+              f"{control_terms['s']['coefficient']:>+12.4f}")
+
+    return {"readout_gap": gaps, "timing_vs_control": separations}
+
+
 def verdict(usage_fit: dict, availability_fit: dict, axis_rho: float,
             min_clean_acc_floor_on: float) -> str:
     """Word the outcome against document 5 §5's table.
@@ -324,42 +475,155 @@ def verdict(usage_fit: dict, availability_fit: dict, axis_rho: float,
         f"from none.")
 
 
+def decode_view(row: dict, view: str) -> dict:
+    """Return one decode view's block from a checkpoint's row.
+
+    Tolerates the flat schema the decode script wrote before it was retargeted to
+    two layers, so the completed 1st-layer analysis can be re-run against its
+    archived artifacts without regenerating them. A multi-view grid never takes that
+    path — its files always carry the nested blocks.
+
+    Args:
+        row: One checkpoint's row from a ``hidden_channel_decode_*`` file.
+        view: ``"l1"``, ``"l2"`` or ``"net"``.
+
+    Returns:
+        The view's measurements.
+
+    Raises:
+        KeyError: If a multi-view file is missing the requested view.
+    """
+    if view in row:
+        return row[view]
+    if len(VIEWS) == 1:
+        return row
+    raise KeyError(view)
+
+
+def site_score(row: dict, field: str, site: str) -> float:
+    """Return one injection site's score from a checkpoint's row.
+
+    Tolerates the unsuffixed schema the measurement script wrote before it was
+    retargeted, for the same reason as ``decode_view``. A multi-site grid never takes
+    that path.
+
+    Args:
+        row: One checkpoint's row from a ``phase1_measure_*`` file.
+        field: ``"usage"``, ``"control_deletion"`` or an accuracy field.
+        site: ``"l1"``, ``"l2"`` or ``"both"``.
+
+    Returns:
+        The score at that site.
+
+    Raises:
+        KeyError: If a multi-site file is missing the requested site.
+    """
+    key = f"{field}_{site}"
+    if key in row:
+        return row[key]
+    if len(SITES) == 1:
+        return row[field]
+    raise KeyError(key)
+
+
+def check_measurement_provenance(arm: str, decode: dict, measured: dict) -> None:
+    """Fail if either input file was produced at a different ``GRID`` than this one.
+
+    The three scripts communicate by filename, so a decode run at one grid and a
+    measurement run at another produce two files that would otherwise be joined into a
+    table mixing one grid's axes with another grid's dependent variable. The tags
+    normally keep them apart, but once every grid has been measured all the filenames
+    exist and a stale ``GRID`` in one script alone would no longer raise on its own.
+
+    Files written before the retarget carry neither marker; those are skipped rather
+    than rejected, since their grid is unambiguous from the filename that found them.
+
+    Args:
+        arm: The arm being joined, for the message.
+        decode: The decode file's per-checkpoint rows.
+        measured: The measurement file's per-checkpoint rows.
+
+    Raises:
+        ValueError: If either file records a grid or site set that is not this one's.
+    """
+    decode_row = next(iter(decode.values()))
+    if "grid" in decode_row and decode_row["grid"] != GRID:
+        raise ValueError(
+            f"{arm}: the decode file was written at GRID = {decode_row['grid']!r} but "
+            f"this run is GRID = {GRID!r}. Re-run hidden_channel_decode.py "
+            f"at {GRID!r}.")
+
+    measured_row = next(iter(measured.values()))
+    if "sites" in measured_row and tuple(measured_row["sites"]) != SITES:
+        raise ValueError(
+            f"{arm}: the measurement file carries sites {measured_row['sites']} but "
+            f"this run expects {list(SITES)}. Re-run phase1_measure.py at {GRID!r}.")
+
+
 def build_table(arm: str) -> list[dict]:
-    """Join the training summary, the decode and the perturbation measurements."""
+    """Join the training summary, the decode and the perturbation measurements.
+
+    Args:
+        arm: ``"delay"`` or ``"nodelay"``.
+
+    Returns:
+        One row per checkpoint. ``a``, ``s`` and ``log_a`` are the design axes read
+        from ``AXES_VIEW``; ``usage`` / ``control_deletion`` and ``availability``
+        carry every site and view, with the primary one aliased unsuffixed so the
+        regression and plotting code below reads a single name.
+    """
     with open(TRAIN_LOG_DIR
               / f"sparse_whole_{arm}_{VERSION_TAG}train_summary.json") as handle:
         summary = json.load(handle)
     with open(LOG_DIR / f"hidden_channel_decode_{VERSION_TAG}{arm}.json") as handle:
         decode = json.load(handle)
-    with open(LOG_DIR / f"phase1_measure_{arm}.json") as handle:
+    with open(LOG_DIR / f"phase1_measure_{VERSION_TAG}{arm}.json") as handle:
         measured = json.load(handle)
 
     missing = set(summary) - set(decode) or set(summary) - set(measured)
     if missing:
         raise ValueError(f"{arm}: measurements missing for {sorted(missing)}")
+    check_measurement_provenance(arm, decode, measured)
 
     rows = []
     for run_tag, meta in summary.items():
         # `a` and `s` are taken from the decode, which measures them on exactly the
         # same test-split activity the availability score is computed from.
-        active_rate = decode[run_tag]["spikes_per_active_neuron"]
-        rows.append({
+        axes = decode_view(decode[run_tag], AXES_VIEW)
+        active_rate = axes["spikes_per_active_neuron"]
+        row = {
             "run_tag": run_tag,
             "ceiling_k": meta["ceiling_k"],
             "floor_strength": meta["floor_strength"],
             "seed": meta["seed"],
             "clean_acc": measured[run_tag]["clean_acc"],
+            "axes_view": AXES_VIEW,
             "a": active_rate,
             "log_a": float(np.log(active_rate)),
-            "s": decode[run_tag]["silent_fraction"],
-            "spikes_per_neuron": decode[run_tag]["spikes_per_neuron"],
-            "availability": decode[run_tag]["timing_fraction"],
-            "timing_information": decode[run_tag]["timing_information"],
-            "decode_count": decode[run_tag]["decode_count"],
-            "decode_identity": decode[run_tag]["decode_identity"],
-            "usage": measured[run_tag]["usage"],
-            "control_deletion": measured[run_tag]["control_deletion"],
-        })
+            "s": axes["silent_fraction"],
+            "spikes_per_neuron": axes["spikes_per_neuron"],
+        }
+        for view in VIEWS:
+            block = decode_view(decode[run_tag], view)
+            row[f"availability_{view}"] = block["timing_fraction"]
+            row[f"timing_information_{view}"] = block["timing_information"]
+            row[f"decode_count_{view}"] = block["decode_count"]
+            row[f"decode_identity_{view}"] = block["decode_identity"]
+            row[f"decode_full_{view}"] = block["decode_full"]
+        for site in SITES:
+            row[f"usage_{site}"] = site_score(measured[run_tag], "usage", site)
+            row[f"control_deletion_{site}"] = site_score(
+                measured[run_tag], "control_deletion", site)
+
+        # The primary site and view are aliased unsuffixed, so the models, the
+        # matched contrast and the plot below name one thing rather than branching.
+        row["usage"] = row[f"usage_{PRIMARY_SITE}"]
+        row["control_deletion"] = row[f"control_deletion_{PRIMARY_SITE}"]
+        row["availability"] = row[f"availability_{PRIMARY_VIEW}"]
+        row["timing_information"] = row[f"timing_information_{PRIMARY_VIEW}"]
+        row["decode_count"] = row[f"decode_count_{PRIMARY_VIEW}"]
+        row["decode_identity"] = row[f"decode_identity_{PRIMARY_VIEW}"]
+        rows.append(row)
     return rows
 
 
@@ -420,33 +684,46 @@ def plot_arm(arm: str, rows: list[dict]) -> None:
     design_axis.set_xlabel("a — spikes per active neuron (log)")
     design_axis.set_ylabel("s — silent fraction")
     design_axis.set_title(f"the design: rho(a, s) = {design_rho.statistic:+.3f} "
-                          f"(v1: -0.455 delay, -0.943 no-delay)")
+                          f"(v1: {OBSERVATIONAL_RHO[GRID]})")
     design_axis.legend()
     design_axis.grid(alpha=0.3)
 
-    figure.suptitle(f"v3 Phase 1 — {arm} arm: timing availability and usage against "
-                    "two decorrelated sparsity axes")
+    # The title names the sites, because for a multi-site grid this figure shows one
+    # of several and the others are in the results file rather than absent.
+    figure.suptitle(
+        f"v3 Phase 1 [{GRID or 'v1'}] — {arm} arm: timing availability "
+        f"('{PRIMARY_VIEW}') and usage ('{PRIMARY_SITE}') against two decorrelated "
+        f"'{AXES_VIEW}' sparsity axes")
     figure.tight_layout()
-    path = FIG_DIR / f"phase1_regress_{arm}.png"
+    path = FIG_DIR / f"phase1_regress_{VERSION_TAG}{arm}.png"
     figure.savefig(path, dpi=150)
     plt.close(figure)
     print(f"\nFigure -> {path}")
 
 
 def analyse_arm(arm: str) -> dict:
-    """Run the design check, both regressions and the matched contrast for one arm."""
+    """Run the design check, every regression and the matched contrast for one arm.
+
+    Args:
+        arm: ``"delay"`` or ``"nodelay"``.
+
+    Returns:
+        The arm's results: the acceptance check, one usage model per injection site
+        and one availability model per decode view, the matched floor contrast, the
+        verdict worded on the primary site, and the joined table.
+    """
     rows = build_table(arm)
     a_axis = np.array([row["a"] for row in rows])
     s_axis = np.array([row["s"] for row in rows])
     log_a = np.array([row["log_a"] for row in rows])
-    control = np.array([row["control_deletion"] for row in rows])
-    usage = np.array([row["usage"] for row in rows])
-    availability = np.array([row["availability"] for row in rows])
     clean = np.array([row["clean_acc"] for row in rows])
     floor = np.array([row["floor_strength"] for row in rows])
 
     print(f"\n{'=' * 74}")
-    print(f"  v3 PHASE 1 — {arm.upper()} ARM  (n = {len(rows)})")
+    print(f"  v3 PHASE 1 [{GRID or 'v1'}] — {arm.upper()} ARM  (n = {len(rows)})")
+    print(f"  axes from the '{AXES_VIEW}' decode view | usage sites {list(SITES)} "
+          f"| availability views {list(VIEWS)}")
+    print(f"  primary: usage at '{PRIMARY_SITE}', availability at '{PRIMARY_VIEW}'")
     print(f"{'=' * 74}")
 
     design_rho = spearmanr(a_axis, s_axis)
@@ -455,40 +732,131 @@ def analyse_arm(arm: str) -> dict:
     print(f"  rho(a, s) = {design_rho.statistic:+.3f} (p = {design_rho.pvalue:.4g}), "
           f"threshold |rho| <= {MAX_AXIS_CORRELATION}")
     print(f"  {'PASS — the factorial decorrelated the axes' if passed else 'FAIL'}"
-          f"   [v1 observational: -0.455 delay, -0.943 no-delay]")
+          f"   [v1 observational: {OBSERVATIONAL_RHO[GRID]}]")
     print(f"  a spans {a_axis.min():.2f}–{a_axis.max():.2f} "
           f"({a_axis.max() / a_axis.min():.2f}x) | "
           f"s spans {s_axis.min():.1%}–{s_axis.max():.1%} | "
           f"clean acc {clean.min():.3f}–{clean.max():.3f}")
 
-    usage_fit = report_model("usage ~ log(a) + s + deletion control",
-                            np.column_stack([log_a, s_axis, control]), usage,
-                            ["log_a", "s", "control_deletion"])
-    usage_no_control = report_model("usage ~ log(a) + s   (control omitted)",
-                                   np.column_stack([log_a, s_axis]), usage,
-                                   ["log_a", "s"])
-    availability_fit = report_model("timing_fraction ~ log(a) + s",
-                                    np.column_stack([log_a, s_axis]), availability,
-                                    ["log_a", "s"])
+    # One usage model per injection site and one availability model per decode view.
+    # The sites do not reduce to one another (document 7 §6e), so collapsing them to a
+    # single dependent variable would hide exactly the structure the sweeps found.
+    usage_fits, usage_fits_no_control = {}, {}
+    for site in SITES:
+        response = np.array([row[f"usage_{site}"] for row in rows])
+        site_control = np.array([row[f"control_deletion_{site}"] for row in rows])
+        usage_fits[site] = report_model(
+            f"usage[{site}] ~ log(a) + s + deletion control[{site}]   "
+            f"({SITE_DESCRIPTIONS[site]})",
+            np.column_stack([log_a, s_axis, site_control]), response,
+            ["log_a", "s", "control_deletion"])
+        usage_fits_no_control[site] = report_model(
+            f"usage[{site}] ~ log(a) + s   (control omitted)",
+            np.column_stack([log_a, s_axis]), response, ["log_a", "s"])
+
+    # The deletion control against the same two axes as usage. This is not a nuisance
+    # regression: if it reproduces the usage coefficients, the usage trend is general
+    # robustness rather than anything about timing (document 5's Phase 0 finding).
+    control_fits = {}
+    for site in SITES:
+        control_fits[site] = report_model(
+            f"control_deletion[{site}] ~ log(a) + s   (general-robustness covariate)",
+            np.column_stack([log_a, s_axis]),
+            np.array([row[f"control_deletion_{site}"] for row in rows]),
+            ["log_a", "s"])
+
+    availability_fits = {}
+    for view in VIEWS:
+        response = np.array([row[f"availability_{view}"] for row in rows])
+        availability_fits[view] = report_model(
+            f"timing_fraction[{view}] ~ log(a) + s   ({SITE_DESCRIPTIONS[view]})",
+            np.column_stack([log_a, s_axis]), response, ["log_a", "s"])
+
+    usage_fit = usage_fits[PRIMARY_SITE]
+    availability_fit = availability_fits[PRIMARY_VIEW]
+    arm_decision = report_arm_decision(rows, usage_fits_no_control, control_fits)
     contrast = matched_floor_contrast(rows)
 
     floor_on_accuracy = clean[floor > 0]
     outcome = verdict(usage_fit, availability_fit, design_rho.statistic,
                       float(floor_on_accuracy.min()) if floor_on_accuracy.size
                       else 1.0)
-    print(f"\n{'=' * 74}\n  VERDICT ({arm}): {outcome}\n{'=' * 74}")
+    print(f"\n{'=' * 74}\n  VERDICT ({arm}, usage at '{PRIMARY_SITE}'): {outcome}")
+    if len(SITES) > 1:
+        print("  b_a at every site: " + ", ".join(
+            f"{site} {usage_fits[site]['raw']['terms']['log_a']['coefficient']:+.4f} "
+            f"(p = {usage_fits[site]['raw']['terms']['log_a']['p']:.3f})"
+            for site in SITES))
+        print("  This grid moves both layers' activity together by construction, so "
+              "every b_a above is a NETWORK-level coefficient (document 7 §6 point 1).")
+    print("=" * 74)
 
     return {
+        "grid": GRID,
         "n": len(rows),
+        "axes_view": AXES_VIEW,
+        "sites": list(SITES),
+        "views": list(VIEWS),
+        "primary_site": PRIMARY_SITE,
+        "primary_view": PRIMARY_VIEW,
         "design_acceptance": {"rho": float(design_rho.statistic),
                               "p": float(design_rho.pvalue), "passed": passed},
         "usage_model": usage_fit,
-        "usage_model_without_control": usage_no_control,
+        "usage_model_without_control": usage_fits_no_control[PRIMARY_SITE],
         "availability_model": availability_fit,
+        "usage_models_by_site": usage_fits,
+        "usage_models_by_site_without_control": usage_fits_no_control,
+        "control_models_by_site": control_fits,
+        "availability_models_by_view": availability_fits,
+        "arm_decision": arm_decision,
         "matched_floor_contrast": contrast,
         "verdict": outcome,
         "rows": rows,
     }
+
+
+def compare_arms(results: dict[str, dict]) -> None:
+    """Print the arm-decision evidence for both arms side by side.
+
+    This reports which arm each criterion favours; it does not declare a primary arm.
+    That decision is a judgement over both criteria plus the consideration document 7
+    §6 point 8 raises in the other direction — the no-delay arm is the only one whose
+    pooled confound actually failed, so it is the only one where this design had
+    something to break — and it belongs in the progress document, not in a print
+    statement.
+
+    Args:
+        results: Per-arm results from ``analyse_arm``.
+    """
+    if len(results) < 2:
+        return
+
+    print(f"\n{'=' * 74}\n  ARM DECISION — the two criteria, side by side\n{'=' * 74}")
+    gaps = {arm: result["arm_decision"]["readout_gap"][PRIMARY_VIEW]["mean"]
+            for arm, result in results.items()}
+    separations = {
+        arm: result["arm_decision"]["timing_vs_control"][PRIMARY_SITE][
+            "beta_a_difference"]
+        for arm, result in results.items()}
+
+    print(f"\n  1. readout-efficiency gap at '{PRIMARY_VIEW}' "
+          f"(smaller is better — a large gap means the readout, not the code, is "
+          f"what the perturbation is measuring)")
+    for arm, gap in gaps.items():
+        print(f"       {arm:<9} {gap:+.3f}")
+    print(f"     -> favours {min(gaps, key=lambda arm: abs(gaps[arm]))}")
+
+    print(f"\n  2. |b_a(usage) - b_a(control)| at '{PRIMARY_SITE}' "
+          f"(larger is better — the timing probe has to be distinguishable from a "
+          f"pure rate insult)")
+    for arm, separation in separations.items():
+        print(f"       {arm:<9} {separation:+.4f}")
+    print(f"     -> favours "
+          f"{max(separations, key=lambda arm: abs(separations[arm]))}")
+
+    print("\n  Both were measured at layer 1 only in document 5 and are NOT inherited "
+          "here (document 7 §5 step 2).\n  Record the decision in the progress "
+          "document; it is not made by this script.")
 
 
 def main() -> None:
@@ -498,8 +866,9 @@ def main() -> None:
     for arm in ARMS:
         results[arm] = analyse_arm(arm)
         plot_arm(arm, results[arm]["rows"])
+    compare_arms(results)
 
-    out_path = LOG_DIR / "phase1_regress.json"
+    out_path = LOG_DIR / f"phase1_regress_{VERSION_TAG.rstrip('_') or 'v1'}.json"
     with open(out_path, "w") as handle:
         json.dump(results, handle, indent=2)
     print(f"\nResults -> {out_path}")

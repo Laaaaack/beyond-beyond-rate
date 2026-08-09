@@ -1,4 +1,4 @@
-"""v3 Phase 0: capacity-matched decoding of the 1st hidden layer.
+"""v3 Phase 0/1: capacity-matched decoding of the constrained hidden layer(s).
 
 Measures how much of a hidden layer's class information *requires spike timing*,
 without perturbing the network and without needing the count channel to be closed.
@@ -11,11 +11,12 @@ scored on the test split:
 ===========  ============================================  ==========  ==========
 view         features                                      dimension   immune?
 ===========  ============================================  ==========  ==========
-``COUNT``    per-neuron spike count                        128         yes
-``IDENT``    per-neuron count, binarised                   128         yes
-``FULL``     per-neuron counts in ``N_BINS`` time bins     128*N_BINS  no
-``SHUF``     ``FULL`` after resampling each neuron's       128*N_BINS  yes
-             spikes from that neuron's own marginal
+``COUNT``    per-neuron spike count                        n_neurons   yes
+``IDENT``    per-neuron count, binarised                   n_neurons   yes
+``FULL``     per-neuron counts in ``N_BINS`` time bins     n_neurons    no
+                                                           * N_BINS
+``SHUF``     ``FULL`` after resampling each neuron's       n_neurons    yes
+             spikes from that neuron's own marginal        * N_BINS
              temporal profile (count preserved exactly)
 ===========  ============================================  ==========  ==========
 
@@ -36,8 +37,64 @@ The per-neuron peak membrane potential is reported alongside, because it sizes t
 anti-silencing mechanism proposed for Phase 1: silent (sample, neuron) pairs sit
 near 0 against ``theta = 10``, far outside the reach of any count-based penalty.
 
-Reads the v1 training summaries for the live checkpoint list. Writes
-``v3_analysis/log/hidden_channel_decode_{arm}.json``.
+Which layers this measures, and why that became a configuration knob
+--------------------------------------------------------------------
+``GRID`` selects the training generation, and each generation constrained a
+different set of hidden layers::
+
+    ""       v1's 27-checkpoint observational gradient   layer 1
+    "v3"     the 1st-layer factorial (document 5)        layer 1
+    "v3L2"   the 2nd-layer factorial (document 6)        layer 2
+    "v3L12"  the both-layer factorial (document 7)       layers 1 and 2
+
+Availability has to be measured at the layers the penalty acted on, so the layer
+set follows the grid rather than being fixed at layer 1. One script rather than
+three forks, for a reason that is not merely convenience: document 7 §1 point 3's
+payoff is a comparison of ``beta_a`` **across** the three grids, and that
+comparison is only valid if the dependent variable was measured the same way in
+all three. A forked script is a place for the three measurements to drift apart.
+
+Two traps this handles structurally, both from document 7 §5 step 3:
+
+- **``delay1`` moves from downstream to upstream depending on the probe site.**
+  A layer-1 probe is right to ignore it; a layer-2 probe must apply it. Here that
+  is structural — layer 2 is only reachable through the branch that applies it —
+  rather than a matter of remembering.
+  [layer2_baseline.py](layer2_baseline.py) is the reference implementation.
+- **The two layers have different temporal supports and each needs its own
+  binning window.** ``delay1`` (up to 64 bins) pushes layer 2's support out to
+  bin 159 in the delay arm, where layer 1's stops at 87 in both arms. Binning a
+  layer over a window it never occupies wastes bins on guaranteed zeros and
+  coarsens the bins that carry signal; binning it over too *short* a window
+  silently discards spikes. See ``SUPPORT_BINS``.
+
+The pooled ``net`` view is an addition, not a replacement
+----------------------------------------------------------
+When more than one layer is constrained, a third ``net`` view decodes the two
+layers' features **concatenated** (256 neurons rather than 128), and reports the
+pooled ``a`` and ``s`` that document 7 §2 defines — the axes the both-layer
+factorial actually manipulates. It is emitted *alongside* the per-layer views and
+never in place of them, per document 7 §5 step 3's third trap.
+
+Read it for what it is. Unlike the ``both`` perturbation site, which is a harsher
+insult because layer 2 is damaged *after* being computed from an already-damaged
+layer 1, concatenating features compounds nothing: layer 2 is computed from a
+clean layer 1 either way. ``net`` is "what a decoder reading the whole hidden
+network could recover", not "the network-level analogue of the ``both`` site".
+
+Output schema, and the ``KeyError`` that is deliberate
+-------------------------------------------------------
+Each checkpoint's row carries one block per view, keyed ``l1`` / ``l2`` / ``net``.
+For a **single-layer** grid that view's fields are *also* aliased flat at the top
+of the row, so analysis written against the original single-layer output keeps
+working unchanged. For a **multi-layer** grid there is no flat alias, so such code
+raises ``KeyError`` here rather than silently reading a two-layer file as though
+it were a one-layer one. That is the same choice the ``*_bothLayer_evalOnly_*``
+sweeps made for their dependent variable, and for the same reason (document 7 §6
+point 5).
+
+Reads the selected generation's training summaries for the live checkpoint list.
+Writes ``v3_analysis/log/hidden_channel_decode_{tag}{arm}.json``.
 """
 
 import json
@@ -63,22 +120,42 @@ import slayerSNN as snn  # noqa: E402
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# --- Scope. QUICK_TEST decodes 3 checkpoints per arm instead of all of them. ---
+# --- Scope. QUICK_TEST decodes a few evenly spaced checkpoints per arm. ---
+#
+# Evenly spaced rather than the first few, because the first few rows of a factorial
+# summary are the same cell at different seeds — a pipeline check that never leaves the
+# k = 1, floor = 0 corner would miss exactly the failures the corner probe exists for.
 QUICK_TEST: bool = False
-QUICK_TAG_SUBSTRINGS: tuple[str, ...] = ("str0.01_seed42", "str1_seed42",
-                                         "str10_seed42")
+MAX_QUICK_CHECKPOINTS: int = 4
 
-# Which training generation to decode, and which arms of it.
+# Which training generation to decode. The tag is spliced into both the training summary
+# that is read and the results file that is written, so no two generations can overwrite
+# each other's output — load-bearing now against three prior grids, since v3, v3L2 and
+# v3L12 share dataset, arm, k, floor and seed and differ only in the constrained layers
+# (document 7 §6 point 4).
 #
-# ``""`` targets v1's 27-checkpoint sparsity gradient — the Phase 0 measurement.
-# ``"v3_"`` targets the Phase 1 factorial. The tag is spliced into both the training
-# summary that is read and the results file that is written, so the two generations can
-# never overwrite each other's output.
-#
-# v3 checkpoints need no special handling here: the factorial changed the *penalty*,
+# v3 checkpoints need no special handling here: the factorials changed the *penalty*,
 # not the architecture, so the parameter set and the forward pass are v1's exactly.
 # (This is unlike v2.2, whose truncation had to be reapplied at eval.)
-VERSION_TAG: str = "v3_"
+GRID: str = "v3L12"
+
+# The hidden layers each grid's penalties acted on, and therefore the layers whose
+# availability is the dependent variable for it.
+GRID_LAYERS: dict[str, tuple[int, ...]] = {
+    "": (1,),        # v1's observational gradient — the Phase 0 measurement
+    "v3": (1,),      # 1st-layer factorial, document 5
+    "v3L2": (2,),    # 2nd-layer factorial, document 6
+    "v3L12": (1, 2),  # both-layer factorial, document 7
+}
+
+VERSION_TAG: str = f"{GRID}_" if GRID else ""
+LAYERS: tuple[int, ...] = GRID_LAYERS[GRID]
+
+# One decode view per constrained layer, plus the pooled one when there is more than
+# one. The pooled view is an addition rather than a replacement (document 7 §5 step 3).
+VIEWS: tuple[str, ...] = (tuple(f"l{layer}" for layer in LAYERS)
+                          + (("net",) if len(LAYERS) > 1 else ()))
+
 ARMS: tuple[tuple[str, bool], ...] = (("delay", True), ("nodelay", False))
 
 # --- Architecture and simulation, identical to training ---
@@ -101,12 +178,30 @@ BATCH_SIZE: int = 128
 TRAIN_RANGE = (0.0, 0.6)
 TEST_RANGE = (0.75, 0.9)
 
-# Hidden activity never reaches beyond bin 87 across all 27 checkpoints (the .mat
-# holds 100 time bins, zero-padded to 200), so features and the shuffle null are
-# confined to the measured support. 90 is the next multiple of N_BINS, so the
-# binning stays even and the two extra bins are always empty. See
-# temporal_support.py for the measurement.
-SUPPORT_BINS: int = 90
+# --- Binning window, PER LAYER and PER ARM (measured, then rounded up) ---
+#
+# shd_whole.mat holds 100 time bins zero-padded to the simulator's 200, so no hidden
+# layer ever occupies the whole window and features confined to the measured support
+# spend no bins on guaranteed zeros.
+#
+# Measured last occupied bin, over all 27 v1 checkpoints
+# (temporal_support.py and layer2_baseline.py):
+#
+#     layer 1   87 in both arms                 -> support [0, 88)
+#     layer 2   89 no-delay, 159 delay          -> support [0, 90) / [0, 160)
+#
+# Layer 2's delay-arm support runs to 159 because ``delay1`` shifts layer 1's spikes by
+# up to 64 bins before ``fc2`` sees them. Inheriting one layer's bound for the other is
+# document 7 §5 step 3's first trap, and in the delay arm the two differ by nearly 2x.
+#
+# The values below are each support rounded **up** to the next multiple of ``N_BINS``,
+# so the reshape that bins them stays even and the extra bins are always empty. The
+# perturbation scripts use the exact bounds (88 / 90 / 160) instead, because they place
+# spikes rather than bin them and have no divisibility constraint.
+SUPPORT_BINS: dict[str, dict[int, int]] = {
+    "nodelay": {1: 90, 2: 90},
+    "delay": {1: 90, 2: 160},
+}
 N_BINS: int = 10
 
 # Inverse L2 strength searched per feature set. Each view gets its own best value,
@@ -117,19 +212,31 @@ SHUFFLE_SEED: int = 0
 
 
 class HiddenProbeNetwork(nn.Module):
-    """SLAYER SNN exposing the 1st hidden layer's spikes and membrane potential.
+    """SLAYER SNN exposing each constrained layer's spikes and membrane potential.
 
-    Parameters are identical to the v1 training classes, so v1 checkpoints load
-    directly. ``delays`` selects the with-delay variant, whose ``delay1``/``delay2``
-    are present in those checkpoints but sit *downstream* of the probe site and so
-    are never applied here.
+    Parameters are identical to the v1 training classes, so v1, v2 and v3 checkpoints
+    all load directly — the factorials changed the training penalty, not the
+    architecture.
+
+    Note the delay handling. ``delay1`` sits between layer 1 and ``fc2``: it is
+    *downstream* of a layer-1 probe, which correctly ignores it, and *upstream* of a
+    layer-2 probe, which must apply it. That is structural here rather than a matter of
+    remembering, because layer 2 is only reachable through the branch that applies it.
+    ``delay2`` is downstream of both probe sites and is never applied.
+
+    Args:
+        delays: Whether the checkpoint is from the with-delay arm.
+        layers: The hidden layers to probe, a subset of ``(1, 2)``. Passed explicitly
+            rather than defaulted to ``LAYERS``, so that a default frozen at
+            class-definition time cannot survive a change to ``GRID``.
     """
 
-    def __init__(self, delays: bool):
+    def __init__(self, delays: bool, layers: tuple[int, ...]):
         super().__init__()
         slayer = snn.layer(LIF_PARAMS, SIM_PARAMS)
         self.slayer = slayer
         self.delays = delays
+        self.layers = layers
         self.fc1 = nn.utils.weight_norm(
             slayer.dense(INPUT_DIM, HIDDEN_UNITS), name="weight")
         self.fc2 = nn.utils.weight_norm(
@@ -140,22 +247,71 @@ class HiddenProbeNetwork(nn.Module):
             self.delay1 = slayer.delay(HIDDEN_UNITS)
             self.delay2 = slayer.delay(HIDDEN_UNITS)
 
-    def probe(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """Return the binned hidden spikes and each neuron's peak potential.
+    def probe(self, x: torch.Tensor,
+              windows: dict[int, int]) -> dict[int, tuple[torch.Tensor,
+                                                          torch.Tensor]]:
+        """Return each probed layer's binned spikes and per-neuron peak potential.
 
         Args:
             x: Input spike trains, shape (B, 700, 1, 1, T).
+            windows: This arm's binning window per layer.
 
         Returns:
-            Tuple of (binned spikes of shape (B, 128, N_BINS), peak membrane
-            potential of shape (B, 128)).
+            Dict mapping layer index to (binned spikes of shape (B, 128, N_BINS),
+            peak membrane potential of shape (B, 128)).
         """
-        potential = self.fc1(self.slayer.psp(x))
-        spikes = self.slayer.spike(potential)
-        batch, channels, _, _, time = spikes.shape
-        binned = (spikes.view(batch, channels, time)[:, :, :SUPPORT_BINS]
-                  .reshape(batch, channels, N_BINS, -1).sum(dim=-1))
-        return binned, potential.view(batch, channels, time).max(dim=-1).values
+        potential1 = self.fc1(self.slayer.psp(x))
+        spikes1 = self.slayer.spike(potential1)
+
+        probed = {}
+        if 1 in self.layers:
+            probed[1] = (bin_spikes(spikes1, windows[1]), peak_potential(potential1))
+        if 2 in self.layers:
+            routed = self.delay1(spikes1) if self.delays else spikes1
+            potential2 = self.fc2(self.slayer.psp(routed))
+            probed[2] = (bin_spikes(self.slayer.spike(potential2), windows[2]),
+                         peak_potential(potential2))
+        return probed
+
+
+def bin_spikes(spikes: torch.Tensor, support_bins: int) -> torch.Tensor:
+    """Sum a layer's spikes into ``N_BINS`` equal bins over ``[0, support_bins)``.
+
+    Args:
+        spikes: SLAYER-format spike tensor, shape (B, C, 1, 1, T).
+        support_bins: Exclusive upper bound of the layer's temporal support. Must be a
+            multiple of ``N_BINS``, which ``validate_windows`` checks at start-up.
+
+    Returns:
+        Binned counts of shape (B, C, N_BINS).
+    """
+    batch, channels, _, _, time = spikes.shape
+    return (spikes.view(batch, channels, time)[:, :, :support_bins]
+            .reshape(batch, channels, N_BINS, -1).sum(dim=-1))
+
+
+def peak_potential(potential: torch.Tensor) -> torch.Tensor:
+    """Return each (sample, neuron)'s peak membrane potential over time."""
+    batch, channels, _, _, time = potential.shape
+    return potential.view(batch, channels, time).max(dim=-1).values
+
+
+def validate_windows() -> None:
+    """Fail at start-up if any configured window cannot be binned evenly.
+
+    A window that is not a multiple of ``N_BINS`` would make the reshape in
+    ``bin_spikes`` raise deep inside a batch loop, after minutes of forward passes.
+
+    Raises:
+        ValueError: If a window in use is not divisible by ``N_BINS``.
+    """
+    for arm, _ in ARMS:
+        for layer in LAYERS:
+            window = SUPPORT_BINS[arm][layer]
+            if window % N_BINS:
+                raise ValueError(
+                    f"SUPPORT_BINS[{arm!r}][{layer}] = {window} is not a multiple of "
+                    f"N_BINS = {N_BINS}; round the measured support up to one.")
 
 
 def load_split(features: np.ndarray, labels: np.ndarray,
@@ -170,17 +326,28 @@ def load_split(features: np.ndarray, labels: np.ndarray,
 
 
 @torch.no_grad()
-def extract_hidden(net: HiddenProbeNetwork,
-                   inputs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Run the network over a split and collect binned spikes and peak potentials."""
-    binned_batches, potential_batches = [], []
+def extract_hidden(net: HiddenProbeNetwork, inputs: np.ndarray,
+                   windows: dict[int, int]) -> dict[int, tuple[np.ndarray,
+                                                               np.ndarray]]:
+    """Run the network over a split and collect binned spikes and peak potentials.
+
+    Args:
+        net: The probe network, already loaded and in eval mode.
+        inputs: Padded spike trains for one split.
+        windows: This arm's binning window per layer.
+
+    Returns:
+        Dict mapping layer index to (binned spikes, peak potentials) as numpy arrays.
+    """
+    collected: dict[int, tuple[list, list]] = {layer: ([], []) for layer in net.layers}
     for start in range(0, len(inputs), BATCH_SIZE):
         batch = torch.from_numpy(inputs[start:start + BATCH_SIZE])
         batch = batch.unsqueeze(2).unsqueeze(3).to(device)
-        binned, potential = net.probe(batch)
-        binned_batches.append(binned.cpu().numpy())
-        potential_batches.append(potential.cpu().numpy())
-    return np.concatenate(binned_batches), np.concatenate(potential_batches)
+        for layer, (binned, potential) in net.probe(batch, windows).items():
+            collected[layer][0].append(binned.cpu().numpy())
+            collected[layer][1].append(potential.cpu().numpy())
+    return {layer: (np.concatenate(binned), np.concatenate(potential))
+            for layer, (binned, potential) in collected.items()}
 
 
 def decode(train_features: np.ndarray, train_labels: np.ndarray,
@@ -205,7 +372,7 @@ def decode(train_features: np.ndarray, train_labels: np.ndarray,
     scaled_test = scaler.transform(test_features)
     scores = []
     for inverse_strength in DECODER_C_GRID:
-        model = LogisticRegression(max_iter=2000, C=inverse_strength, n_jobs=-1)
+        model = LogisticRegression(max_iter=2000, C=inverse_strength)
         model.fit(scaled_train, train_labels)
         scores.append(model.score(scaled_test, test_labels))
     return float(max(scores))
@@ -247,35 +414,25 @@ def resample_from_profile(binned: np.ndarray, profile: np.ndarray,
     return resampled
 
 
-def analyse_checkpoint(run_tag: str, delays: bool, train_inputs: np.ndarray,
-                       train_labels: np.ndarray, test_inputs: np.ndarray,
-                       test_labels: np.ndarray) -> dict:
-    """Decode one checkpoint's hidden layer through all four views.
+def summarise_view(train_binned: np.ndarray, test_binned: np.ndarray,
+                   train_shuffled: np.ndarray, test_shuffled: np.ndarray,
+                   test_peak: np.ndarray, train_labels: np.ndarray,
+                   test_labels: np.ndarray) -> dict:
+    """Fit all four decoders on one feature set and derive the timing measures.
 
     Args:
-        run_tag: Checkpoint name, without extension.
-        delays: Whether the checkpoint is from the with-delay arm.
-        train_inputs: Padded train-split spike trains.
+        train_binned: Train-split binned spikes, shape (N, neurons, N_BINS).
+        test_binned: Test-split binned spikes, same neuron count.
+        train_shuffled: ``train_binned`` after the capacity-matched resample.
+        test_shuffled: ``test_binned`` after the capacity-matched resample.
+        test_peak: Test-split peak membrane potentials, shape (N, neurons).
         train_labels: Train-split labels.
-        test_inputs: Padded test-split spike trains.
         test_labels: Test-split labels.
 
     Returns:
-        Dict of decode accuracies, derived timing measures, sparsity statistics and
-        peak-potential diagnostics.
+        Dict of decode accuracies, derived timing measures, both sparsity axes and
+        the peak-potential diagnostics.
     """
-    net = HiddenProbeNetwork(delays).to(device)
-    net.load_state_dict(torch.load(CKPT_DIR / f"{run_tag}.pt", map_location=device))
-    net.eval()
-
-    train_binned, _ = extract_hidden(net, train_inputs)
-    test_binned, test_potential = extract_hidden(net, test_inputs)
-
-    rng = np.random.default_rng(SHUFFLE_SEED)
-    profile = train_binned.sum(axis=0)
-    train_shuffled = resample_from_profile(train_binned, profile, rng)
-    test_shuffled = resample_from_profile(test_binned, profile, rng)
-
     train_counts, test_counts = train_binned.sum(axis=2), test_binned.sum(axis=2)
     flat = (lambda arr: arr.reshape(len(arr), -1))
 
@@ -293,6 +450,7 @@ def analyse_checkpoint(run_tag: str, delays: bool, train_inputs: np.ndarray,
     timing_information = acc_full - acc_shuffled
 
     return {
+        "n_neurons": int(test_binned.shape[1]),
         "spikes_per_neuron": spikes_per_neuron,
         "spikes_per_active_neuron": spikes_per_neuron / max(1e-9,
                                                             1.0 - silent_fraction),
@@ -303,16 +461,112 @@ def analyse_checkpoint(run_tag: str, delays: bool, train_inputs: np.ndarray,
         "decode_shuffled": acc_shuffled,
         "timing_information": timing_information,
         "timing_fraction": timing_information / max(1e-9, acc_full - CHANCE),
-        "peak_potential_silent_median": (float(np.median(test_potential[silent_mask]))
+        "peak_potential_silent_median": (float(np.median(test_peak[silent_mask]))
                                          if silent_mask.any() else None),
-        "peak_potential_active_median": float(
-            np.median(test_potential[~silent_mask])),
+        "peak_potential_active_median": (float(np.median(test_peak[~silent_mask]))
+                                         if (~silent_mask).any() else None),
     }
 
 
+def analyse_checkpoint(run_tag: str, delays: bool, windows: dict[int, int],
+                       train_inputs: np.ndarray, train_labels: np.ndarray,
+                       test_inputs: np.ndarray, test_labels: np.ndarray) -> dict:
+    """Decode every configured view of one checkpoint through all four decoders.
+
+    Args:
+        run_tag: Checkpoint name, without extension.
+        delays: Whether the checkpoint is from the with-delay arm.
+        windows: This arm's binning window per layer.
+        train_inputs: Padded train-split spike trains.
+        train_labels: Train-split labels.
+        test_inputs: Padded test-split spike trains.
+        test_labels: Test-split labels.
+
+    Returns:
+        Dict with one block per view (``l1`` / ``l2`` / ``net``). Single-layer grids
+        additionally alias that view's fields flat at the top of the row.
+    """
+    net = HiddenProbeNetwork(delays, LAYERS).to(device)
+    net.load_state_dict(torch.load(CKPT_DIR / f"{run_tag}.pt", map_location=device))
+    net.eval()
+
+    train_probed = extract_hidden(net, train_inputs, windows)
+    test_probed = extract_hidden(net, test_inputs, windows)
+
+    # One rng for the whole checkpoint, seeded identically per checkpoint, so the
+    # shuffle null is reproducible and independent of how many layers are probed.
+    rng = np.random.default_rng(SHUFFLE_SEED)
+    features = {}
+    for layer in LAYERS:
+        train_binned, _ = train_probed[layer]
+        test_binned, test_peak = test_probed[layer]
+        profile = train_binned.sum(axis=0)
+        features[f"l{layer}"] = (
+            train_binned, test_binned,
+            resample_from_profile(train_binned, profile, rng),
+            resample_from_profile(test_binned, profile, rng),
+            test_peak,
+        )
+
+    if "net" in VIEWS:
+        # The resample is independent per neuron, so shuffling each layer and then
+        # concatenating is the same null as concatenating and then shuffling — and it
+        # costs one pass rather than two.
+        features["net"] = tuple(
+            np.concatenate([features[f"l{layer}"][index] for layer in LAYERS], axis=1)
+            for index in range(5))
+
+    row = {"grid": GRID, "layers": list(LAYERS), "views": list(VIEWS),
+           "support_bins": {f"l{layer}": windows[layer] for layer in LAYERS}}
+    for view in VIEWS:
+        row[view] = summarise_view(*features[view], train_labels, test_labels)
+
+    # Single-layer grids keep the original flat schema as well, so analysis written
+    # against it is unaffected. Multi-layer grids deliberately do not: a reader that
+    # assumes the single-layer convention should raise KeyError rather than silently
+    # read one layer's number as the network's (document 7 §6 point 5).
+    if len(VIEWS) == 1:
+        row.update(row[VIEWS[0]])
+    return row
+
+
+def print_checkpoint_row(run_tag: str, row: dict) -> None:
+    """Print one line per view for a decoded checkpoint."""
+    for view in VIEWS:
+        measured = row[view]
+        print(f"{run_tag:<44} {view:>4} {measured['spikes_per_neuron']:>7.2f} "
+              f"{measured['spikes_per_active_neuron']:>7.2f} "
+              f"{measured['silent_fraction']:>7.2%} {measured['decode_count']:>7.3f} "
+              f"{measured['decode_identity']:>7.3f} {measured['decode_full']:>7.3f} "
+              f"{measured['decode_shuffled']:>7.3f} "
+              f"{measured['timing_information']:>+7.3f} "
+              f"{measured['timing_fraction']:>6.2f}", flush=True)
+
+
+def select_run_tags(run_tags: list[str]) -> list[str]:
+    """Return the checkpoints to decode, thinned when ``QUICK_TEST`` is set.
+
+    Evenly spaced rather than the first few: consecutive rows of a factorial summary
+    are the same ``(k, floor)`` cell at different seeds, so a first-N probe would never
+    leave one corner of the grid.
+
+    Args:
+        run_tags: Every checkpoint in the arm's training summary, in summary order.
+
+    Returns:
+        The subset to decode.
+    """
+    if not QUICK_TEST or len(run_tags) <= MAX_QUICK_CHECKPOINTS:
+        return run_tags
+    indices = np.linspace(0, len(run_tags) - 1, MAX_QUICK_CHECKPOINTS).round()
+    return [run_tags[int(index)] for index in indices]
+
+
 def main() -> None:
-    """Decode every checkpoint in both arms' training summaries."""
+    """Decode every checkpoint of the selected grid, in both arms."""
+    validate_windows()
     print(f"Using device: {device} | QUICK_TEST={QUICK_TEST}")
+    print(f"grid: {GRID or 'v1'} | layers: {list(LAYERS)} | views: {list(VIEWS)}")
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
     raw = loadmat(str(MAT_FILE))
@@ -324,29 +578,22 @@ def main() -> None:
         summary_path = (TRAIN_LOG_DIR
                         / f"sparse_whole_{arm}_{VERSION_TAG}train_summary.json")
         with open(summary_path) as handle:
-            run_tags = list(json.load(handle))
-        if QUICK_TEST:
-            run_tags = [tag for tag in run_tags
-                        if any(sub in tag for sub in QUICK_TAG_SUBSTRINGS)]
+            run_tags = select_run_tags(list(json.load(handle)))
+        windows = SUPPORT_BINS[arm]
 
         print(f"\n=== {arm}: {len(run_tags)} checkpoints ===")
-        header = (f"{'run_tag':<44} {'sp/neu':>7} {'sp/act':>7} {'silent':>7} "
-                  f"{'COUNT':>7} {'IDENT':>7} {'FULL':>7} {'SHUF':>7} "
-                  f"{'TIMING':>7} {'frac':>6}")
-        print(header)
+        print("  windows: " + " | ".join(f"l{layer} [0,{windows[layer]})"
+                                         for layer in LAYERS))
+        print(f"{'run_tag':<44} {'view':>4} {'sp/neu':>7} {'sp/act':>7} {'silent':>7} "
+              f"{'COUNT':>7} {'IDENT':>7} {'FULL':>7} {'SHUF':>7} "
+              f"{'TIMING':>7} {'frac':>6}")
 
         results = {}
         for run_tag in run_tags:
-            row = analyse_checkpoint(run_tag, delays, train_inputs, train_labels,
-                                     test_inputs, test_labels)
+            row = analyse_checkpoint(run_tag, delays, windows, train_inputs,
+                                     train_labels, test_inputs, test_labels)
             results[run_tag] = row
-            print(f"{run_tag:<44} {row['spikes_per_neuron']:>7.2f} "
-                  f"{row['spikes_per_active_neuron']:>7.2f} "
-                  f"{row['silent_fraction']:>7.2%} {row['decode_count']:>7.3f} "
-                  f"{row['decode_identity']:>7.3f} {row['decode_full']:>7.3f} "
-                  f"{row['decode_shuffled']:>7.3f} "
-                  f"{row['timing_information']:>+7.3f} "
-                  f"{row['timing_fraction']:>6.2f}", flush=True)
+            print_checkpoint_row(run_tag, row)
 
         out_path = LOG_DIR / f"hidden_channel_decode_{VERSION_TAG}{arm}.json"
         with open(out_path, "w") as handle:
