@@ -15,7 +15,7 @@ and running **against** H1′, which predicted β_a < 0. **Primary arm: delay**,
 readout gap of +0.011 against the no-delay arm's +0.218. Read alongside the both-layer
 grid, β_a is significant in 3 of 4 single-layer cells and 0 of 2 both-layer cells — the
 compensation §1 argues about, appearing in a coefficient
-([document 7 §6j](sparse_network_bothLayer_test_progress.md)). What remains is the
+([document 7 §6j](../../progress/sparse_network_bothLayer_test_progress.md)). What remains is the
 layer-2 **results document**.
 
 The 1st-layer v3 factorial finished on 2026-07-29 with a null: `a` and `s` were
@@ -38,13 +38,13 @@ read document 5 first.**
 
 | # | Document | What it is |
 |---|---|---|
-| 1 | [sparse_network.md](sparse_network.md) | the question and the conceptual landscape — **start there** |
+| 1 | [sparse_network.md](../../progress/sparse_network.md) | the question and the conceptual landscape — **start there** |
 | 2 | [sparse_network_test_progress.md](sparse_network_test_progress.md) | v1 execution log |
 | 3 | [sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md) | v1 results — four perturbations, two arms, the diagnosis |
 | 4 | [sparse_network_test_progress_v2.md](sparse_network_test_progress_v2.md) | v2 execution log |
 | 5 | [sparse_network_test_progress_v3.md](sparse_network_test_progress_v3.md) | **v3 at layer 1** — design, Phase 0, Phase 1 result. Everything here assumes it |
 | 6 | **this file** | v3 at layer 2 — calibration, design deltas, execution, sweeps |
-| 7 | [sparse_network_bothLayer_test_progress.md](sparse_network_bothLayer_test_progress.md) | v3 at **both** layers — a third question, not a rephrasing of this one |
+| 7 | [sparse_network_bothLayer_test_progress.md](../../progress/sparse_network_bothLayer_test_progress.md) | v3 at **both** layers — a third question, not a rephrasing of this one |
 
 Layer 1's *results* are reported separately in
 [sparse_network_1stLayer_results_v3.md](sparse_network_1stLayer_results_v3.md) — the
@@ -564,7 +564,7 @@ All four items below were run as part of document 7 §6j, which needed the layer
 complete its three-way β_a comparison. The three analysis scripts now carry a `GRID` knob
 selecting the constrained layer set, so `v3`, `v3L2` and `v3L12` are measured by **one**
 script rather than three forks — which is what makes the comparison a comparison. See
-[document 7 §6g](sparse_network_bothLayer_test_progress.md) for the retarget itself and
+[document 7 §6g](../../progress/sparse_network_bothLayer_test_progress.md) for the retarget itself and
 the verifications behind it.
 
 Artifacts: `v3_analysis/log/{hidden_channel_decode_v3L2,phase1_measure_v3L2}_{arm}.json`,
@@ -600,7 +600,7 @@ single-layer cells and 0 of the 2 both-layer cells**, and the both-layer interva
 coefficient exists only while **one** layer is constrained and vanishes when the network
 is — which is the layer-2 compensation this document's §1 argued about, appearing in a
 coefficient. Full table and reading in
-[document 7 §6j](sparse_network_bothLayer_test_progress.md).
+[document 7 §6j](../../progress/sparse_network_bothLayer_test_progress.md).
 
 
 ---
@@ -705,7 +705,7 @@ experiment:
       (usage + deletion control) to layer 2** at the per-arm window (`90` / `160`),
       deletion left unclipped, `delay1` applied because layer 2 sits downstream of it.
       Both now carry a `GRID` knob, so one script serves all three grids — see
-      [document 7 §6g](sparse_network_bothLayer_test_progress.md) for the retarget and
+      [document 7 §6g](../../progress/sparse_network_bothLayer_test_progress.md) for the retarget and
       its verifications
 - [x] **Dependent variable re-measured at layer 2 and the primary arm decided: DELAY** —
       readout gap **+0.011** (delay, positive on 83%) against **+0.218** (no-delay, 100%),
@@ -720,6 +720,6 @@ experiment:
       excluding the single-layer estimates in 3 of 4 comparisons. The anti-H1′ signal
       exists only while one layer is constrained; §1's compensation argument, in a
       coefficient. Table in
-      [document 7 §6j](sparse_network_bothLayer_test_progress.md)
+      [document 7 §6j](../../progress/sparse_network_bothLayer_test_progress.md)
 - [ ] Write the layer-2 results document, the counterpart of
       [sparse_network_1stLayer_results_v3.md](sparse_network_1stLayer_results_v3.md)

@@ -110,8 +110,8 @@ are applied **only at evaluation**, by the sibling experiments under
 ``exp_sparse_network/{jitter,shift,shd,deletion}/`` — never switch one on here. The
 availability measure lives in ``exp_sparse_network/v3_analysis/``. See:
 
-- ``my_project/docs/progress/sparse_network_test_progress_v3.md`` — v3 design + Phase 0.
-- ``my_project/docs/progress/sparse_network_1stLayer_results.md`` — v1 results.
+- ``my_project/docs/legacy/sn_progress/sparse_network_test_progress_v3.md`` — v3 design + Phase 0.
+- ``my_project/docs/legacy/sn_progress/sparse_network_1stLayer_results.md`` — v1 results.
 - ``my_project/docs/progress/sparse_network.md`` — full design and rationale.
 
 What this script produces, per ``(k, floor_strength, seed)``:

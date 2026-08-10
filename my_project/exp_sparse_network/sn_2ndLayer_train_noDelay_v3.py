@@ -116,9 +116,9 @@ are applied **only at evaluation**. Note that the existing eval scripts under
 layer and confine relocation/jitter to ``[0, 88)``; measuring this experiment needs
 them retargeted to the 2nd layer at ``[0, 90)``. See:
 
-- ``my_project/docs/progress/sparse_network_2ndLayer_test_progress_v3.md`` — this
+- ``my_project/docs/legacy/sn_progress/sparse_network_2ndLayer_test_progress_v3.md`` — this
   experiment's design, calibration and status.
-- ``my_project/docs/progress/sparse_network_test_progress_v3.md`` — the 1st-layer v3
+- ``my_project/docs/legacy/sn_progress/sparse_network_test_progress_v3.md`` — the 1st-layer v3
   design, Phase 0 and Phase 1 result this is the sibling of.
 - ``my_project/docs/progress/sparse_network.md`` — full design and rationale.
 

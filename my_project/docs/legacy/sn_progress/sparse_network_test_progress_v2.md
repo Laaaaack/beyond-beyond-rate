@@ -12,7 +12,7 @@ has not been run.** No full sweep has been run in any version.
 
 | # | Document | What it is |
 |---|---|---|
-| 1 | [sparse_network.md](sparse_network.md) | the question and the conceptual landscape — **start there** |
+| 1 | [sparse_network.md](../../progress/sparse_network.md) | the question and the conceptual landscape — **start there** |
 | 2 | [sparse_network_test_progress.md](sparse_network_test_progress.md) | v1 execution log — getting a sparsity gradient to exist at all |
 | 3 | [sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md) | v1 results — four perturbations, two arms, and the diagnosis |
 | 4 | **this file** | v2 execution log — attempts to make H1's premise actually hold |
@@ -36,7 +36,7 @@ clear headline result — but the diagnosis showed it could not test H1's *mecha
 because the perturbation-immune count and identity channels stayed wide open, and
 sparsity-by-silencing actually *strengthened* one of them. v2 is the attempt to close
 those channels by construction, so that a second negative result would refute H1 on
-its own terms. The conceptual argument is in [sparse_network.md](sparse_network.md)
+its own terms. The conceptual argument is in [sparse_network.md](../../progress/sparse_network.md)
 §5–6; the empirical story is below.
 
 ---

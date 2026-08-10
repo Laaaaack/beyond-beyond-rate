@@ -11,7 +11,7 @@ against them. **The results and their diagnosis are in
 
 | # | Document | What it is |
 |---|---|---|
-| 1 | [sparse_network.md](sparse_network.md) | the question and the conceptual landscape — **start there** |
+| 1 | [sparse_network.md](../../progress/sparse_network.md) | the question and the conceptual landscape — **start there** |
 | 2 | **this file** | v1 execution log — getting a sparsity gradient to exist at all |
 | 3 | [sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md) | v1 results — four perturbations, two arms, and the diagnosis |
 | 4 | [sparse_network_test_progress_v2.md](sparse_network_test_progress_v2.md) | v2 execution log — attempts to make H1's premise actually hold |
@@ -257,7 +257,7 @@ as the rejected alternative.*
 > ~48–56% vs ~79–84% at 400 ep) — the no-delay net is the weaker model on SHD. That is
 > not a failure of the sparsity mechanism. It is also exactly why `temporal_score` is
 > chance-corrected and baseline-normalised (see
-> [sparse_network.md](sparse_network.md) §3): the two arms must be compared on the
+> [sparse_network.md](../../progress/sparse_network.md) §3): the two arms must be compared on the
 > normalised score, never on raw `acc(sigma)` drops.
 
 ### Full-run results (2026-07-26): no-delay ready, delay needs a re-tune
@@ -398,12 +398,12 @@ when one scatter plot either shows that trend or clearly doesn't.
 > ⚠️ **Protocol rule (do not break):** sparsity is applied **during training**;
 > the perturbation is applied **only at evaluation**. Never train with the
 > perturbation on — that is a different experiment (perturbation-aware) and it
-> erases the effect. See [sparse_network.md](sparse_network.md) §2.
+> erases the effect. See [sparse_network.md](../../progress/sparse_network.md) §2.
 
 > **What this framing missed**, discovered only in document 3: "sparse" and
 > "count-uninformative" are not the same thing, so a big drop under a *rate-preserving*
 > perturbation was never guaranteed to be available for the network to show. See
-> [sparse_network.md](sparse_network.md) §5.
+> [sparse_network.md](../../progress/sparse_network.md) §5.
 
 ## 3. Scope of THIS milestone (deliberately narrow)
 
@@ -453,7 +453,7 @@ above is the record of why. In brief:
 | One perturbation (jitter) | Extended to **four** — jitter, shift, relocation, and deletion as a rate control. |
 
 Two of these became durable lessons and are carried in
-[sparse_network.md](sparse_network.md) §7: analyse against *measured* sparsity, never
+[sparse_network.md](../../progress/sparse_network.md) §7: analyse against *measured* sparsity, never
 the knob; and reduced-epoch calibration systematically under-estimates full-run
 firing.
 
@@ -473,7 +473,7 @@ perturbation-immune identity channel rather than closing it. That is what
 
 ## 7. Watch out for (v1's own lessons)
 
-Superseded and generalised by [sparse_network.md](sparse_network.md) §7; kept here as
+Superseded and generalised by [sparse_network.md](../../progress/sparse_network.md) §7; kept here as
 the mechanism-specific form they were first learned in.
 
 1. **A plain L1 spike penalty collapses the layer under Nadam** — never use it;
@@ -555,4 +555,4 @@ the synthetic ISI task) are **deferred until the mechanism question is settled**
 scaling an experiment that cannot test the hypothesis would multiply the problem
 rather than the evidence. Of them, the synthetic ISI task has since become the most
 important, because it removes the difficulty rather than fighting it (see
-[sparse_network.md](sparse_network.md) §9).
+[sparse_network.md](../../progress/sparse_network.md) §9).

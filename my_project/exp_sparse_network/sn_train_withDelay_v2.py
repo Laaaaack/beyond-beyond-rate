@@ -92,8 +92,8 @@ are applied **only at evaluation**, by the sibling experiments under
 those eval scripts carry their own copy of the network class and **must be given the
 same truncation** before they are run against v2.2 checkpoints. See:
 
-- ``my_project/docs/progress/sparse_network_1stLayer_results.md`` — v1 results.
-- ``my_project/docs/progress/sparse_network_test_progress_v2.md`` — v2 checklist.
+- ``my_project/docs/legacy/sn_progress/sparse_network_1stLayer_results.md`` — v1 results.
+- ``my_project/docs/legacy/sn_progress/sparse_network_test_progress_v2.md`` — v2 checklist.
 - ``my_project/docs/progress/sparse_network.md`` — full design and rationale.
 
 What this script produces, per ``(target_count, seed)``:

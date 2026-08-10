@@ -35,7 +35,7 @@ The timing perturbation that measures "temporal processing" is applied **only at
 evaluation** by ``jitter/jitter_evalOnly.py`` (the sigma sweep) — it must never be
 switched on here. See:
 
-- ``my_project/docs/progress/sparse_network_test_progress.md`` — this milestone.
+- ``my_project/docs/legacy/sn_progress/sparse_network_test_progress.md`` — this milestone.
 - ``my_project/docs/progress/sparse_network.md`` — full design and rationale.
 - ``my_project/docs/knowledge_bank/phase1_investigation.md`` — why the
   fixed-weight protocol (clean train / perturb at eval) is the correct lens.

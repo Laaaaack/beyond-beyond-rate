@@ -10,7 +10,7 @@ statistically significant and runs **opposite** to the prediction.
 
 | # | Document | What it is |
 |---|---|---|
-| 1 | [sparse_network.md](sparse_network.md) | the question and the conceptual landscape — **start there** |
+| 1 | [sparse_network.md](../../progress/sparse_network.md) | the question and the conceptual landscape — **start there** |
 | 2 | [sparse_network_test_progress.md](sparse_network_test_progress.md) | v1 execution log — getting a sparsity gradient to exist at all |
 | 3 | **this file** | v1 results — four perturbations, two arms, and the diagnosis |
 | 4 | [sparse_network_test_progress_v2.md](sparse_network_test_progress_v2.md) | v2 execution log — attempts to make H1's premise actually hold |
@@ -31,7 +31,7 @@ statistically significant and runs **opposite** to the prediction.
 could not have evaluated H1's **mechanism**, because sparsity here never closed the
 perturbation-immune count and identity channels and partly *strengthened* one of them.
 That distinction is what document 4 exists to address, and the general form of the
-argument is in [sparse_network.md](sparse_network.md) §5.
+argument is in [sparse_network.md](../../progress/sparse_network.md) §5.
 
 ---
 
@@ -58,7 +58,7 @@ argument is in [sparse_network.md](sparse_network.md) §5.
   on more *samples*, not dead. The selectivity strengthens a population-identity code
   that every perturbation here leaves intact, and the 0–2-spike regime H1 needs was
   never reached (3.1–4.1 spikes per *active* neuron even at the sparsest). This is
-  pitfall 3 in [sparse_network.md](sparse_network.md#pitfalls-and-confounds).
+  pitfall 3 in [sparse_network.md](../../progress/sparse_network.md#pitfalls-and-confounds).
 
 This is a clean negative result with a diagnosed mechanism, not a pipeline failure.
 
@@ -230,7 +230,7 @@ is flat at ~0.75–0.80.
 
 ## 6. Why it inverted — the mechanism
 
-[sparse_network.md:90-92](sparse_network.md#L90-L92) grounds H1 in the assumption that
+[sparse_network.md:90-92](../../progress/sparse_network.md#L90-L92) grounds H1 in the assumption that
 in a sparse layer "each neuron fires 0–2 spikes, so count carries almost no
 resolution." **That assumption is false for these networks** — `spikes_per_neuron` is
 diluted by silent neurons and hides the real per-neuron statistics:
@@ -271,7 +271,7 @@ Three things follow:
    out of them.
 
 This is pitfall 3 of the design doc, realised. The mechanism section of
-[sparse_network.md](sparse_network.md) needs correcting, not the experiment re-running.
+[sparse_network.md](../../progress/sparse_network.md) needs correcting, not the experiment re-running.
 
 ---
 
@@ -333,7 +333,7 @@ characterise that arm's relocation curve properly.
 
 1. **Record the verdict** in the milestone checklist — Steps 3–4 are done; the
    milestone succeeded on its own terms ("either direction is a valid finding").
-2. **Correct the mechanism section** of [sparse_network.md](sparse_network.md): the
+2. **Correct the mechanism section** of [sparse_network.md](../../progress/sparse_network.md): the
    "0–2 spikes, no count resolution" premise does not hold, and pitfall 3 is what
    actually happened.
 3. **Log spikes-per-*active*-neuron** in the training summaries. The silent-diluted

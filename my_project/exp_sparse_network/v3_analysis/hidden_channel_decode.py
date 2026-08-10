@@ -3,7 +3,7 @@
 Measures how much of a hidden layer's class information *requires spike timing*,
 without perturbing the network and without needing the count channel to be closed.
 This replaces the perturbation sweep as the primary measure of the dependent
-variable; see ``docs/progress/sparse_network_test_progress_v3.md`` for why.
+variable; see ``docs/legacy/sn_progress/sparse_network_test_progress_v3.md`` for why.
 
 Four decoders are fit on the **same** hidden activity, on the train split, and
 scored on the test split:

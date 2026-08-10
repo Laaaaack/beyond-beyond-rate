@@ -189,9 +189,9 @@ run at both layers, at that layer's own window (``[0, 88)`` for layer 1 and
 
 - ``my_project/docs/progress/sparse_network_bothLayer_test_progress.md`` — this
   experiment's design, calibration and status.
-- ``my_project/docs/progress/sparse_network_test_progress_v3.md`` — the 1st-layer v3
+- ``my_project/docs/legacy/sn_progress/sparse_network_test_progress_v3.md`` — the 1st-layer v3
   design, Phase 0 and Phase 1 result.
-- ``my_project/docs/progress/sparse_network_2ndLayer_test_progress_v3.md`` — the
+- ``my_project/docs/legacy/sn_progress/sparse_network_2ndLayer_test_progress_v3.md`` — the
   2nd-layer sibling's calibration.
 - ``my_project/docs/progress/sparse_network.md`` — full design and rationale.
 

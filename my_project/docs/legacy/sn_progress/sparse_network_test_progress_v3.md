@@ -32,7 +32,7 @@ effect, unresolved. See §4's Phase 1 RESULT. **Owner:** _(you)_
 
 | # | Document | What it is |
 |---|---|---|
-| 1 | [sparse_network.md](sparse_network.md) | the question and the conceptual landscape — **start there** |
+| 1 | [sparse_network.md](../../progress/sparse_network.md) | the question and the conceptual landscape — **start there** |
 | 2 | [sparse_network_test_progress.md](sparse_network_test_progress.md) | v1 execution log — getting a sparsity gradient to exist at all |
 | 3 | [sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md) | v1 results — four perturbations, two arms, and the diagnosis |
 | 4 | [sparse_network_test_progress_v2.md](sparse_network_test_progress_v2.md) | v2 execution log — attempts to close the perturbation-immune channels |

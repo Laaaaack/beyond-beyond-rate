@@ -13,8 +13,8 @@ this document is the readable digest of it.
 
 **Sibling documents, if you want the surrounding context:**
 [the original question](sparse_network.md) ·
-[v3 at layer 1 only](sparse_network_test_progress_v3.md) ·
-[v3 at layer 2 only](sparse_network_2ndLayer_test_progress_v3.md)
+[v3 at layer 1 only](../legacy/sn_progress/sparse_network_test_progress_v3.md) ·
+[v3 at layer 2 only](../legacy/sn_progress/sparse_network_2ndLayer_test_progress_v3.md)
 
 ---
 

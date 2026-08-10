@@ -19,10 +19,10 @@ actually happened when we tried.
 | # | Document | What it is |
 |---|---|---|
 | 1 | **this file** | the question and the conceptual landscape |
-| 2 | [sparse_network_test_progress.md](sparse_network_test_progress.md) | v1 execution log — getting a sparsity gradient to exist at all |
-| 3 | [sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md) | v1 results — four perturbations, two arms, and the diagnosis |
-| 4 | [sparse_network_test_progress_v2.md](sparse_network_test_progress_v2.md) | v2 execution log — attempts to make H1's premise actually hold |
-| 5 | [sparse_network_test_progress_v3.md](sparse_network_test_progress_v3.md) | v3 design — why "sparsity" is two variables, and the experiment that separates them |
+| 2 | [sparse_network_test_progress.md](../legacy/sn_progress/sparse_network_test_progress.md) | v1 execution log — getting a sparsity gradient to exist at all |
+| 3 | [sparse_network_1stLayer_results.md](../legacy/sn_progress/sparse_network_1stLayer_results.md) | v1 results — four perturbations, two arms, and the diagnosis |
+| 4 | [sparse_network_test_progress_v2.md](../legacy/sn_progress/sparse_network_test_progress_v2.md) | v2 execution log — attempts to make H1's premise actually hold |
+| 5 | [sparse_network_test_progress_v3.md](../legacy/sn_progress/sparse_network_test_progress_v3.md) | v3 design — why "sparsity" is two variables, and the experiment that separates them |
 
 Much of §5–§7 below was learned the hard way in documents 2–4. It is written here
 as conceptual guidance so the next person does not rediscover it.

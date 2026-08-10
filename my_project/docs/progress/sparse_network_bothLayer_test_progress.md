@@ -54,11 +54,11 @@ read document 5 first.**
 | # | Document | What it is |
 |---|---|---|
 | 1 | [sparse_network.md](sparse_network.md) | the question and the conceptual landscape — **start there** |
-| 2 | [sparse_network_test_progress.md](sparse_network_test_progress.md) | v1 execution log |
-| 3 | [sparse_network_1stLayer_results.md](sparse_network_1stLayer_results.md) | v1 results — four perturbations, two arms, the diagnosis |
-| 4 | [sparse_network_test_progress_v2.md](sparse_network_test_progress_v2.md) | v2 execution log |
-| 5 | [sparse_network_test_progress_v3.md](sparse_network_test_progress_v3.md) | **v3 at layer 1** — design, Phase 0, Phase 1 result. Everything here assumes it |
-| 6 | [sparse_network_2ndLayer_test_progress_v3.md](sparse_network_2ndLayer_test_progress_v3.md) | v3 at layer 2 — calibration, design deltas |
+| 2 | [sparse_network_test_progress.md](../legacy/sn_progress/sparse_network_test_progress.md) | v1 execution log |
+| 3 | [sparse_network_1stLayer_results.md](../legacy/sn_progress/sparse_network_1stLayer_results.md) | v1 results — four perturbations, two arms, the diagnosis |
+| 4 | [sparse_network_test_progress_v2.md](../legacy/sn_progress/sparse_network_test_progress_v2.md) | v2 execution log |
+| 5 | [sparse_network_test_progress_v3.md](../legacy/sn_progress/sparse_network_test_progress_v3.md) | **v3 at layer 1** — design, Phase 0, Phase 1 result. Everything here assumes it |
+| 6 | [sparse_network_2ndLayer_test_progress_v3.md](../legacy/sn_progress/sparse_network_2ndLayer_test_progress_v3.md) | v3 at layer 2 — calibration, design deltas |
 | 7 | **this file** | v3 at **both** layers — calibration, design deltas, status |
 
 Everything in document 5 that is not about *which layer* carries over unchanged: the
