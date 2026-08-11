@@ -1,40 +1,41 @@
-# Sparsity → Temporal Processing: the question, and what it takes to answer it
+# Sparsity and temporal processing: the question, and what an answer needs
 
 > *"Induce different levels of sparsity in the hidden layers (through
 > regularisation), then observe whether sparser-activity networks do more
 > temporal processing than denser ones."* — supervisor's suggestion
 
-**Hypothesis (H1):** as hidden-layer activity gets sparser, the network relies
-*more* on precise hidden spike timing (more temporal processing) and less on a
-rate code.
+**Hypothesis (H1):** when the hidden-layer activity becomes more sparse, the network
+uses the exact time of the hidden spikes more. It uses a rate code less.
 
-This document is the **conceptual reference**: what the question means, how each
-side of it can be measured, what makes it hard to test honestly, and what would
-count as an answer. It deliberately contains no scripts, grids, file paths or
-hyper-parameters — those live in the execution logs below, which also record what
-actually happened when we tried.
+This document is the **conceptual reference**. It tells you what the question means,
+how to measure each side of the question, why an honest test is difficult, and what
+counts as an answer. It contains no scripts, no grids, no file paths and no
+hyper-parameters. Those are in the execution logs below. The logs also record what
+happened when we did the tests.
 
-**Read in this order:**
+**Read the documents in this order:**
 
 | # | Document | What it is |
 |---|---|---|
 | 1 | **this file** | the question and the conceptual landscape |
-| 2 | [sparse_network_test_progress.md](../legacy/sn_progress/sparse_network_test_progress.md) | v1 execution log — getting a sparsity gradient to exist at all |
+| 2 | [sparse_network_test_progress.md](../legacy/sn_progress/sparse_network_test_progress.md) | v1 execution log — how to make a sparsity gradient exist |
 | 3 | [sparse_network_1stLayer_results.md](../legacy/sn_progress/sparse_network_1stLayer_results.md) | v1 results — four perturbations, two arms, and the diagnosis |
-| 4 | [sparse_network_test_progress_v2.md](../legacy/sn_progress/sparse_network_test_progress_v2.md) | v2 execution log — attempts to make H1's premise actually hold |
+| 4 | [sparse_network_test_progress_v2.md](../legacy/sn_progress/sparse_network_test_progress_v2.md) | v2 execution log — attempts to make the premise of H1 true |
 | 5 | [sparse_network_test_progress_v3.md](../legacy/sn_progress/sparse_network_test_progress_v3.md) | v3 design — why "sparsity" is two variables, and the experiment that separates them |
 
-Much of §5–§7 below was learned the hard way in documents 2–4. It is written here
-as conceptual guidance so the next person does not rediscover it.
+We learned much of §5 to §7 below with difficulty in documents 2 to 4. This document
+gives that knowledge as conceptual guidance. The next person then does not find it
+again at the same cost.
 
-> **Corrections from v3 (document 5), which supersede parts of this file:** §5's
-> "sparsity" is not one independent variable but two — spikes per *active* neuron and
-> the *silent fraction* — which push in opposite directions and are confounded at
-> ρ = −0.94 in v1's no-delay arm. §6a's demand that the immune channels be *closed*
-> is stronger than the question needs; they can be *measured and controlled* instead,
-> which v2 spent ~8 h discovering the hard way. §9's claim that a synthetic task needs
-> no manipulation holds for the *input* only — a network can still re-encode input
-> timing as hidden spike counts. See document 5 §2–§3.
+> **Corrections from v3 (document 5). They replace parts of this file.** §5 speaks of
+> "sparsity" as one independent variable. It is two variables: the spikes per *active*
+> neuron, and the *silent fraction*. The two variables push in opposite directions, and
+> they are confounded at ρ = −0.94 in the no-delay arm of v1. §6a asks you to *close*
+> the immune channels. That demand is stronger than the question needs. You can
+> *measure and control* the channels instead. v2 used about 8 h to find this. §9 says
+> that a synthetic task needs no manipulation. That is true for the *input* only,
+> because a network can encode the input timing again as hidden spike counts. Refer to
+> document 5, §2 and §3.
 
 ---
 
@@ -47,250 +48,258 @@ prediction (H1)       :  sparser ⇒ more temporal ⇒ negative correlation
                          between hidden firing rate and timing-dependence
 ```
 
-The project already has the measuring device: the **fixed-weight hidden-perturbation
-sweep** — train on clean data, then perturb one hidden layer's output at evaluation
-only, and watch accuracy fall (see `knowledge_bank/phase1_investigation.md`). A steep
-fall means the representation depends on hidden spike timing; a flat curve means the
-readout is content with a rate code.
+The project already has the measurement device: the **fixed-weight hidden-perturbation
+sweep**. You train on clean data. Then you perturb the output of one hidden layer at
+evaluation only. Then you look at the decrease in accuracy. Refer to
+`knowledge_bank/phase1_investigation.md`. A large decrease shows that the
+representation depends on the time of the hidden spikes. A flat curve shows that the
+readout is satisfied with a rate code.
 
-So the experiment is: train a family of networks differing only in hidden sparsity,
-run the same perturbation sweep on each, and correlate.
+Thus the experiment is as follows. Train a family of networks that differ only in the
+hidden sparsity. Do the same perturbation sweep on each network. Then correlate the
+results.
 
 ---
 
 ## 2. Why the perturbation must be evaluation-only
 
-This is the single most important protocol decision. Two protocols answer different
-questions:
+This is the most important decision about the protocol. The two protocols answer
+different questions:
 
 | Protocol | What it measures | Curve at a hidden site |
 |---|---|---|
-| **Fixed weight** (train clean → evaluate perturbed) | Does the trained representation *rely on* hidden timing? | Informative — flat vs steep |
-| **Perturbation aware** (train and evaluate at the same perturbation) | Is the task *solvable* under the perturbation? | Collapses to flat |
+| **Fixed weight** (train clean → evaluate perturbed) | Does the trained representation *use* the hidden timing? | Informative — flat or steep |
+| **Perturbation aware** (train and evaluate at the same perturbation) | Is the task *possible* under the perturbation? | Becomes flat |
 
-Under perturbation-aware training the upstream layer simply learns to route
-everything through the perturbation-immune channel, so the curve is flat *regardless*
-of sparsity — it would erase the effect being looked for.
+With perturbation-aware training, the upstream layer learns to send all the data
+through the channel that the perturbation cannot touch. The curve is then flat at all
+levels of sparsity. This erases the effect that you look for.
 
-> ⚠️ **Protocol rule:** sparsity is induced **during training**, on clean data. The
-> perturbation is applied **only at evaluation**. They are two separate
-> interventions and must never be combined into one training run.
+> ⚠️ **Protocol rule:** induce the sparsity **during training**, on clean data. Apply
+> the perturbation **only at evaluation**. The two interventions are separate. Do not
+> put them in one training run.
 
 ---
 
-## 3. Measuring each side
+## 3. How to measure each side
 
-**Sparsity (the independent variable).** Reported per trained model, on the test set:
+**Sparsity (the independent variable).** Report these values for each trained model, on
+the test set:
 
-- **Mean firing rate** — fraction of active (neuron, time-bin) slots; the headline
-  x-axis.
-- **Spikes per neuron per sample** — the intuitive form of the same thing.
-- **Spikes per *active* neuron** — the same quantity conditioned on the neuron firing
-  at all.
-- **Silent fraction** — the proportion of (sample, neuron) pairs that fire nothing.
+- **Mean firing rate** — the fraction of active (neuron, time-bin) slots. This is the
+  primary x-axis.
+- **Spikes per neuron per sample** — the same quantity in an easier form.
+- **Spikes per *active* neuron** — the same quantity, but only for the neurons that
+  fire.
+- **Silent fraction** — the fraction of (sample, neuron) pairs that fire nothing.
 
-The last two are not optional extras. A layer at "1.4 spikes per neuron" can be a
-layer where every neuron fires 1–2 spikes, or one where half the neurons are silent
-and the rest fire 3–4. Those are completely different codes, and the headline
-statistic cannot tell them apart. **Always report the conditional statistic beside
-the mean.**
+The last two values are necessary. A layer at "1.4 spikes per neuron" can be a layer
+where each neuron fires 1 to 2 spikes. It can also be a layer where one half of the
+neurons are silent and the other half fire 3 to 4 spikes. These are two different
+codes, and the primary statistic cannot show the difference. **Always report the
+conditional statistic together with the mean.**
 
-**Temporal processing (the dependent variable).** From the accuracy curve over
-perturbation strength, collapse to one number that controls for baseline accuracy,
-since sparse networks may start lower:
+**Temporal processing (the dependent variable).** Use the curve of accuracy against
+perturbation strength. Decrease the curve to one number that controls for the baseline
+accuracy, because sparse networks can start at a lower accuracy:
 
 ```
 retention      = (acc at max perturbation − chance) / (acc at 0 − chance)
 temporal_score = 1 − retention          0 = pure rate code, 1 = fully timing-dependent
 ```
 
-Chance-correcting **before** taking the ratio matters: without it, a network that has
-collapsed to chance masquerades as "maximally temporal". A more robust variant uses
-the normalised area over the whole curve rather than just its endpoints.
+You must correct for chance **before** you calculate the ratio. If you do not, a
+network that has fallen to chance looks like a network with the maximum temporal
+score. A more reliable form uses the normalised area below the full curve, and not
+only the two end points.
 
-**Always analyse against *measured* sparsity, never against the regularisation
-setting.** The map from any penalty knob to achieved sparsity is nonlinear,
-seed-dependent, and — as the execution logs show repeatedly — frequently not what
-was intended.
+**Always analyse against the *measured* sparsity. Never analyse against the
+regularisation setting.** The relation between a penalty control and the sparsity that
+you get is nonlinear and seed-dependent. The execution logs show many times that this
+relation is different from the intended one.
 
 ---
 
-## 4. What a perturbation actually isolates: the three channels
+## 4. What a perturbation isolates: the three channels
 
-A hidden layer's spike tensor can carry class information in three distinguishable
-places:
+The spike tensor of a hidden layer can hold class data in three different places:
 
-| Channel | What it is | Survives a rate-preserving perturbation? |
+| Channel | What it is | Does it survive a rate-preserving perturbation? |
 |---|---|---|
 | **Count** | how many spikes each neuron fires | **yes, exactly** |
-| **Identity** | *which* neurons fire at all | **yes, exactly** |
-| **Timing** | *when* the spikes occur | no — this is what is destroyed |
+| **Identity** | *which* neurons fire | **yes, exactly** |
+| **Timing** | *when* the spikes occur | no — the perturbation destroys this channel |
 
-Identity is formally a special case of count (fired vs didn't), but it is worth
-naming separately because it is what stimulus selectivity creates, and because it can
-be rich even when counts are nearly uniform.
+Identity is a special condition of count (the neuron fired, or it did not fire). But
+identity has its own name here for two reasons. Stimulus selectivity makes identity,
+and identity can be rich even when the counts are almost equal.
 
-Rate-preserving perturbations — per-spike jitter, whole-train shift, random
-relocation — move spikes in time while leaving each neuron's spike *count* and
-*identity* untouched. That is exactly what makes them a clean timing probe. But it
-also means:
+Rate-preserving perturbations move the spikes in time. They keep the spike *count* and
+the *identity* of each neuron. Examples are per-spike jitter, whole-train shift and
+random relocation. This property makes them a clean probe of timing. But this property
+also has a result:
 
-> **A perturbation sweep measures how much the readout depends on the timing
-> channel *given that the count and identity channels survive intact*.** If those
-> channels carry the answer, the curve will be flat no matter how sparse the layer
-> is — not because timing is unused, but because it was never needed.
-
----
-
-## 5. The mechanism that motivates H1 — and the flaw in it
-
-The intuitive argument for H1 runs:
-
-1. A **dense** layer gives each neuron many spikes, so per-neuron count has
-   resolution; the network can store the class in a rate code, which a timing
-   perturbation cannot touch ⇒ flat curve.
-2. A **sparse** layer gives each neuron 0–2 spikes, so count carries almost no
-   resolution; the only informative axis left is *when* the lone spike occurs — a
-   latency code, which the perturbation destroys ⇒ steep curve.
-3. Therefore sparsity pushes information out of the immune count channel into the
-   fragile timing channel.
-
-**Step 2 does not follow, and this is the central conceptual correction of the whole
-investigation.** Count resolution is a **population** property, not a per-neuron one.
-One bit per neuron across a layer of N neurons is N bits of count information — for a
-20-class problem, orders of magnitude more than needed. Collapsing each neuron to
-"fires once or twice" does *not* collapse the population's ability to encode the class
-in counts.
-
-Two consequences follow, and both were observed:
-
-- **Making a layer sparse does not, by itself, close the count channel.** Measured
-  directly, count remained highly decodable at every sparsity level reached.
-- **Sparsity can *open* the identity channel.** If sparsity arrives by neurons
-  falling silent on some stimuli and not others, the result is stimulus selectivity —
-  a labelled-line code that a timing perturbation leaves perfectly intact, and which
-  gets *richer* as sparsity increases. The intervention can therefore push the network
-  in the opposite direction to the one H1 assumes.
-
-So H1 as stated conflates "sparse" with "count-uninformative". They are not the same
-thing, and the first does not imply the second.
+> **A perturbation sweep measures how much the readout uses the timing channel *when
+> the count channel and the identity channel stay complete*.** If those channels hold
+> the answer, the curve stays flat at all levels of sparsity. The flat curve does not
+> show that the network does not use timing. It shows that the network never needed
+> timing.
 
 ---
 
-## 6. What it takes to test H1 honestly
+## 5. The mechanism behind H1 — and the fault in it
 
-Two conditions, both of which have to be *verified rather than assumed*.
+The intuitive argument for H1 is as follows:
 
-### 6a. The immune channels must actually be closed — and it must be measured
+1. A **dense** layer gives each neuron many spikes. The count of each neuron then has
+   resolution. The network can hold the class in a rate code, which a timing
+   perturbation cannot touch. The curve is thus flat.
+2. A **sparse** layer gives each neuron 0 to 2 spikes. The count then has almost no
+   resolution. The only axis that stays is *when* the single spike occurs. This is a
+   latency code, and the perturbation destroys it. The curve is thus steep.
+3. Therefore sparsity moves the data out of the immune count channel into the weak
+   timing channel.
 
-Since sparsity does not close the count channel by itself, something else has to. And
-whatever is tried, the closure must be **measured, before any headline correlation is
-read**:
+**Step 2 is not correct. This is the central conceptual correction of the full
+investigation.** Count resolution is a property of the **population**, and not of one
+neuron. One bit for each neuron in a layer of N neurons gives N bits of count data. For
+a problem with 20 classes, this is much more than the network needs. A decrease to
+"the neuron fires one or two spikes" does *not* remove the ability of the population to
+encode the class in the counts.
 
-> **Manipulation check.** Fit a simple linear decoder to predict the label from (i)
-> the per-neuron spike-count vector and (ii) its binarisation. Both are exactly
-> invariant to every rate-preserving perturbation, so the count decode is a *ceiling*
-> on what a perturbation-immune readout could achieve. It must fall to near chance.
+Two results follow, and we saw both of them:
 
-If it does not, the headline result is uninterpretable — a flat curve could mean
-"timing is unused" or "the network didn't need timing because counts were still
-available", and nothing in the curve distinguishes them. A useful sanity reference:
-compare the count decode against the network's *own* accuracy. If counts decode
-*better* than the network scores, the network is demonstrably not forced onto timing.
+- **A sparse layer does not close the count channel.** We measured the count channel
+  directly. It stayed easy to decode at all levels of sparsity that we reached.
+- **Sparsity can *open* the identity channel.** Sparsity can occur because neurons
+  become silent for some stimuli and not for other stimuli. The result is stimulus
+  selectivity: a labelled-line code. A timing perturbation keeps this code complete,
+  and the code becomes *richer* when the sparsity increases. Thus the intervention can
+  move the network in the direction opposite to the direction that H1 gives.
 
-Two hard-won points about achieving closure:
-
-- **The requirement is close to binary.** Narrowing the count distribution partway
-  buys very little — the decode falls only slowly until the counts collapse to
-  essentially a single value, at which point it drops to chance. There is no gradual
-  approach, so "tune the penalty a bit harder" is not a strategy.
-- **Soft penalties lose an arms race.** The count channel can be worth more to a
-  network than its own accuracy, so it will exploit whatever slack a penalty leaves —
-  silence, within-band variation, a heavy tail. A channel is reliably removed by
-  **constraining it architecturally**, not by making it expensive.
-
-### 6b. Timing-specific fragility must be separated from general robustness
-
-A network that is more robust to a timing perturbation may simply be more robust to
-*everything*. Comparing timing perturbations against each other cannot detect this.
-
-> **Control.** Include a perturbation that destroys **rate** rather than timing (e.g.
-> random spike deletion). If the sparsity trend appears there too, it is general
-> robustness. Partial the control out of the timing correlation, or compare the two at
-> matched damage, before claiming anything about timing.
-
-This control changed the interpretation of the v1 results substantially. It should be
-considered mandatory, not optional.
+Thus H1, as written, mixes "sparse" with "count-uninformative". The two conditions are
+different, and the first condition does not cause the second.
 
 ---
 
-## 7. Confounds and pitfalls
+## 6. What an honest test of H1 needs
 
-1. **The count/identity escape hatch (§5).** The dominant one. Verify closure; do not
-   assume it.
-2. **General robustness (§6b).** Always run the rate-destroying control.
-3. **Statistical dilution.** `spikes per neuron` averaged over silent neurons hides
-   the actual per-neuron code. Report the conditional statistic too.
-4. **Accuracy confound.** Sparse networks may have lower clean accuracy. Never compare
-   raw accuracy drops; use the chance-corrected, baseline-normalised score, and show a
-   guard plot of clean accuracy against sparsity to demonstrate the trend is not
-   merely "sparser networks are worse".
-5. **Broken ≠ temporal.** A network sitting at chance has no representation to probe.
-   Drop it from the analysis and say so.
-6. **Dead neurons.** Driving spiking *down* can push a neuron so far below threshold
-   that its surrogate gradient vanishes and no penalty can revive it. Pushing activity
-   *up* is the safe direction. Whatever mechanism is used, watch the silence
-   trajectory from the first epoch, not just its final value — a constraint that is
-   satisfied early can be given back later as the task loss reasserts itself.
-7. **Perturbation magnitude is not matched across sparsity levels.** Displacing a
-   fixed fraction of many spikes disturbs a downstream neuron more than the same
-   fraction of few. This is a standing limitation of the design; the rate control
-   partly addresses it but does not eliminate it.
-8. **Readout caveat (inherited).** The probe reveals only the timing that the
-   *readout* uses. A layer could hold temporal structure the output layer ignores.
-   State it; do not try to fix it here.
-9. **Nominal ≠ achieved.** Analyse measured statistics, never the knob that was set.
-10. **Seeds.** Sparsity regularisation interacts strongly with initialisation. Use
-    several seeds and treat each (setting, seed) as one data point.
+There are two conditions. You must **check** both conditions. Do not accept them
+without a check.
+
+### 6a. The immune channels must be closed, and you must measure the closure
+
+Sparsity does not close the count channel. Therefore a different mechanism must close
+it. You must **measure** the closure before you read any primary correlation:
+
+> **Manipulation check.** Fit a simple linear decoder to predict the label from (i) the
+> spike-count vector of each neuron and (ii) the binarised form of that vector. Both
+> inputs stay exactly the same under all rate-preserving perturbations. Therefore the
+> count decode is a *ceiling* on the accuracy of an immune readout. The count decode
+> must fall to a value near chance.
+
+If the count decode does not fall, you cannot interpret the primary result. A flat
+curve can mean "the network does not use timing". It can also mean "the network did not
+need timing, because the counts were still available". The curve cannot show which of
+the two is true. There is a good check for sanity: compare the count decode against the
+accuracy of the *network itself*. If the counts decode *better* than the network
+scores, the network is clearly not forced to use timing.
+
+Two points about closure, which cost much work:
+
+- **The requirement is almost binary.** A partly narrow count distribution gives very
+  little. The decode falls slowly until the counts fall to almost one value. Then the
+  decode falls to chance. There is no gradual approach. Therefore "make the penalty a
+  little stronger" is not a method.
+- **Soft penalties lose the competition.** The count channel can be worth more to a
+  network than its own accuracy. The network then uses all the space that a penalty
+  leaves: silence, variation inside the band, or a heavy tail. To remove a channel
+  reliably, **constrain it in the architecture**. Do not only make it expensive.
+
+### 6b. You must separate timing-specific weakness from general robustness
+
+A network that resists a timing perturbation better can simply resist *all* damage
+better. A comparison of timing perturbations against each other cannot find this.
+
+> **Control.** Include a perturbation that destroys the **rate** and not the timing.
+> Random spike deletion is an example. If the sparsity trend is also there, the trend
+> is general robustness. Remove the control from the timing correlation with a partial
+> correlation, or compare the two at equal damage. Do this before you make any claim
+> about timing.
+
+This control changed the interpretation of the v1 results by a large amount. Treat the
+control as necessary, and not as optional.
 
 ---
 
-## 8. What would count as an answer
+## 7. Confounds and traps
 
-The milestone is complete when a headline plot exists — timing-dependence against
-measured firing rate — **with the manipulation check and the robustness control
-documented alongside it**. Any of these is a legitimate result:
+1. **The escape route through count and identity (§5).** This is the most important
+   trap. Check the closure. Do not accept it without a check.
+2. **General robustness (§6b).** Always run the control that destroys the rate.
+3. **Statistical dilution.** The mean of `spikes per neuron` over the silent neurons
+   hides the true code of each neuron. Also report the conditional statistic.
+4. **The accuracy confound.** Sparse networks can have a lower clean accuracy. Never
+   compare the raw decreases in accuracy. Use the score that is corrected for chance
+   and normalised to the baseline. Also show a guard plot of the clean accuracy against
+   the sparsity. The plot shows that the trend is not only "sparser networks are worse".
+5. **A broken network is not a temporal network.** A network at chance has no
+   representation to probe. Remove it from the analysis, and say that you removed it.
+6. **Dead neurons.** If you drive the spiking *down*, a neuron can go so far below the
+   threshold that its surrogate gradient becomes zero. No penalty can then make it
+   active again. To push the activity *up* is the safe direction. With all mechanisms,
+   look at the silence from the first epoch. Do not look only at the final value. The
+   network can satisfy a constraint early and then release it later, when the task loss
+   becomes strong again.
+7. **The perturbation magnitude is not equal at different levels of sparsity.** If you
+   move a given fraction of many spikes, you disturb a downstream neuron more than if
+   you move the same fraction of few spikes. This is a permanent limitation of the
+   design. The rate control decreases the problem, but it does not remove it.
+8. **A caution about the readout (inherited).** The probe shows only the timing that
+   the *readout* uses. A layer can hold temporal structure that the output layer
+   ignores. State this limitation. Do not try to correct it here.
+9. **The nominal value is not the value that you get.** Analyse the measured
+   statistics. Never analyse the control that you set.
+10. **Seeds.** Sparsity regularisation interacts strongly with the initialisation. Use
+    several seeds, and treat each (setting, seed) as one data point.
+
+---
+
+## 8. What counts as an answer
+
+The milestone is complete when a primary plot exists. The plot shows the
+timing-dependence against the measured firing rate. You must **record the manipulation
+check and the robustness control with the plot**. Each of these results is legitimate:
 
 | Outcome | Reading |
 |---|---|
-| Negative correlation, immune channels verified closed | **H1 supported.** Sparsity does shift the code toward timing. |
-| Positive correlation, immune channels verified closed | **H1 refuted on its own terms** — the strongest possible negative, since the network had no non-timing option and still did not become more timing-dependent. |
-| No correlation, immune channels verified closed | Timing-dependence is invariant to sparsity; sparsity may change the *precision* of a timing code without changing whether one is used. |
-| Correlation of any sign, immune channels **not** closed | Uninterpretable as a test of H1. It may still be a valid finding about the intervention (this is what v1 delivered), but the mechanism claim cannot be evaluated. |
-| Accuracy collapses to chance once the immune channels are closed | H1 is **untestable in this setting** — the task cannot be done on timing alone here. A real and reportable finding. |
+| Negative correlation, immune channels checked and closed | **H1 supported.** Sparsity moves the code toward timing. |
+| Positive correlation, immune channels checked and closed | **H1 refuted on its own terms.** This is the strongest possible negative result. The network had no alternative to timing, but it did not use timing more. |
+| No correlation, immune channels checked and closed | The timing-dependence does not change with the sparsity. Sparsity can change the *precision* of a timing code, but not the decision to use one. |
+| Correlation of any sign, immune channels **not** closed | You cannot interpret this as a test of H1. It can still be a valid result about the intervention. This is what v1 gave. But you cannot evaluate the claim about the mechanism. |
+| Accuracy falls to chance when the immune channels close | H1 is **not testable in this configuration.** The task is not possible with timing only. This is a real result, and you must report it. |
 
-Note that the fourth and fifth rows are not failures of the experiment; they are
-findings about the intervention and the task respectively, and both are worth
-reporting.
+The fourth row and the fifth row are not failures of the experiment. They are results
+about the intervention and about the task. Report both of them.
 
 ---
 
-## 9. Where to go if the current setting cannot answer it
+## 9. Where to go if this configuration cannot answer the question
 
-The difficulty throughout is that on a natural dataset the count channel is *useful*,
-so the network fights to keep it, and closing it by force may leave the task
-unsolvable. A cleaner venue removes the fight instead of winning it:
+There is a difficulty in all of the work. With a natural dataset the count channel is
+*useful*. Therefore the network keeps it, and a forced closure can make the task
+impossible. A better location for the experiment removes the competition:
 
-**A synthetic task whose class information is carried by inter-spike intervals** and
-whose stimuli are constructed so that spike *counts* are uninformative **by design**.
-Then no manipulation is needed at all: the count channel carries nothing because the
-data put nothing in it, the network has no incentive to preserve it, and the
-perturbation sweep measures exactly what it is supposed to. The temporal signal is
-also exactly known, which makes it a far stronger confirmation venue than a natural
+**Use a synthetic task in which the inter-spike intervals carry the class data.**
+Construct the stimuli so that the spike *counts* hold no class data **by design**. Then
+you need no manipulation. The count channel holds nothing, because the data put nothing
+in it. The network has no reason to keep the channel. The perturbation sweep then
+measures exactly the correct quantity. You also know the temporal signal exactly. This
+makes a synthetic task a much stronger location for confirmation than a natural
 dataset.
 
-Other axes worth varying once the core question is settled: the perturbation site
-(2nd hidden layer as well as 1st), dataset variants, and the presence or absence of
-learnable axonal delays — the latter being itself a timing mechanism, so running both
-turns a confound into a measurement of how much of the temporal processing the delays
-were doing.
+You can vary other axes after the core question has an answer: the perturbation site
+(the 2nd hidden layer and the 1st), variants of the dataset, and the presence or the
+absence of learnable axonal delays. The delays are a timing mechanism themselves.
+Therefore, if you run both conditions, you change a confound into a measurement of how
+much of the temporal processing the delays did.
